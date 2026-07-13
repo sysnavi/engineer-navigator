@@ -1,0 +1,326 @@
+<meta charset="utf-8">
+<title>Engineer Navigator — スタイルタイル(8bit)</title>
+<style>
+  :root{
+    /* committed single visual world: pastel Y2K / retro-GUI desktop */
+    --paper:#D7E7F4;      /* powder-blue desktop ground */
+    --grid:#C3DAF4;       /* graph-paper lines */
+    --paper-pink:#F9ECFD; /* lilac ground */
+    --grid-pink:#F4D6EE;
+    --royal:#004AAD;      /* chrome / titlebars / outlines */
+    --royal-2:#2A6FD6;
+    --sky:#5DADE2;
+    --peri:#C1DBFF;       /* pixel text on royal */
+    --ink:#12235F;        /* navy text on white */
+    --ink-soft:#5566A0;
+    --pink:#F48FB1;
+    --pink-hot:#F24E9C;   /* START */
+    --lemon:#FFD84D;
+    --win:#FFFFFF;
+    --line:#12235F;
+    --shadow:5px 5px 0 rgba(18,35,95,.9);
+    --shadow-sm:3px 3px 0 rgba(18,35,95,.85);
+    --font-jp:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Noto Sans JP",Meiryo,sans-serif;
+    --font-mono:"Courier New","Andale Mono",monospace;
+    color-scheme: light;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;}
+  .desktop{
+    min-height:100vh;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 27px, var(--grid) 27px 28px),
+      repeating-linear-gradient(90deg, transparent 0 27px, var(--grid) 27px 28px),
+      var(--paper);
+    font-family:var(--font-jp);
+    color:var(--ink);
+    padding:34px clamp(14px,4vw,54px) 80px;
+    line-height:1.7;
+  }
+  .wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:26px;}
+
+  /* pixel canvas text sits inline */
+  .px canvas{display:block;image-rendering:pixelated;max-width:100%;height:auto;}
+  .px{display:inline-block;line-height:0;max-width:100%;}
+
+  /* ---------- retro window ---------- */
+  .win{
+    background:var(--win);
+    border:2.5px solid var(--line);
+    border-radius:10px;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .win__bar{
+    background:var(--royal);
+    display:flex;align-items:center;gap:9px;
+    padding:8px 12px;
+    border-bottom:2.5px solid var(--line);
+  }
+  .win__bar .dot{width:12px;height:12px;border-radius:50%;border:2px solid #fff;}
+  .win__bar .dot.a{background:var(--pink-hot);}
+  .win__bar .dot.b{background:var(--lemon);}
+  .win__bar .dot.c{background:#7ED957;}
+  .win__title{color:#fff;font-family:var(--font-mono);font-weight:700;font-size:13px;letter-spacing:.06em;margin-left:4px;}
+  .win__title .em{color:var(--peri);}
+  .win__bar .spring{flex:1;}
+  .win__bar .close{color:#fff;font-family:var(--font-mono);font-weight:700;border:2px solid #fff;border-radius:4px;padding:0 6px;font-size:12px;}
+  .win__body{padding:22px;}
+
+  /* hero desktop banner */
+  .hero .win__body{padding:30px 26px 26px;text-align:center;background:
+      radial-gradient(120% 120% at 50% 0%, #EAF3FF 0%, #FFFFFF 60%);}
+  .hero .sub{font-family:var(--font-mono);font-weight:700;letter-spacing:.14em;color:var(--royal-2);text-transform:uppercase;font-size:12px;margin:2px 0 16px;}
+  .hero p.lead{max-width:60ch;margin:16px auto 0;color:var(--ink-soft);font-size:14px;}
+
+  h2.sec{margin:0 0 2px;} /* pixel */
+  .sec-wrap{display:flex;flex-direction:column;gap:12px;}
+
+  /* grids */
+  .row{display:grid;gap:26px;}
+  .r2{grid-template-columns:1fr 1fr;}
+  .r3{grid-template-columns:repeat(3,1fr);}
+  @media(max-width:820px){.r2,.r3{grid-template-columns:1fr;}}
+
+  /* swatches */
+  .sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px;}
+  .chip{border:2.5px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:var(--shadow-sm);}
+  .chip .col{height:52px;}
+  .chip .lab{padding:6px 8px;background:#fff;font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--ink);}
+  .chip .lab b{display:block;font-family:var(--font-jp);font-size:11.5px;}
+
+  /* buttons */
+  .btns{display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
+  .btn{font-family:var(--font-mono);font-weight:700;border:2.5px solid var(--line);border-radius:8px;
+       padding:10px 20px;cursor:pointer;box-shadow:var(--shadow-sm);font-size:14px;letter-spacing:.04em;
+       transition:transform .05s, box-shadow .05s;}
+  .btn:active{transform:translate(3px,3px);box-shadow:0 0 0 rgba(0,0,0,0);}
+  .btn-start{background:var(--pink-hot);color:#fff;}
+  .btn-ok{background:var(--royal);color:#fff;}
+  .btn-cancel{background:#fff;color:var(--ink);}
+  .field{border:2px solid var(--line);border-radius:6px;padding:8px 10px;font-family:var(--font-jp);color:var(--ink-soft);background:#F7FBFF;font-size:13px;}
+
+  /* skill level as pixel blocks */
+  .skill{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 12px;border:2px solid var(--line);border-radius:8px;background:#F7FBFF;box-shadow:var(--shadow-sm);}
+  .skill .nm{font-weight:800;font-size:14px;}
+  .blocks{display:inline-flex;gap:4px;}
+  .blk{width:16px;height:16px;border:2px solid var(--line);border-radius:3px;background:#EAF1FB;}
+  .blk.f{background:var(--royal);box-shadow:inset -3px -3px 0 rgba(0,0,0,.18), inset 3px 3px 0 rgba(255,255,255,.35);}
+  .lv{font-family:var(--font-mono);font-weight:700;font-size:12px;color:var(--royal);}
+
+  /* hearts (condition) */
+  .hearts{display:inline-flex;gap:5px;}
+
+  /* AI suggestion dialog */
+  .dialog .win__bar{background:var(--pink-hot);}
+  .badge{display:inline-block;font-family:var(--font-mono);font-weight:700;font-size:11px;border:2px solid var(--line);border-radius:5px;padding:1px 7px;background:var(--lemon);color:var(--ink);box-shadow:2px 2px 0 rgba(18,35,95,.85);}
+  .quote{border:2px dashed var(--royal-2);background:#EEF5FF;border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--ink-soft);margin:10px 0 0;}
+
+  /* achievement */
+  .ach{display:flex;align-items:center;gap:16px;background:
+      repeating-linear-gradient(0deg,transparent 0 13px,#FBEFF8 13px 14px), var(--paper-pink);
+    border:2.5px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:16px 18px;}
+  .ach .t{font-family:var(--font-mono);font-weight:700;color:var(--pink-hot);letter-spacing:.1em;font-size:12px;}
+  .ach .d{font-weight:800;font-size:15px;margin-top:2px;}
+
+  .note{font-size:12.5px;color:var(--ink-soft);}
+  .pxlabel{font-family:var(--font-mono);font-weight:700;letter-spacing:.08em;color:var(--royal-2);text-transform:uppercase;font-size:11px;margin:0 0 10px;}
+  .stack{display:flex;flex-direction:column;gap:12px;}
+  .foot{font-family:var(--font-mono);font-size:12px;color:var(--royal-2);text-align:center;margin-top:8px;letter-spacing:.05em;}
+  .cursor{display:inline-block;vertical-align:-6px;margin-left:4px;}
+
+  @media (prefers-reduced-motion:no-preference){
+    .blink{animation:bl 1s steps(1) infinite;}
+    @keyframes bl{50%{opacity:0;}}
+  }
+</style>
+
+<div class="desktop">
+  <div class="wrap">
+
+    <!-- HERO -->
+    <section class="win hero">
+      <div class="win__bar">
+        <span class="dot a"></span><span class="dot b"></span><span class="dot c"></span>
+        <span class="win__title">EngineerNavigator<span class="em">.exe</span></span>
+        <span class="spring"></span>
+        <span class="close">×</span>
+      </div>
+      <div class="win__body">
+        <div class="px" data-h="30" data-mono="1" style="color:var(--royal-2)">STYLE TILE</div>
+        <div style="height:10px"></div>
+        <div class="px" data-h="64" style="color:var(--royal);font-weight:800">レベルアップ、しよう</div>
+        <p class="sub">Weekly Report → Skill Map → Level Up</p>
+        <p class="lead">社員総会デッキの“午後の顔”— 8bit / レトロGUI / Y2K の世界観で Engineer Navigator を組み直した見本。
+          週報＝クエスト、スキル＝レベル、本番リリース＝実績解除。成長を「ゲームの手ざわり」で返す方向です。
+          <span class="cursor" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 12 12" shape-rendering="crispEdges"><path d="M1 0h1v1h1v1h1v1h1v1h1v1h1v1h-2v1h1v1h1v1h-1v1h-1v-1h-1v-1h-1v-1h-1v1h-1z" fill="#F24E9C" stroke="#12235F" stroke-width=".4"/></svg>
+          </span>
+        </p>
+      </div>
+    </section>
+
+    <!-- PALETTE -->
+    <section class="sec-wrap">
+      <h2 class="sec px" data-h="26" style="color:var(--ink)">カラー / PALETTE</h2>
+      <div class="win"><div class="win__body">
+        <div class="sw">
+          <div class="chip"><div class="col" style="background:#004AAD"></div><div class="lab">#004AAD<b>ロイヤル(枠)</b></div></div>
+          <div class="chip"><div class="col" style="background:#2A6FD6"></div><div class="lab">#2A6FD6<b>ブルー</b></div></div>
+          <div class="chip"><div class="col" style="background:#5DADE2"></div><div class="lab">#5DADE2<b>スカイ</b></div></div>
+          <div class="chip"><div class="col" style="background:#C1DBFF"></div><div class="lab">#C1DBFF<b>ペリ文字</b></div></div>
+          <div class="chip"><div class="col" style="background:#D7E7F4"></div><div class="lab">#D7E7F4<b>方眼(青)</b></div></div>
+          <div class="chip"><div class="col" style="background:#F9ECFD"></div><div class="lab">#F9ECFD<b>ライラック</b></div></div>
+          <div class="chip"><div class="col" style="background:#F24E9C"></div><div class="lab">#F24E9C<b>ホットピンク</b></div></div>
+          <div class="chip"><div class="col" style="background:#FFD84D"></div><div class="lab">#FFD84D<b>レモン</b></div></div>
+          <div class="chip"><div class="col" style="background:#12235F"></div><div class="lab" style="color:#12235F">#12235F<b>ネイビー(線/字)</b></div></div>
+        </div>
+        <p class="note" style="margin:14px 0 0">前半のコーポレート・ネイビー(<b style="color:#12235F">#12235F</b>系)を“線と文字”として引き継ぎ、パステルと方眼で午後の8bit面に接続。多色だが<b>ロイヤルブルー＋パステル＋ホットピンク</b>に役割を固定して散らかさない。</p>
+      </div></div>
+    </section>
+
+    <!-- TYPE -->
+    <section class="sec-wrap">
+      <h2 class="sec px" data-h="26" style="color:var(--ink)">タイポ / TYPE</h2>
+      <div class="win"><div class="win__body stack">
+        <div><p class="pxlabel">Display — pixel (canvas)</p>
+          <div class="px" data-h="46" style="color:var(--royal);font-weight:800">スキルマップ</div></div>
+        <div><p class="pxlabel">Label — pixel mono</p>
+          <div class="px" data-h="20" data-mono="1" style="color:var(--pink-hot)">QUESTION 03 — 今週の詰まり</div></div>
+        <div><p class="pxlabel">Body — legible gothic（本文はドット化しない）</p>
+          <p style="margin:0;max-width:60ch;font-size:14.5px;color:var(--ink)">週報を書くと、AIが習得した技術を抽出して提案します。承認するとスキルがレベルアップし、経歴書がそのまま単価交渉のエビデンスになります。読ませる文はピクセル化せず可読性を優先（デッキも本文は普通のゴシック）。</p></div>
+        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><p class="pxlabel" style="margin:0">Number</p>
+          <div class="px" data-h="40" data-mono="1" style="color:var(--royal)">3,900万円</div></div>
+      </div></div>
+    </section>
+
+    <!-- CONTROLS + SKILL -->
+    <section class="sec-wrap">
+      <h2 class="sec px" data-h="26" style="color:var(--ink)">部品 / COMPONENTS</h2>
+      <div class="row r2">
+
+        <!-- weekly report window -->
+        <div class="win">
+          <div class="win__bar"><span class="dot a"></span><span class="dot b"></span><span class="dot c"></span>
+            <span class="win__title">週報<span class="em">.exe</span></span><span class="spring"></span><span class="close">×</span></div>
+          <div class="win__body stack">
+            <div><p class="pxlabel" style="margin-bottom:6px">今週のコンディション</p>
+              <div class="btns" style="gap:8px">
+                <button class="btn btn-cancel" style="padding:8px 12px">☀️ 好調</button>
+                <button class="btn btn-ok" style="padding:8px 12px">🌤 普通</button>
+                <button class="btn btn-cancel" style="padding:8px 12px">☁️ モヤモヤ</button>
+              </div></div>
+            <div><p class="pxlabel" style="margin-bottom:6px">今週やったこと</p>
+              <div class="field">・受発注APIの結合テストを完了、指摘を修正 …</div></div>
+            <div class="btns" style="margin-top:2px">
+              <button class="btn btn-start">▶ ていしゅつ</button>
+              <button class="btn btn-cancel">したがき保存</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- skill map game screen -->
+        <div class="win">
+          <div class="win__bar"><span class="dot a"></span><span class="dot b"></span><span class="dot c"></span>
+            <span class="win__title">SKILL_MAP<span class="em">.sav</span></span><span class="spring"></span><span class="close">×</span></div>
+          <div class="win__body stack">
+            <div class="skill"><span class="nm">React</span>
+              <span style="display:flex;gap:10px;align-items:center"><span class="blocks"><i class="blk f"></i><i class="blk f"></i><i class="blk f"></i><i class="blk f"></i><i class="blk"></i></span><span class="lv">Lv4</span></span></div>
+            <div class="skill"><span class="nm">SQLチューニング</span>
+              <span style="display:flex;gap:10px;align-items:center"><span class="blocks"><i class="blk f"></i><i class="blk f"></i><i class="blk f"></i><i class="blk"></i><i class="blk"></i></span><span class="lv">Lv3</span></span></div>
+            <div class="skill"><span class="nm">Docker</span>
+              <span style="display:flex;gap:10px;align-items:center"><span class="blocks"><i class="blk f"></i><i class="blk"></i><i class="blk"></i><i class="blk"></i><i class="blk"></i></span><span class="lv">Lv1</span></span></div>
+            <p class="note" style="margin:2px 0 0;display:flex;align-items:center;gap:8px">
+              <span class="px" data-h="16" data-mono="1" style="color:var(--pink-hot)">LEVEL UP!</span> 承認するとブロックが1つ光る
+              <span class="blink" style="color:var(--pink-hot);font-family:var(--font-mono);font-weight:700">_</span></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI suggestion dialog -->
+      <div class="win dialog" style="margin-top:26px">
+        <div class="win__bar"><span class="dot a"></span><span class="dot b"></span><span class="dot c"></span>
+          <span class="win__title">AIからの提案</span><span class="spring"></span><span class="close">×</span></div>
+        <div class="win__body">
+          <div style="display:flex;gap:16px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap">
+            <div style="flex:1;min-width:240px">
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <span class="badge">実績 / EXP</span>
+                <strong style="font-size:15px">SQLパフォーマンスチューニング → Lv3</strong>
+              </div>
+              <p style="margin:8px 0 0;font-size:13.5px;color:var(--ink-soft)">インデックス見直しで処理時間を40%短縮する実務成果を上げた。</p>
+              <p class="quote">週報より：「バッチ処理のパフォーマンス改善（SQLのインデックス見直しで処理時間を40%短縮）」</p>
+            </div>
+            <div class="btns" style="flex-direction:column;gap:10px">
+              <button class="btn btn-ok">◯ しょうにん</button>
+              <button class="btn btn-cancel">× きゃっか</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- achievement -->
+      <div class="ach" style="margin-top:26px">
+        <svg width="58" height="58" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+          <path d="M4 1h8v1h1v4h-1v1h-1v1h-1v1h-1v2h1v1h1v1H5v-1h1v-1h1v-2H6V8H5V7H4V6H3V2h1z" fill="#FFD84D" stroke="#12235F" stroke-width=".5"/>
+          <rect x="7" y="3" width="2" height="2" fill="#F24E9C"/>
+        </svg>
+        <div>
+          <div class="t">★ ACHIEVEMENT UNLOCKED</div>
+          <div class="d">本番リリース経験 を獲得 — 単価交渉のエビデンスに追加</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MOTIFS -->
+    <section class="sec-wrap">
+      <h2 class="sec px" data-h="26" style="color:var(--ink)">モチーフ / MOTIFS</h2>
+      <div class="win"><div class="win__body stack">
+        <div class="note"><b style="color:var(--ink)">■ レトロGUIウィンドウ</b> — 画面の器はすべて“ウィンドウ”。タイトルバー＋ドット＋×ボタン。機能ごとに `週報.exe` `SKILL_MAP.sav` のように命名。</div>
+        <div class="note"><b style="color:var(--ink)">■ 方眼紙デスクトップ</b> — 背景は水色/ライラックのグラフペーパー。余白が“机の上”になる。</div>
+        <div class="note"><b style="color:var(--ink)">■ ピクセル見出し＋可読な本文</b> — display文字だけドット化、読ませる文は普通のゴシック（デッキと同じ使い分け）。</div>
+        <div class="note"><b style="color:var(--ink)">■ ゲーム語彙</b> — START / QUESTION / LEVEL UP / ACHIEVEMENT。スキルLv＝光るブロック、実績＝ドットのトロフィー。</div>
+        <div class="note"><b style="color:var(--ink)">■ ホットピンクは“行動”専用</b> — 提出・開始などの主ボタンだけに使い、多用しない。ロイヤルブルーが土台。</div>
+      </div></div>
+    </section>
+
+    <p class="foot">▶ ENGINEER NAVIGATOR — STYLE TILE ・ PRESS START</p>
+  </div>
+</div>
+
+<script>
+  (function(){
+    function pixelate(el){
+      var target = parseInt(el.getAttribute('data-h')||'40',10);
+      var mono = el.getAttribute('data-mono')==='1';
+      var cs = getComputedStyle(el);
+      var color = cs.color, weight = cs.fontWeight||'700';
+      var family = mono ? '"Courier New","Andale Mono",monospace' : cs.fontFamily;
+      var txt = el.textContent;
+      var base = mono ? 12 : 15;               /* internal resolution — lower = chunkier */
+      var pad = 2;
+      var meas = document.createElement('canvas').getContext('2d');
+      meas.font = weight+' '+base+'px '+family;
+      var w = Math.max(1, Math.ceil(meas.measureText(txt).width))+pad*2;
+      var h = Math.ceil(base*1.4)+pad*2;
+      var c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      var x = c.getContext('2d');
+      x.imageSmoothingEnabled = false;
+      x.font = weight+' '+base+'px '+family;
+      x.textBaseline = 'middle';
+      x.fillStyle = color;
+      x.fillText(txt, pad, h/2+ (base*0.06));
+      var factor = target/base;
+      c.style.width = Math.round(w*factor)+'px';
+      c.style.height = Math.round(h*factor)+'px';
+      el.setAttribute('role','img');
+      el.setAttribute('aria-label', txt);
+      el.textContent = '';
+      el.appendChild(c);
+    }
+    function run(){ document.querySelectorAll('.px').forEach(pixelate); }
+    if (document.readyState !== 'loading') run();
+    else document.addEventListener('DOMContentLoaded', run);
+  })();
+</script>
