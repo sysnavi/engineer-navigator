@@ -1,29 +1,61 @@
 <meta charset="utf-8">
 <title>Engineer Navigator — スタイルタイル(8bit)</title>
 <style>
+  /* =========================================================
+     PALETTE = 14 tokens. アプリ実装では <html data-palette="..">
+     を切り替えるだけで全画面が着せ替わる（この見本と同じ仕組み）。
+     固定: --pink-hot(行動) --lemon(バッジ) は全パレット共通。
+     ========================================================= */
   :root{
-    /* committed single visual world: pastel Y2K / retro-GUI desktop */
-    --paper:#D7E7F4;      /* powder-blue desktop ground */
+    --paper:#D7E7F4;      /* desktop ground */
     --grid:#C3DAF4;       /* graph-paper lines */
-    --paper-pink:#F9ECFD; /* lilac ground */
-    --grid-pink:#F4D6EE;
     --royal:#004AAD;      /* chrome / titlebars / outlines */
     --royal-2:#2A6FD6;
     --sky:#5DADE2;
     --peri:#C1DBFF;       /* pixel text on royal */
-    --ink:#12235F;        /* navy text on white */
+    --ink:#12235F;        /* text */
     --ink-soft:#5566A0;
+    --win:#FFFFFF;        /* window body */
+    --line:#12235F;       /* borders */
+    --surface:#F7FBFF;    /* fields / skill rows */
+    --surface-2:#EAF1FB;  /* empty blocks */
+    --quote:#EEF5FF;
+    --hard:rgba(18,35,95,.9);   /* hard pixel shadow */
+    --ach-bg:#F9ECFD; --ach-stripe:#FBEFF8; --ach-ink:#12235F;
+    /* fixed across palettes */
+    --pink-hot:#F24E9C;   /* ACTION only */
     --pink:#F48FB1;
-    --pink-hot:#F24E9C;   /* START */
     --lemon:#FFD84D;
-    --win:#FFFFFF;
-    --line:#12235F;
-    --shadow:5px 5px 0 rgba(18,35,95,.9);
-    --shadow-sm:3px 3px 0 rgba(18,35,95,.85);
     --font-jp:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Noto Sans JP",Meiryo,sans-serif;
     --font-mono:"Courier New","Andale Mono",monospace;
     color-scheme: light;
   }
+  :root[data-palette="creamsoda"]{
+    --paper:#F9ECFD; --grid:#F1D8F3; --royal:#8A3FC6; --royal-2:#A667DC; --sky:#D48FE8;
+    --peri:#F3DCFF; --ink:#3D1A66; --ink-soft:#8A6FAE; --win:#FFFFFF; --line:#3D1A66;
+    --surface:#FBF4FF; --surface-2:#F3E6FB; --quote:#F8EDFF; --hard:rgba(61,26,102,.85);
+    --ach-bg:#FCE3F2; --ach-stripe:#F9D6EC; --ach-ink:#3D1A66;
+  }
+  :root[data-palette="gameboy"]{
+    --paper:#E6EFC8; --grid:#D2E39E; --royal:#306230; --royal-2:#4C7C3C; --sky:#8BAC0F;
+    --peri:#CADC9F; --ink:#0F380F; --ink-soft:#4C6B43; --win:#F4F9E4; --line:#0F380F;
+    --surface:#EDF5D4; --surface-2:#DDE9B8; --quote:#E9F2CE; --hard:rgba(15,56,15,.85);
+    --ach-bg:#DDE9B8; --ach-stripe:#D2E0A6; --ach-ink:#0F380F;
+  }
+  :root[data-palette="midnight"]{
+    --paper:#0B1026; --grid:#182050; --royal:#2A6FD6; --royal-2:#5DA0F0; --sky:#7FD1FF;
+    --peri:#C1DBFF; --ink:#E4ECFF; --ink-soft:#93A5D8; --win:#131B3E; --line:#050A1E;
+    --surface:#1A2450; --surface-2:#101A40; --quote:#152047; --hard:rgba(0,0,0,.7);
+    --ach-bg:#2A1837; --ach-stripe:#35204A; --ach-ink:#F3E3FF;
+    color-scheme: dark;
+  }
+  :root[data-palette="sunset"]{
+    --paper:#FDF0DC; --grid:#F6DCB4; --royal:#D5552F; --royal-2:#E2703F; --sky:#F0A24A;
+    --peri:#FFE1C2; --ink:#5C2A12; --ink-soft:#A56F4E; --win:#FFFAF2; --line:#5C2A12;
+    --surface:#FDF4E5; --surface-2:#F7E7CC; --quote:#FBEEDA; --hard:rgba(92,42,18,.8);
+    --ach-bg:#FBE3D0; --ach-stripe:#F6D7BC; --ach-ink:#5C2A12;
+  }
+
   *{box-sizing:border-box;}
   body{margin:0;}
   .desktop{
@@ -36,10 +68,10 @@
     color:var(--ink);
     padding:34px clamp(14px,4vw,54px) 80px;
     line-height:1.7;
+    transition:background .15s;
   }
   .wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:26px;}
 
-  /* pixel canvas text sits inline */
   .px canvas{display:block;image-rendering:pixelated;max-width:100%;height:auto;}
   .px{display:inline-block;line-height:0;max-width:100%;}
 
@@ -48,7 +80,7 @@
     background:var(--win);
     border:2.5px solid var(--line);
     border-radius:10px;
-    box-shadow:var(--shadow);
+    box-shadow:5px 5px 0 var(--hard);
     overflow:hidden;
   }
   .win__bar{
@@ -67,59 +99,70 @@
   .win__bar .close{color:#fff;font-family:var(--font-mono);font-weight:700;border:2px solid #fff;border-radius:4px;padding:0 6px;font-size:12px;}
   .win__body{padding:22px;}
 
-  /* hero desktop banner */
   .hero .win__body{padding:30px 26px 26px;text-align:center;background:
-      radial-gradient(120% 120% at 50% 0%, #EAF3FF 0%, #FFFFFF 60%);}
+      radial-gradient(120% 120% at 50% 0%, var(--surface) 0%, var(--win) 60%);}
   .hero .sub{font-family:var(--font-mono);font-weight:700;letter-spacing:.14em;color:var(--royal-2);text-transform:uppercase;font-size:12px;margin:2px 0 16px;}
   .hero p.lead{max-width:60ch;margin:16px auto 0;color:var(--ink-soft);font-size:14px;}
 
-  h2.sec{margin:0 0 2px;} /* pixel */
+  h2.sec{margin:0 0 2px;}
   .sec-wrap{display:flex;flex-direction:column;gap:12px;}
 
-  /* grids */
   .row{display:grid;gap:26px;}
   .r2{grid-template-columns:1fr 1fr;}
-  .r3{grid-template-columns:repeat(3,1fr);}
-  @media(max-width:820px){.r2,.r3{grid-template-columns:1fr;}}
+  @media(max-width:820px){.r2{grid-template-columns:1fr;}}
+
+  /* palette save-slots */
+  .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;}
+  .slot{
+    display:flex;flex-direction:column;gap:8px;align-items:flex-start;
+    font-family:var(--font-mono);font-weight:700;font-size:12px;letter-spacing:.04em;
+    border:2.5px solid var(--line);border-radius:8px;background:var(--surface);
+    color:var(--ink);
+    padding:10px 12px;cursor:pointer;box-shadow:3px 3px 0 var(--hard);
+    transition:transform .05s, box-shadow .05s;
+  }
+  .slot:active{transform:translate(2px,2px);box-shadow:0 0 0 rgba(0,0,0,0);}
+  .slot:focus-visible{outline:3px solid var(--pink-hot);outline-offset:2px;}
+  .slot .mini{display:flex;gap:4px;}
+  .slot .mini i{width:16px;height:16px;border:2px solid var(--line);border-radius:4px;display:block;}
+  .slot .st{color:var(--ink-soft);font-size:10.5px;}
+  .slot.on{background:var(--royal);color:#fff;}
+  .slot.on .st{color:var(--peri);}
 
   /* swatches */
   .sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:12px;}
-  .chip{border:2.5px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:var(--shadow-sm);}
+  .chip{border:2.5px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:3px 3px 0 var(--hard);}
   .chip .col{height:52px;}
-  .chip .lab{padding:6px 8px;background:#fff;font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--ink);}
+  .chip .lab{padding:6px 8px;background:var(--win);font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--ink);}
   .chip .lab b{display:block;font-family:var(--font-jp);font-size:11.5px;}
 
   /* buttons */
   .btns{display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
   .btn{font-family:var(--font-mono);font-weight:700;border:2.5px solid var(--line);border-radius:8px;
-       padding:10px 20px;cursor:pointer;box-shadow:var(--shadow-sm);font-size:14px;letter-spacing:.04em;
+       padding:10px 20px;cursor:pointer;box-shadow:3px 3px 0 var(--hard);font-size:14px;letter-spacing:.04em;
        transition:transform .05s, box-shadow .05s;}
   .btn:active{transform:translate(3px,3px);box-shadow:0 0 0 rgba(0,0,0,0);}
+  .btn:focus-visible{outline:3px solid var(--pink-hot);outline-offset:2px;}
   .btn-start{background:var(--pink-hot);color:#fff;}
   .btn-ok{background:var(--royal);color:#fff;}
-  .btn-cancel{background:#fff;color:var(--ink);}
-  .field{border:2px solid var(--line);border-radius:6px;padding:8px 10px;font-family:var(--font-jp);color:var(--ink-soft);background:#F7FBFF;font-size:13px;}
+  .btn-cancel{background:var(--win);color:var(--ink);}
+  .field{border:2px solid var(--line);border-radius:6px;padding:8px 10px;font-family:var(--font-jp);color:var(--ink-soft);background:var(--surface);font-size:13px;}
 
-  /* skill level as pixel blocks */
-  .skill{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 12px;border:2px solid var(--line);border-radius:8px;background:#F7FBFF;box-shadow:var(--shadow-sm);}
+  /* skill level blocks */
+  .skill{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 12px;border:2px solid var(--line);border-radius:8px;background:var(--surface);box-shadow:3px 3px 0 var(--hard);}
   .skill .nm{font-weight:800;font-size:14px;}
   .blocks{display:inline-flex;gap:4px;}
-  .blk{width:16px;height:16px;border:2px solid var(--line);border-radius:3px;background:#EAF1FB;}
+  .blk{width:16px;height:16px;border:2px solid var(--line);border-radius:3px;background:var(--surface-2);}
   .blk.f{background:var(--royal);box-shadow:inset -3px -3px 0 rgba(0,0,0,.18), inset 3px 3px 0 rgba(255,255,255,.35);}
-  .lv{font-family:var(--font-mono);font-weight:700;font-size:12px;color:var(--royal);}
+  .lv{font-family:var(--font-mono);font-weight:700;font-size:12px;color:var(--royal-2);}
 
-  /* hearts (condition) */
-  .hearts{display:inline-flex;gap:5px;}
-
-  /* AI suggestion dialog */
   .dialog .win__bar{background:var(--pink-hot);}
-  .badge{display:inline-block;font-family:var(--font-mono);font-weight:700;font-size:11px;border:2px solid var(--line);border-radius:5px;padding:1px 7px;background:var(--lemon);color:var(--ink);box-shadow:2px 2px 0 rgba(18,35,95,.85);}
-  .quote{border:2px dashed var(--royal-2);background:#EEF5FF;border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--ink-soft);margin:10px 0 0;}
+  .badge{display:inline-block;font-family:var(--font-mono);font-weight:700;font-size:11px;border:2px solid var(--line);border-radius:5px;padding:1px 7px;background:var(--lemon);color:#12235F;box-shadow:2px 2px 0 var(--hard);}
+  .quote{border:2px dashed var(--royal-2);background:var(--quote);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--ink-soft);margin:10px 0 0;}
 
-  /* achievement */
   .ach{display:flex;align-items:center;gap:16px;background:
-      repeating-linear-gradient(0deg,transparent 0 13px,#FBEFF8 13px 14px), var(--paper-pink);
-    border:2.5px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:16px 18px;}
+      repeating-linear-gradient(0deg,transparent 0 13px,var(--ach-stripe) 13px 14px), var(--ach-bg);
+    border:2.5px solid var(--line);border-radius:10px;box-shadow:5px 5px 0 var(--hard);padding:16px 18px;color:var(--ach-ink);}
   .ach .t{font-family:var(--font-mono);font-weight:700;color:var(--pink-hot);letter-spacing:.1em;font-size:12px;}
   .ach .d{font-weight:800;font-size:15px;margin-top:2px;}
 
@@ -147,12 +190,12 @@
         <span class="close">×</span>
       </div>
       <div class="win__body">
-        <div class="px" data-h="30" data-mono="1" style="color:var(--royal-2)">STYLE TILE</div>
+        <div class="px" data-h="30" data-mono="1" style="color:var(--royal-2)">STYLE TILE v2</div>
         <div style="height:10px"></div>
         <div class="px" data-h="64" style="color:var(--royal);font-weight:800">レベルアップ、しよう</div>
         <p class="sub">Weekly Report → Skill Map → Level Up</p>
-        <p class="lead">社員総会デッキの“午後の顔”— 8bit / レトロGUI / Y2K の世界観で Engineer Navigator を組み直した見本。
-          週報＝クエスト、スキル＝レベル、本番リリース＝実績解除。成長を「ゲームの手ざわり」で返す方向です。
+        <p class="lead">8bit / レトロGUI / Y2K の世界観。週報＝クエスト、スキル＝レベル、本番リリース＝実績解除。
+          v2: ピクセル見出しの解像度アップ ＋ <b style="color:var(--ink)">カラーパレット切替（下の PALETTE.cfg で試せます）</b>。
           <span class="cursor" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 12 12" shape-rendering="crispEdges"><path d="M1 0h1v1h1v1h1v1h1v1h1v1h1v1h-2v1h1v1h1v1h-1v1h-1v-1h-1v-1h-1v-1h-1v1h-1z" fill="#F24E9C" stroke="#12235F" stroke-width=".4"/></svg>
           </span>
@@ -160,22 +203,51 @@
       </div>
     </section>
 
-    <!-- PALETTE -->
+    <!-- PALETTE SWITCHER -->
     <section class="sec-wrap">
-      <h2 class="sec px" data-h="26" style="color:var(--ink)">カラー / PALETTE</h2>
-      <div class="win"><div class="win__body">
-        <div class="sw">
-          <div class="chip"><div class="col" style="background:#004AAD"></div><div class="lab">#004AAD<b>ロイヤル(枠)</b></div></div>
-          <div class="chip"><div class="col" style="background:#2A6FD6"></div><div class="lab">#2A6FD6<b>ブルー</b></div></div>
-          <div class="chip"><div class="col" style="background:#5DADE2"></div><div class="lab">#5DADE2<b>スカイ</b></div></div>
-          <div class="chip"><div class="col" style="background:#C1DBFF"></div><div class="lab">#C1DBFF<b>ペリ文字</b></div></div>
-          <div class="chip"><div class="col" style="background:#D7E7F4"></div><div class="lab">#D7E7F4<b>方眼(青)</b></div></div>
-          <div class="chip"><div class="col" style="background:#F9ECFD"></div><div class="lab">#F9ECFD<b>ライラック</b></div></div>
-          <div class="chip"><div class="col" style="background:#F24E9C"></div><div class="lab">#F24E9C<b>ホットピンク</b></div></div>
-          <div class="chip"><div class="col" style="background:#FFD84D"></div><div class="lab">#FFD84D<b>レモン</b></div></div>
-          <div class="chip"><div class="col" style="background:#12235F"></div><div class="lab" style="color:#12235F">#12235F<b>ネイビー(線/字)</b></div></div>
+      <h2 class="sec px" data-h="26" style="color:var(--ink)">きせかえ / PALETTE.cfg</h2>
+      <div class="win">
+        <div class="win__bar"><span class="dot a"></span><span class="dot b"></span><span class="dot c"></span>
+          <span class="win__title">PALETTE<span class="em">.cfg</span></span><span class="spring"></span><span class="close">×</span></div>
+        <div class="win__body stack">
+          <p class="note" style="margin:0">セーブスロットを選ぶと全画面が着せ替わります。アプリではマイページに置き、選択はユーザーごとに保存。
+            <b style="color:var(--ink)">ホットピンク（行動ボタン）とレモン（バッジ）は全パレット共通</b> — 「ピンク＝実行」の筋肉記憶を守ります。</p>
+          <div class="slots" id="slots">
+            <button class="slot on" data-p="sky">
+              <span class="mini"><i style="background:#004AAD"></i><i style="background:#5DADE2"></i><i style="background:#D7E7F4"></i></span>
+              SKY<span class="st">デフォルト・水色の方眼</span></button>
+            <button class="slot" data-p="creamsoda">
+              <span class="mini"><i style="background:#8A3FC6"></i><i style="background:#D48FE8"></i><i style="background:#F9ECFD"></i></span>
+              CREAM SODA<span class="st">ライラック×パープル</span></button>
+            <button class="slot" data-p="gameboy">
+              <span class="mini"><i style="background:#306230"></i><i style="background:#8BAC0F"></i><i style="background:#E6EFC8"></i></span>
+              GAME BOY<span class="st">DMGグリーン単色系</span></button>
+            <button class="slot" data-p="midnight">
+              <span class="mini"><i style="background:#2A6FD6"></i><i style="background:#7FD1FF"></i><i style="background:#0B1026"></i></span>
+              MIDNIGHT<span class="st">ダーク・深夜のCRT</span></button>
+            <button class="slot" data-p="sunset">
+              <span class="mini"><i style="background:#D5552F"></i><i style="background:#F0A24A"></i><i style="background:#FDF0DC"></i></span>
+              SUNSET<span class="st">夕焼けオレンジ</span></button>
+          </div>
         </div>
-        <p class="note" style="margin:14px 0 0">前半のコーポレート・ネイビー(<b style="color:#12235F">#12235F</b>系)を“線と文字”として引き継ぎ、パステルと方眼で午後の8bit面に接続。多色だが<b>ロイヤルブルー＋パステル＋ホットピンク</b>に役割を固定して散らかさない。</p>
+      </div>
+    </section>
+
+    <!-- PALETTE TOKENS -->
+    <section class="sec-wrap">
+      <h2 class="sec px" data-h="26" style="color:var(--ink)">カラー / TOKENS</h2>
+      <div class="win"><div class="win__body">
+        <div class="sw" id="swatches">
+          <div class="chip"><div class="col" data-t="--royal"></div><div class="lab"><span></span><b>ロイヤル(枠)</b></div></div>
+          <div class="chip"><div class="col" data-t="--royal-2"></div><div class="lab"><span></span><b>ブルー2</b></div></div>
+          <div class="chip"><div class="col" data-t="--sky"></div><div class="lab"><span></span><b>スカイ</b></div></div>
+          <div class="chip"><div class="col" data-t="--peri"></div><div class="lab"><span></span><b>ペリ文字</b></div></div>
+          <div class="chip"><div class="col" data-t="--paper"></div><div class="lab"><span></span><b>方眼(地)</b></div></div>
+          <div class="chip"><div class="col" data-t="--ink"></div><div class="lab"><span></span><b>インク(線/字)</b></div></div>
+          <div class="chip"><div class="col" data-t="--pink-hot"></div><div class="lab"><span></span><b>ホットピンク ※固定</b></div></div>
+          <div class="chip"><div class="col" data-t="--lemon"></div><div class="lab"><span></span><b>レモン ※固定</b></div></div>
+        </div>
+        <p class="note" style="margin:14px 0 0">パレット＝この<b>トークン一式の差し替え</b>。部品は全部トークン参照なので、パレット追加はCSS十数行で済む。上のスロットを切り替えるとこの表も現在値に変わります。</p>
       </div></div>
     </section>
 
@@ -183,12 +255,12 @@
     <section class="sec-wrap">
       <h2 class="sec px" data-h="26" style="color:var(--ink)">タイポ / TYPE</h2>
       <div class="win"><div class="win__body stack">
-        <div><p class="pxlabel">Display — pixel (canvas)</p>
+        <div><p class="pxlabel">Display — pixel (canvas / v2:解像度アップ)</p>
           <div class="px" data-h="46" style="color:var(--royal);font-weight:800">スキルマップ</div></div>
         <div><p class="pxlabel">Label — pixel mono</p>
           <div class="px" data-h="20" data-mono="1" style="color:var(--pink-hot)">QUESTION 03 — 今週の詰まり</div></div>
         <div><p class="pxlabel">Body — legible gothic（本文はドット化しない）</p>
-          <p style="margin:0;max-width:60ch;font-size:14.5px;color:var(--ink)">週報を書くと、AIが習得した技術を抽出して提案します。承認するとスキルがレベルアップし、経歴書がそのまま単価交渉のエビデンスになります。読ませる文はピクセル化せず可読性を優先（デッキも本文は普通のゴシック）。</p></div>
+          <p style="margin:0;max-width:60ch;font-size:14.5px;color:var(--ink)">週報を書くと、AIが習得した技術を抽出して提案します。承認するとスキルがレベルアップし、経歴書がそのまま単価交渉のエビデンスになります。読ませる文はピクセル化せず可読性を優先。</p></div>
         <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><p class="pxlabel" style="margin:0">Number</p>
           <div class="px" data-h="40" data-mono="1" style="color:var(--royal)">3,900万円</div></div>
       </div></div>
@@ -199,7 +271,6 @@
       <h2 class="sec px" data-h="26" style="color:var(--ink)">部品 / COMPONENTS</h2>
       <div class="row r2">
 
-        <!-- weekly report window -->
         <div class="win">
           <div class="win__bar"><span class="dot a"></span><span class="dot b"></span><span class="dot c"></span>
             <span class="win__title">週報<span class="em">.exe</span></span><span class="spring"></span><span class="close">×</span></div>
@@ -219,7 +290,6 @@
           </div>
         </div>
 
-        <!-- skill map game screen -->
         <div class="win">
           <div class="win__bar"><span class="dot a"></span><span class="dot b"></span><span class="dot c"></span>
             <span class="win__title">SKILL_MAP<span class="em">.sav</span></span><span class="spring"></span><span class="close">×</span></div>
@@ -237,7 +307,6 @@
         </div>
       </div>
 
-      <!-- AI suggestion dialog -->
       <div class="win dialog" style="margin-top:26px">
         <div class="win__bar"><span class="dot a"></span><span class="dot b"></span><span class="dot c"></span>
           <span class="win__title">AIからの提案</span><span class="spring"></span><span class="close">×</span></div>
@@ -259,7 +328,6 @@
         </div>
       </div>
 
-      <!-- achievement -->
       <div class="ach" style="margin-top:26px">
         <svg width="58" height="58" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
           <path d="M4 1h8v1h1v4h-1v1h-1v1h-1v1h-1v2h1v1h1v1H5v-1h1v-1h1v-2H6V8H5V7H4V6H3V2h1z" fill="#FFD84D" stroke="#12235F" stroke-width=".5"/>
@@ -272,32 +340,32 @@
       </div>
     </section>
 
-    <!-- MOTIFS -->
+    <!-- HOW IT WORKS -->
     <section class="sec-wrap">
-      <h2 class="sec px" data-h="26" style="color:var(--ink)">モチーフ / MOTIFS</h2>
+      <h2 class="sec px" data-h="26" style="color:var(--ink)">しくみ / HOW IT WORKS</h2>
       <div class="win"><div class="win__body stack">
-        <div class="note"><b style="color:var(--ink)">■ レトロGUIウィンドウ</b> — 画面の器はすべて“ウィンドウ”。タイトルバー＋ドット＋×ボタン。機能ごとに `週報.exe` `SKILL_MAP.sav` のように命名。</div>
-        <div class="note"><b style="color:var(--ink)">■ 方眼紙デスクトップ</b> — 背景は水色/ライラックのグラフペーパー。余白が“机の上”になる。</div>
-        <div class="note"><b style="color:var(--ink)">■ ピクセル見出し＋可読な本文</b> — display文字だけドット化、読ませる文は普通のゴシック（デッキと同じ使い分け）。</div>
-        <div class="note"><b style="color:var(--ink)">■ ゲーム語彙</b> — START / QUESTION / LEVEL UP / ACHIEVEMENT。スキルLv＝光るブロック、実績＝ドットのトロフィー。</div>
-        <div class="note"><b style="color:var(--ink)">■ ホットピンクは“行動”専用</b> — 提出・開始などの主ボタンだけに使い、多用しない。ロイヤルブルーが土台。</div>
+        <div class="note"><b style="color:var(--ink)">1. パレット＝CSSトークン一式</b> — 全部品が <code>var(--royal)</code> 等を参照。<code>&lt;html data-palette="gameboy"&gt;</code> を書き換えるだけで全画面が即・着せ替え（このページと同じ）。</div>
+        <div class="note"><b style="color:var(--ink)">2. ユーザーごとに保存</b> — <code>User.palette</code> カラムを1つ追加。マイページで選択 → Server Action で保存 → layout.tsx がSSRで <code>data-palette</code> を刻むから、リロードしてもチラつかない。</div>
+        <div class="note"><b style="color:var(--ink)">3. 増やすのが簡単</b> — 新パレット＝CSS十数行。季節限定（SAKURA、HALLOWEEN…）やレベル到達で解禁される“ごほうびパレット”にも展開できる。</div>
       </div></div>
     </section>
 
-    <p class="foot">▶ ENGINEER NAVIGATOR — STYLE TILE ・ PRESS START</p>
+    <p class="foot">▶ ENGINEER NAVIGATOR — STYLE TILE v2 ・ PRESS START</p>
   </div>
 </div>
 
 <script>
   (function(){
+    /* v2: 内部解像度を上げてドットを細かく（jp 15→22 / mono 12→18） */
     function pixelate(el){
       var target = parseInt(el.getAttribute('data-h')||'40',10);
       var mono = el.getAttribute('data-mono')==='1';
+      if(!el.dataset.txt){ el.dataset.txt = el.textContent; }
+      var txt = el.dataset.txt;
       var cs = getComputedStyle(el);
       var color = cs.color, weight = cs.fontWeight||'700';
       var family = mono ? '"Courier New","Andale Mono",monospace' : cs.fontFamily;
-      var txt = el.textContent;
-      var base = mono ? 12 : 15;               /* internal resolution — lower = chunkier */
+      var base = mono ? 18 : 22;
       var pad = 2;
       var meas = document.createElement('canvas').getContext('2d');
       meas.font = weight+' '+base+'px '+family;
@@ -310,7 +378,7 @@
       x.font = weight+' '+base+'px '+family;
       x.textBaseline = 'middle';
       x.fillStyle = color;
-      x.fillText(txt, pad, h/2+ (base*0.06));
+      x.fillText(txt, pad, h/2 + (base*0.06));
       var factor = target/base;
       c.style.width = Math.round(w*factor)+'px';
       c.style.height = Math.round(h*factor)+'px';
@@ -319,8 +387,40 @@
       el.textContent = '';
       el.appendChild(c);
     }
-    function run(){ document.querySelectorAll('.px').forEach(pixelate); }
-    if (document.readyState !== 'loading') run();
-    else document.addEventListener('DOMContentLoaded', run);
+    function renderAll(){ document.querySelectorAll('.px').forEach(pixelate); }
+
+    /* swatch hex labels reflect the active palette */
+    function refreshSwatches(){
+      var rootCS = getComputedStyle(document.documentElement);
+      document.querySelectorAll('#swatches .chip').forEach(function(chip){
+        var col = chip.querySelector('.col');
+        var t = col.getAttribute('data-t');
+        var v = rootCS.getPropertyValue(t).trim();
+        col.style.background = 'var('+t+')';
+        chip.querySelector('.lab span').textContent = v.toUpperCase();
+      });
+    }
+
+    function setPalette(p){
+      if(p==='sky'){ delete document.documentElement.dataset.palette; }
+      else { document.documentElement.dataset.palette = p; }
+      try{ localStorage.setItem('en-palette', p); }catch(e){}
+      document.querySelectorAll('.slot').forEach(function(s){
+        s.classList.toggle('on', s.getAttribute('data-p')===p);
+      });
+      renderAll();          /* pixel canvases re-bake with new token colors */
+      refreshSwatches();
+    }
+
+    function init(){
+      var saved = 'sky';
+      try{ saved = localStorage.getItem('en-palette') || 'sky'; }catch(e){}
+      document.querySelectorAll('.slot').forEach(function(s){
+        s.addEventListener('click', function(){ setPalette(s.getAttribute('data-p')); });
+      });
+      setPalette(saved);
+    }
+    if (document.readyState !== 'loading') init();
+    else document.addEventListener('DOMContentLoaded', init);
   })();
 </script>
