@@ -1,0 +1,20 @@
+services:
+  db:
+    # pgvector入り: Phase 3 のRAG（学習コンテンツ検索）で拡張を有効化する
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5433:5432" # 他プロジェクト(mykarte等)の5432と衝突しないよう5433
+    environment:
+      POSTGRES_USER: navi
+      POSTGRES_PASSWORD: navi
+      POSTGRES_DB: engineer_navigator
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U navi -d engineer_navigator"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

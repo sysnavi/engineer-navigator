@@ -1,0 +1,311 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// ユーザー・案件
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ENGINEER
+  SALES
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      Role     @default(ENGINEER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments      Assignment[]
+  salesProjects    Project[]         @relation("ProjectSalesRep")
+  reports          WeeklyReport[]
+  skills           EngineerSkill[]
+  skillSuggestions SkillSuggestion[]
+  conditionAlerts  ConditionAlert[]
+  mentorSessions   MentorSession[]
+  roleplaySessions RoleplaySession[]
+}
+
+model Project {
+  id          String  @id @default(cuid())
+  name        String
+  // 顧客名は機密のため表示用の別名のみ保持する
+  clientAlias String?
+  salesRep    User?   @relation("ProjectSalesRep", fields: [salesRepId], references: [id])
+  salesRepId  String?
+
+  assignments Assignment[]
+  createdAt   DateTime     @default(now())
+}
+
+model Assignment {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String
+  project   Project   @relation(fields: [projectId], references: [id])
+  projectId String
+  roleNote  String? // 現場での役割（例: バックエンド実装、テストリーダー）
+  startedAt DateTime
+  endedAt   DateTime?
+}
+
+// ---------------------------------------------------------------------------
+// 週報（すべてのデータの源泉）— 設計は docs/weekly-report.md
+// ---------------------------------------------------------------------------
+
+enum ReportStatus {
+  DRAFT
+  SUBMITTED
+}
+
+model WeeklyReport {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  weekStart DateTime @db.Date // その週の月曜日
+
+  // 選択式（1=悪い/低い 〜 4=良い/余裕）
+  conditionSelf Int? // ☀️4 🌤3 ☁️2 🌧1
+  workloadSelf  Int? // 余裕あり4 〜 限界が近い1
+
+  // 自由記述
+  didText      String? // 今週やったこと
+  newText      String? // 新しく触れた技術・初めてやったこと
+  struggleText String? // 詰まったこと・モヤモヤ
+  nextText     String? // 来週やること
+  shareText    String? // 会社への共有・相談
+
+  wantsConsultation Boolean      @default(false) // 営業に直接相談したい
+  status            ReportStatus @default(DRAFT)
+  submittedAt       DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  analysis         ReportAnalysis?
+  skillSuggestions SkillSuggestion[]
+
+  @@unique([userId, weekStart])
+}
+
+enum AnalysisStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
+model ReportAnalysis {
+  id       String         @id @default(cuid())
+  report   WeeklyReport   @relation(fields: [reportId], references: [id])
+  reportId String         @unique
+  status   AnalysisStatus @default(PENDING)
+
+  extractedSkills Json? // 抽出した技術・工程・役割の構造化データ
+  conditionAi     Float? // AIトーン解析スコア（0-100）
+  divergence      Float? // 自己申告とAI解析の乖離（「弱音を書けない」シグナル）
+  signals         Json? // 要対応シグナル（相談検知など）
+  feedbackText    String? // 本人向け「今週の成長ポイント」
+
+  model        String?
+  inputTokens  Int?
+  outputTokens Int?
+  error        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// スキルマップ
+// ---------------------------------------------------------------------------
+
+enum SkillCategory {
+  LANGUAGE
+  FRAMEWORK
+  CLOUD
+  DATABASE
+  AI
+  TOOL
+  PROCESS // 工程（要件定義・設計・テスト等）
+  SOFT // リーダーシップ・顧客調整等
+  OTHER
+}
+
+model Skill {
+  id       String        @id @default(cuid())
+  name     String        @unique
+  category SkillCategory
+  aliases  String[] // 表記ゆれ（例: "Go" / "Golang"）
+
+  engineerSkills   EngineerSkill[]
+  skillSuggestions SkillSuggestion[]
+}
+
+model EngineerSkill {
+  id               String    @id @default(cuid())
+  user             User      @relation(fields: [userId], references: [id])
+  userId           String
+  skill            Skill     @relation(fields: [skillId], references: [id])
+  skillId          String
+  level            Int // 1-5
+  monthsExperience Int?
+  lastUsedAt       DateTime?
+  updatedAt        DateTime  @updatedAt
+
+  histories SkillHistory[]
+
+  @@unique([userId, skillId])
+}
+
+// 成長グラフ用の履歴（レベルが変わるたびに1行）
+model SkillHistory {
+  id              String        @id @default(cuid())
+  engineerSkill   EngineerSkill @relation(fields: [engineerSkillId], references: [id])
+  engineerSkillId String
+  level           Int
+  changedAt       DateTime      @default(now())
+  sourceNote      String? // 例: "2026-W28 週報のAI提案を承認"
+}
+
+enum SuggestionKind {
+  NEW_SKILL // 未登録スキルの新規追加
+  LEVEL_UP // 既存スキルのレベルアップ
+  EXPERIENCE // 経歴書に載せる実績（本番リリース等）
+}
+
+enum SuggestionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model SkillSuggestion {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  kind           SuggestionKind
+  skill          Skill?         @relation(fields: [skillId], references: [id])
+  skillId        String?
+  skillName      String // AIが抽出した生の名称
+  suggestedLevel Int?
+  reason         String // 提案理由
+  evidenceQuote  String? // 週報からの引用（エビデンス）
+
+  sourceReport   WeeklyReport @relation(fields: [sourceReportId], references: [id])
+  sourceReportId String
+
+  status    SuggestionStatus @default(PENDING)
+  decidedAt DateTime?
+  createdAt DateTime         @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// コンディション検知（Phase 2）
+// ---------------------------------------------------------------------------
+
+enum AlertLevel {
+  INFO
+  WARN
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+model ConditionAlert {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  level   AlertLevel
+  trigger String // 発火ルール名（例: "3週連続下降トレンド" "相談フラグ"）
+  reason  String
+
+  status    AlertStatus @default(OPEN)
+  note      String? // 対応記録（面談メモ）
+  closedAt  DateTime?
+  createdAt DateTime    @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// AIメンター（Phase 3）
+// ---------------------------------------------------------------------------
+
+enum ChatRole {
+  USER
+  ASSISTANT
+}
+
+model MentorSession {
+  id            String   @id @default(cuid())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+  topic         String? // 例: "AWS SAA" "JSTQB FL"
+  certification String?
+  createdAt     DateTime @default(now())
+
+  messages MentorMessage[]
+}
+
+model MentorMessage {
+  id        String        @id @default(cuid())
+  session   MentorSession @relation(fields: [sessionId], references: [id])
+  sessionId String
+  role      ChatRole
+  content   String
+  createdAt DateTime      @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// 「一歩先の役割」シミュレーター（Phase 4）
+// ---------------------------------------------------------------------------
+
+model RoleplayScenario {
+  id          String   @id @default(cuid())
+  title       String // 例: "顧客からの無理な仕様変更"
+  description String
+  persona     String // AIが演じる役（顧客・メンバー等）の設定
+  objectives  Json // 評価観点（リーダー職務定義書ベース）
+  createdAt   DateTime @default(now())
+
+  sessions RoleplaySession[]
+}
+
+enum RoleplaySessionStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+model RoleplaySession {
+  id         String                @id @default(cuid())
+  user       User                  @relation(fields: [userId], references: [id])
+  userId     String
+  scenario   RoleplayScenario      @relation(fields: [scenarioId], references: [id])
+  scenarioId String
+  status     RoleplaySessionStatus @default(IN_PROGRESS)
+  feedback   String? // 終了後の自動フィードバック
+  createdAt  DateTime              @default(now())
+
+  messages RoleplayMessage[]
+}
+
+model RoleplayMessage {
+  id        String          @id @default(cuid())
+  session   RoleplaySession @relation(fields: [sessionId], references: [id])
+  sessionId String
+  role      ChatRole
+  content   String
+  createdAt DateTime        @default(now())
+}
