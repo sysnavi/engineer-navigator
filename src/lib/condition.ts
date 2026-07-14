@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db";
+import { mondayOf } from "@/lib/week";
+import { notifyAlertCreated, notifyReportReminder } from "@/lib/notify";
 
 // コンディション検知（Phase 2）— 設計は docs/roadmap.md / docs/data-model.md
 //
@@ -144,7 +146,7 @@ export function detectSignals(series: WeekPoint[]): Detected[] {
   return out;
 }
 
-/** 同一トリガーの未クローズがなければ ConditionAlert を作成 */
+/** 同一トリガーの未クローズがなければ ConditionAlert を作成し、外部通知する */
 async function createIfNew(userId: string, d: Detected): Promise<boolean> {
   const dup = await prisma.conditionAlert.findFirst({
     where: { userId, trigger: d.trigger, status: { not: "CLOSED" } },
@@ -153,6 +155,16 @@ async function createIfNew(userId: string, d: Detected): Promise<boolean> {
   await prisma.conditionAlert.create({
     data: { userId, level: d.level, trigger: d.trigger, reason: d.reason },
   });
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { name: true },
+  });
+  // 通知には reason（週報本文由来）を含めない — src/lib/notify.ts のプライバシー注記参照
+  await notifyAlertCreated({
+    level: d.level,
+    trigger: d.trigger,
+    userName: user?.name ?? "(不明)",
+  }).catch((e) => console.error("notifyAlertCreated failed:", e));
   return true;
 }
 
@@ -175,7 +187,7 @@ export async function createConsultationAlert(userId: string): Promise<void> {
   });
 }
 
-/** 全エンジニアを再スキャン（ダッシュボードの手動実行・将来は週次ジョブ） */
+/** 全エンジニアを再スキャン */
 export async function scanAllEngineers(): Promise<{
   scanned: number;
   created: number;
@@ -189,6 +201,75 @@ export async function scanAllEngineers(): Promise<{
     created += await runConditionRules(e.id);
   }
   return { scanned: engineers.length, created };
+}
+
+/**
+ * 未提出チェック（週次ジョブ・月曜朝実行想定）
+ * - 先週分が未提出 → リマインド通知（それ自体もコンディションシグナル）
+ * - 2週連続未提出 → WARNアラート。在籍2週未満の新規ユーザーは対象外
+ */
+export async function checkMissingReports(): Promise<{
+  reminded: number;
+  alerted: number;
+}> {
+  const thisMonday = mondayOf(new Date());
+  const lastWeek = new Date(thisMonday);
+  lastWeek.setUTCDate(lastWeek.getUTCDate() - 7);
+  const twoWeeksAgo = new Date(thisMonday);
+  twoWeeksAgo.setUTCDate(twoWeeksAgo.getUTCDate() - 14);
+
+  const engineers = await prisma.user.findMany({
+    where: { role: "ENGINEER" },
+    select: { id: true, name: true, createdAt: true },
+  });
+
+  let reminded = 0;
+  let alerted = 0;
+  for (const e of engineers) {
+    const submitted = await prisma.weeklyReport.findMany({
+      where: {
+        userId: e.id,
+        status: "SUBMITTED",
+        weekStart: { in: [lastWeek, twoWeeksAgo] },
+      },
+      select: { weekStart: true },
+    });
+    const missedLast = !submitted.some(
+      (r) => r.weekStart.getTime() === lastWeek.getTime()
+    );
+    const missedPrev = !submitted.some(
+      (r) => r.weekStart.getTime() === twoWeeksAgo.getTime()
+    );
+
+    if (missedLast) {
+      await notifyReportReminder(e.name).catch((err) =>
+        console.error("notifyReportReminder failed:", err)
+      );
+      reminded++;
+    }
+    if (missedLast && missedPrev && e.createdAt < twoWeeksAgo) {
+      const created = await createIfNew(e.id, {
+        level: "WARN",
+        trigger: "連続未提出",
+        reason:
+          "週報が2週以上連続で未提出です。提出が途切れるのは不調の兆候の可能性があります。",
+      });
+      if (created) alerted++;
+    }
+  }
+  return { reminded, alerted };
+}
+
+/** 週次スキャン一式（cronジョブ / ダッシュボードの手動実行から呼ぶ） */
+export async function runWeeklyScan(): Promise<{
+  scanned: number;
+  created: number;
+  reminded: number;
+  alerted: number;
+}> {
+  const missing = await checkMissingReports();
+  const scan = await scanAllEngineers();
+  return { ...scan, ...missing };
 }
 
 /**

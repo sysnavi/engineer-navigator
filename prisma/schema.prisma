@@ -24,6 +24,8 @@ model User {
   role      Role     @default(ENGINEER)
   // UIカラーパレット（きせかえ）。値は src/lib/palettes.ts の PaletteId
   palette   String   @default("sky")
+  // 初回オンボーディングの同意（AI解析・閲覧範囲・評価不使用）取得日時。null=未同意
+  consentedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -67,21 +67,23 @@ async function main() {
   }
   console.log(`Seeded ${skills.length} skills`);
 
-  // デモユーザー
+  // デモユーザー（既存メンバーは同意取得済みの状態にする。
+  // engineer2 はあえて未同意のままにして同意ゲートのデモに使う）
+  const consented = new Date("2026-07-01T00:00:00Z");
   const admin = await prisma.user.upsert({
     where: { email: "admin@sysnavi.co.jp" },
-    update: {},
-    create: { email: "admin@sysnavi.co.jp", name: "管理者 デモ", role: "ADMIN" },
+    update: { consentedAt: consented },
+    create: { email: "admin@sysnavi.co.jp", name: "管理者 デモ", role: "ADMIN", consentedAt: consented },
   });
   const sales = await prisma.user.upsert({
     where: { email: "sales@sysnavi.co.jp" },
-    update: {},
-    create: { email: "sales@sysnavi.co.jp", name: "営業 デモ", role: "SALES" },
+    update: { consentedAt: consented },
+    create: { email: "sales@sysnavi.co.jp", name: "営業 デモ", role: "SALES", consentedAt: consented },
   });
   const engineer = await prisma.user.upsert({
     where: { email: "engineer@sysnavi.co.jp" },
-    update: {},
-    create: { email: "engineer@sysnavi.co.jp", name: "エンジニア デモ", role: "ENGINEER" },
+    update: { consentedAt: consented },
+    create: { email: "engineer@sysnavi.co.jp", name: "エンジニア デモ", role: "ENGINEER", consentedAt: consented },
   });
 
   const project = await prisma.project.upsert({
@@ -215,6 +217,34 @@ async function main() {
   ]);
 
   console.log("Seeded demo condition history (engineer, engineer2)");
+
+  // エンジニア デモ3: 週報を2週以上出していない = 連続未提出デモ用
+  // （在籍2週以上の判定を通すため createdAt を過去日にする）
+  const engineer3 = await prisma.user.upsert({
+    where: { email: "engineer3@sysnavi.co.jp" },
+    update: {},
+    create: {
+      email: "engineer3@sysnavi.co.jp",
+      name: "エンジニア デモ3",
+      role: "ENGINEER",
+      consentedAt: consented,
+      createdAt: new Date("2026-06-01T00:00:00Z"),
+    },
+  });
+  const existing3 = await prisma.assignment.findFirst({
+    where: { userId: engineer3.id, projectId: project.id },
+  });
+  if (!existing3) {
+    await prisma.assignment.create({
+      data: {
+        userId: engineer3.id,
+        projectId: project.id,
+        roleNote: "インフラ運用",
+        startedAt: new Date("2026-06-01"),
+      },
+    });
+  }
+  console.log("Seeded engineer3 (連続未提出デモ)");
 }
 
 main()

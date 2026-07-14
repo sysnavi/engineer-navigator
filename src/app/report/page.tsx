@@ -1,11 +1,56 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { mondayOf, formatWeek } from "@/lib/week";
+import { giveConsent } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { ReportForm } from "./report-form";
 
+// 初回オンボーディング: 同意（AI解析・閲覧範囲・評価不使用）を取ってから週報を解錠する
+function ConsentGate() {
+  return (
+    <Window title="LICENSE" titleEm=".txt">
+      <PixelLabel className="!text-pinkhot">
+        FIRST BOOT — はじめる前に
+      </PixelLabel>
+      <p className="mt-2 text-[13.5px]">
+        週報をはじめる前に、次の3つに目を通してください。
+      </p>
+      <ol className="mt-3 space-y-3 text-[13px]">
+        <li className="rounded-lg border-2 border-line8 bg-surface p-3 shadow-hard-sm">
+          <b>1. AIが解析します</b> — 提出した週報はAIが解析し、スキルの抽出とコンディションの把握に使われます。
+        </li>
+        <li className="rounded-lg border-2 border-line8 bg-surface p-3 shadow-hard-sm">
+          <b>2. 閲覧範囲は限定されます</b> —
+          コンディション（設問1・2・5とスコア）を見られるのは<b>あなた・管理者・担当営業だけ</b>です。
+          実績（設問3・4）は経歴書として営業活動に使われます。
+        </li>
+        <li className="rounded-lg border-2 border-line8 bg-surface p-3 shadow-hard-sm">
+          <b>3. 人事評価には使いません</b> —
+          コンディションのスコアやアラートが評価に使われることはありません。早期フォローのためだけに使います。
+        </li>
+      </ol>
+      <form action={giveConsent} className="mt-5">
+        <button className="btn8 btn8-start">▶ 同意してはじめる</button>
+      </form>
+    </Window>
+  );
+}
+
 export default async function ReportPage() {
   const user = await getCurrentUser();
+  if (!user.consentedAt) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-7">
+        <div>
+          <PixelLabel>WEEKLY QUEST — ONBOARDING</PixelLabel>
+          <PixelTitle as="h1" className="text-3xl text-royal">
+            週報をはじめる
+          </PixelTitle>
+        </div>
+        <ConsentGate />
+      </div>
+    );
+  }
   const weekStart = mondayOf(new Date());
   const report = await prisma.weeklyReport.findUnique({
     where: { userId_weekStart: { userId: user.id, weekStart } },

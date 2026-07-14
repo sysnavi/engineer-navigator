@@ -10,7 +10,7 @@ import { analyzeReport } from "@/lib/ai/analyzeReport";
 import { isPaletteId } from "@/lib/palettes";
 import {
   createConsultationAlert,
-  scanAllEngineers,
+  runWeeklyScan,
   getScopedEngineers,
 } from "@/lib/condition";
 
@@ -41,6 +41,9 @@ function reportDataFromForm(formData: FormData) {
 
 export async function saveReportDraft(formData: FormData) {
   const user = await getCurrentUser();
+  if (!user.consentedAt) {
+    throw new Error("週報の利用にはオンボーディングでの同意が必要です");
+  }
   const weekStart = mondayOf(new Date());
   const data = reportDataFromForm(formData);
 
@@ -54,6 +57,9 @@ export async function saveReportDraft(formData: FormData) {
 
 export async function submitReport(formData: FormData) {
   const user = await getCurrentUser();
+  if (!user.consentedAt) {
+    throw new Error("週報の利用にはオンボーディングでの同意が必要です");
+  }
   const weekStart = mondayOf(new Date());
   const data = reportDataFromForm(formData);
 
@@ -142,8 +148,23 @@ export async function rescanConditions() {
   if (viewer.role !== "ADMIN" && viewer.role !== "SALES") {
     throw new Error("コンディション情報へのアクセス権限がありません");
   }
-  await scanAllEngineers();
+  await runWeeklyScan();
   revalidatePath("/condition");
+}
+
+// ---------------------------------------------------------------------------
+// オンボーディング同意（AI解析・閲覧範囲・評価不使用）
+// ---------------------------------------------------------------------------
+
+export async function giveConsent() {
+  const user = await getCurrentUser();
+  if (user.consentedAt) return;
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { consentedAt: new Date() },
+  });
+  revalidatePath("/report");
+  revalidatePath("/mypage");
 }
 
 // ---------------------------------------------------------------------------

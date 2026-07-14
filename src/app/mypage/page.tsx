@@ -39,6 +39,11 @@ export default async function MyPage() {
             <p className="text-[12.5px] text-inksoft">
               {user.email} ・ {ROLE_LABELS[user.role] ?? user.role}
             </p>
+            <p className="mt-0.5 font-pixel text-[11px] tracking-wide text-inksoft">
+              {user.consentedAt
+                ? `CONSENT ✓ ${user.consentedAt.toISOString().slice(0, 10)}（AI解析・閲覧範囲・評価不使用に同意済み）`
+                : "CONSENT — 未同意（週報の初回起動時に確認します）"}
+            </p>
           </div>
         </div>
       </Window>
