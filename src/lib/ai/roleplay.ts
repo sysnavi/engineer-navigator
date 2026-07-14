@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { chatStream, completeJson, type ChatMessage } from "./client";
+import { searchKnowledge, formatContextBlock } from "./retrieval";
 
 // 役割シミュレーター（Phase 4）— AIが顧客役/上長役/後輩役を演じ、
 // 終了後に職務定義書ベースの観点(objectives)で自動フィードバックする。
@@ -79,14 +80,29 @@ export async function generateFeedback(
     )
     .join("\n");
 
+  // 社内ノウハウRAG: 一般的なリーダー像ではなく、自社の職務定義書に照らして評価する
+  const roleKnow = await searchKnowledge({
+    query: `${session.scenario.title} ${session.scenario.description} ${objectives.join(" ")}`.slice(
+      0,
+      500
+    ),
+    kinds: ["ROLE_DEFINITION"],
+    k: 3,
+  });
+  const knowledgeBlock = formatContextBlock(
+    roleKnow,
+    "自社の職務定義書（一般論ではなくこの定義に照らして評価すること）"
+  );
+
   const { data } = await completeJson<FeedbackResult>({
     system: `あなたはSES企業のリーダー育成の評価者です。ロールプレイ演習の会話を、リーダー職務定義書に基づく評価観点に照らして採点します。
 ## ルール
 - 各観点について good(できていた点) と improve(改善点) を1〜2文ずつ。会話の具体的な発言に触れる。
 - overall(総評, 2〜3文), advice(次に試すと良い1つの具体的アドバイス), score(0-100の総合点)。
 - 甘すぎず厳しすぎず、次に活きる建設的な評価にする。
+- 自社の職務定義書が与えられている場合は、一般論より必ずそれを優先し、評価の根拠に使う。
 - 出力はJSONのみ:
-{ "perObjective": [{ "objective": string, "good": string, "improve": string }], "overall": string, "advice": string, "score": number }`,
+{ "perObjective": [{ "objective": string, "good": string, "improve": string }], "overall": string, "advice": string, "score": number }${knowledgeBlock}`,
     user: `## シナリオ
 ${session.scenario.title} — ${session.scenario.description}
 

@@ -34,10 +34,17 @@ function fmtMonth(d: Date | null): string {
   return `${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+type RoleplayStat = {
+  title: string;
+  count: number;
+  bestScore: number | null;
+  lastAt: Date;
+};
+
 export default async function ResumePage() {
   const user = await getCurrentUser();
 
-  const [skills, experiences, assignments] = await Promise.all([
+  const [skills, experiences, assignments, roleplays] = await Promise.all([
     prisma.engineerSkill.findMany({
       where: { userId: user.id },
       include: { skill: true },
@@ -53,7 +60,39 @@ export default async function ResumePage() {
       include: { project: true },
       orderBy: { startedAt: "desc" },
     }),
+    // 完了したロールプレイ演習は、リーダーシップのエビデンスとして経歴書に載せる
+    prisma.roleplaySession.findMany({
+      where: { userId: user.id, status: "COMPLETED" },
+      include: { scenario: true },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
+
+  // シナリオ別に集計（回数と最高スコア）
+  const roleplayStats = new Map<string, RoleplayStat>();
+  for (const r of roleplays) {
+    let score: number | null = null;
+    try {
+      score = r.feedback ? (JSON.parse(r.feedback).score as number) : null;
+    } catch {
+      score = null;
+    }
+    const cur = roleplayStats.get(r.scenario.title);
+    if (cur) {
+      cur.count += 1;
+      if (score != null && (cur.bestScore == null || score > cur.bestScore)) {
+        cur.bestScore = score;
+      }
+    } else {
+      roleplayStats.set(r.scenario.title, {
+        title: r.scenario.title,
+        count: 1,
+        bestScore: score,
+        lastAt: r.createdAt,
+      });
+    }
+  }
+  const roleplayList = [...roleplayStats.values()];
 
   const byCategory = new Map<string, typeof skills>();
   for (const s of skills) {
@@ -85,7 +124,9 @@ export default async function ResumePage() {
         </div>
         <p className="mt-2 text-[13px] text-inksoft">
           スキル {skills.length} 件 ・ 実績 {experiences.length} 件 ・ 経歴{" "}
-          {assignments.length} 件 — すべて週報のAI解析と本人承認から自動生成。
+          {assignments.length} 件
+          {roleplays.length > 0 && ` ・ リーダーシップ演習 ${roleplays.length} 回`}{" "}
+          — すべて週報のAI解析と本人承認、演習の実施記録から自動生成。
           各実績は元の週報まで遡って根拠を辿れます。
         </p>
         <p className="mt-2 text-[11.5px] text-inksoft">
@@ -169,6 +210,37 @@ export default async function ResumePage() {
           </ol>
         )}
       </Window>
+
+      {/* リーダーシップ演習（役割シミュレーターの実績） */}
+      {roleplayList.length > 0 && (
+        <Window title="LEADERSHIP" titleEm={` (${roleplays.length})`}>
+          <p className="mb-3 text-[12.5px] text-inksoft">
+            <mark className="kw8">リーダーシップ演習</mark>{" "}
+            {roleplays.length} 回 — 役割シミュレーターで、顧客折衝・障害対応・メンバー育成の実践演習を実施。
+            職務定義書に基づく評価を受けています。
+          </p>
+          <table className="w-full border-collapse text-[13px]">
+            <tbody>
+              {roleplayList.map((r) => (
+                <tr
+                  key={r.title}
+                  className="border-b-2 border-dashed border-grid8 last:border-0"
+                >
+                  <td className="py-2 pr-3 font-bold">{r.title}</td>
+                  <td className="py-2 pr-3 font-pixel text-[12px] text-royal2">
+                    {r.count}回
+                  </td>
+                  <td className="py-2 text-[12px] text-inksoft">
+                    {r.bestScore != null ? `最高評価 ${r.bestScore}点` : "—"}
+                    {" ・ "}
+                    {r.lastAt.toISOString().slice(0, 10)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Window>
+      )}
 
       {/* 案件履歴 */}
       <Window title="PROJECTS" titleEm={` (${assignments.length})`}>

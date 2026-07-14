@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { runConditionRules } from "@/lib/condition";
 import { completeJson, MODELS } from "./client";
+import { searchKnowledge, formatContextBlock } from "./retrieval";
 
 // 週報提出時のAI解析パイプライン（docs/weekly-report.md の設計に対応）
 //  ① スキル抽出 → SkillSuggestion 生成
@@ -57,7 +58,11 @@ const SYSTEM_PROMPT = `あなたはSES企業のエンジニア育成を支援す
   "conditionReasons": [string],
   "consultationSignals": [string],
   "feedback": string
-}`;
+}
+
+## 社内ノウハウの優先
+参考として社内の判定基準・対応ノウハウが与えられた場合は、一般論よりそれを優先して判断すること。
+reason には、その基準に照らした根拠（例: 「社内基準ではLv4の条件である本番リリース経験に該当」）を書く。`;
 
 /** 顧客名などの固有名詞をマスキングする前処理（守りのAI武装） */
 function maskSensitive(text: string, aliases: { real?: string | null }[]): string {
@@ -106,8 +111,31 @@ ${maskSensitive(report.nextText ?? "", [])}
 【会社への共有・相談】
 ${maskSensitive(report.shareText ?? "", [])}`;
 
+    // 社内ノウハウRAG: 判定は一般論ではなく会社の基準で行う。
+    // - スキル判定基準: 何をやったか（実績）から社内Lv定義に照らす
+    // - コンディション対応ノウハウ: 詰まり/トーンの読み取りを社内事例に照らす
+    // どちらも該当なし・キー未設定なら空文字（従来どおり動く）。
+    const [skillKnow, condKnow] = await Promise.all([
+      searchKnowledge({
+        query: `${report.didText ?? ""} ${report.newText ?? ""}`.slice(0, 500),
+        kinds: ["SKILL_CRITERIA"],
+        k: 3,
+      }),
+      searchKnowledge({
+        query: `${report.struggleText ?? ""} ${report.shareText ?? ""}`.slice(0, 500),
+        kinds: ["CONDITION_PLAYBOOK"],
+        k: 2,
+      }),
+    ]);
+    const knowledgeBlock =
+      formatContextBlock(skillKnow, "社内のスキル判定基準（この基準で判定すること）") +
+      formatContextBlock(
+        condKnow,
+        "社内のコンディション対応ノウハウ（トーン解析・シグナル判断の参考）"
+      );
+
     const { data, usage } = await completeJson<AnalysisResult>({
-      system: SYSTEM_PROMPT,
+      system: SYSTEM_PROMPT + knowledgeBlock,
       user: userPrompt,
       model: MODELS.analysis,
     });

@@ -353,20 +353,34 @@ model StudyPlanItem {
 }
 
 // ---------------------------------------------------------------------------
-// 学習コンテンツのRAG（Phase 3）— 埋め込みは Voyage AI（voyage-3.5, 1024次元）
+// 会社独自ノウハウのRAG — 埋め込みは Voyage AI（voyage-3.5, 1024次元）
 // embedding列と類似検索は raw SQL で扱う（Prismaのvector未対応のため）。
-// 投入は scripts/ingest-learning.ts、検索は src/lib/ai/retrieval.ts。
+// 投入は scripts/ingest-knowledge.ts、検索は src/lib/ai/retrieval.ts。
+//
+// AIの提案・評価を「Claudeの一般知識」ではなく「会社のノウハウ」で裏付けるための器。
+// kind で用途を分け、機能ごとに検索対象を絞る（例: 週報のスキル判定に職務定義書が
+// 混ざらないようにする）。
 // ---------------------------------------------------------------------------
 
-model LearningChunk {
-  id         String                  @id @default(cuid())
-  source     String // 資料名（例: "AWS IAM 入門"）
+enum KnowledgeKind {
+  LEARNING // 学習コンテンツ（AWS/JSTQBシラバス・社内研修資料）→ メンター・学習プラン
+  SKILL_CRITERIA // 社内のスキル判定基準・レベル定義・単価の分水嶺 → 週報のスキル抽出
+  CONDITION_PLAYBOOK // コンディション対応の事例・1on1のノウハウ → コンディション助言
+  ROLE_DEFINITION // リーダー職務定義書・評価基準 → 役割シミュレーターの評価
+  RATE_EVIDENCE // 単価交渉で実際に効いた実績パターン → 経歴書のハイライト
+}
+
+model KnowledgeChunk {
+  id         String                       @id @default(cuid())
+  kind       KnowledgeKind // この知識の用途
+  source     String // 資料名（例: "AWS IAM 入門" "シスナビ スキル判定基準"）
   sourceUrl  String? // 任意の出典URL
-  topic      String? // 資格・カテゴリ（例: "AWS SAA" "JSTQB FL"）
+  topic      String? // 補助タグ（例: "AWS SAA" "リーダー"）
   content    String // チャンク本文
   chunkIndex Int
   embedding  Unsupported("vector(1024)")?
   createdAt  DateTime                     @default(now())
 
+  @@index([kind])
   @@index([source])
 }

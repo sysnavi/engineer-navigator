@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 
 // 単価交渉で効くキーワード（経歴書ビューで自動ハイライト）。
+// 内容は社内ノウハウ「シスナビ 単価交渉の勝ちパターン」
+// (content/knowledge/rate-evidence/) に対応させている。実際に交渉で効いた
+// パターンが更新されたら、この配列も合わせて更新すること。
 // Lv4「本番リリース経験」は単価+10万〜15万円の分水嶺（docs/data-model.md）。
 // 長い語を先にマッチさせるため長さ降順を維持すること。
 export const RATE_KEYWORDS = [
@@ -14,6 +17,12 @@ export const RATE_KEYWORDS = [
   "顧客折衝",
   "リーダー",
   "テスト自動化",
+  // 上流工程（実装のみのエンジニアとの差別化）
+  "要件定義",
+  "基本設計",
+  // 後輩指導（リーダー枠での提案に効く）
+  "後輩指導",
+  "メンバー育成",
 ] as const;
 
 const PATTERN = new RegExp(
