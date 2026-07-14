@@ -36,8 +36,9 @@ export async function searchLearningChunks(
     literal,
     k
   );
-  // 距離が遠すぎる（無関係）チャンクは落とす
-  return rows.filter((r) => r.distance < 0.6);
+  // 距離が遠すぎる（無関係）チャンクは落とす。voyage-3.5 のコサイン距離で
+  // 関連は概ね〜0.45、無関係は0.55以上に分離するため 0.5 を閾値にする。
+  return rows.filter((r) => r.distance < 0.5);
 }
 
 /** メンターのsystemに差し込む参考資料ブロックを組み立てる */
