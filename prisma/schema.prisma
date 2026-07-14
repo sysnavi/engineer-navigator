@@ -37,6 +37,7 @@ model User {
   conditionAlerts  ConditionAlert[]
   mentorSessions   MentorSession[]
   roleplaySessions RoleplaySession[]
+  studyPlans       StudyPlan[]
 }
 
 model Project {
@@ -312,6 +313,43 @@ model RoleplayMessage {
   role      ChatRole
   content   String
   createdAt DateTime        @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// 資格別学習プラン（Phase 3）— 試験日からの逆算カリキュラム + 進捗トラッキング
+// ---------------------------------------------------------------------------
+
+enum StudyPlanStatus {
+  ACTIVE
+  DONE
+  ARCHIVED
+}
+
+model StudyPlan {
+  id            String          @id @default(cuid())
+  user          User            @relation(fields: [userId], references: [id])
+  userId        String
+  certification String // 例: "AWS SAA" "JSTQB FL"
+  examDate      DateTime        @db.Date // 試験日
+  status        StudyPlanStatus @default(ACTIVE)
+  createdAt     DateTime        @default(now())
+
+  items StudyPlanItem[]
+}
+
+model StudyPlanItem {
+  id         String    @id @default(cuid())
+  plan       StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  planId     String
+  order      Int // 表示順（0始まり）
+  weekLabel  String? // 例: "1週目" "直前1週間"
+  title      String // 学習マイルストーン
+  detail     String? // 具体的な学習内容
+  targetDate DateTime? @db.Date // この項目の目安完了日
+  done       Boolean   @default(false)
+  doneAt     DateTime?
+
+  @@index([planId])
 }
 
 // ---------------------------------------------------------------------------

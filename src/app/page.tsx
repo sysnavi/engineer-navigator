@@ -100,6 +100,20 @@ export default async function Home() {
           </Window>
         </Link>
 
+        <Link href="/roleplay" className="group">
+          <Window
+            title="ROLEPLAY"
+            titleEm=".sim"
+            className="transition-transform group-hover:-translate-y-0.5"
+          >
+            <PixelLabel>ROLE SIMULATOR</PixelLabel>
+            <p className="mt-1 text-[15px] font-extrabold">役割シミュレーター</p>
+            <p className="mt-1 text-[13px] text-inksoft">
+              顧客調整・障害対応などリーダーの難題をAIとロールプレイ→評価
+            </p>
+          </Window>
+        </Link>
+
         <Link href="/resume" className="group">
           <Window
             title="経歴書"

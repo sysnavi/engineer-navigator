@@ -26,6 +26,12 @@ export default async function MentorPage() {
         <p className="mt-1 text-[13px] text-inksoft">
           資格・技術の相談に「理論 → 現場でどう使うか」を具体例つきで答えます。
         </p>
+        <Link
+          href="/plan"
+          className="mt-2 inline-block font-pixel text-[11px] tracking-wide text-royal2 hover:text-pinkhot"
+        >
+          ▶ 資格の学習プラン（試験日から逆算）を作る →
+        </Link>
       </div>
 
       <Window title="先回り提案" titleEm=".ai" barClass="!bg-pinkhot">

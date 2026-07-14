@@ -20,6 +20,8 @@ const NAV = [
   { href: "/report", label: "週報" },
   { href: "/skills", label: "スキルマップ" },
   { href: "/mentor", label: "メンター" },
+  { href: "/plan", label: "学習プラン" },
+  { href: "/roleplay", label: "役割演習" },
   { href: "/resume", label: "経歴書" },
   { href: "/condition", label: "コンディション", roles: ["SALES", "ADMIN"] },
   { href: "/mypage", label: "マイページ" },

@@ -8,6 +8,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { mondayOf } from "@/lib/week";
 import { analyzeReport } from "@/lib/ai/analyzeReport";
 import { completeJson } from "@/lib/ai/client";
+import { generatePlanItems } from "@/lib/ai/studyplan";
+import { generateOpeningLine, generateFeedback } from "@/lib/ai/roleplay";
 import { isPaletteId } from "@/lib/palettes";
 import {
   createConsultationAlert,
@@ -244,6 +246,146 @@ export async function proposeStudyTopics() {
 }
 
 export type StudyTopic = { title: string; why: string; firstQuestion: string };
+
+// ---------------------------------------------------------------------------
+// 資格別学習プラン（Phase 3）
+// ---------------------------------------------------------------------------
+
+const DAY_MS = 86400_000;
+
+export async function createStudyPlan(formData: FormData) {
+  const user = await getCurrentUser();
+  const certification = formData.get("certification");
+  const examDateRaw = formData.get("examDate");
+  if (typeof certification !== "string" || !certification.trim()) {
+    throw new Error("資格名を入力してください");
+  }
+  if (typeof examDateRaw !== "string" || !examDateRaw) {
+    throw new Error("試験日を入力してください");
+  }
+  const examDate = new Date(examDateRaw + "T00:00:00Z");
+  const now = new Date();
+  const daysLeft = Math.ceil((examDate.getTime() - now.getTime()) / DAY_MS);
+  if (daysLeft < 3) {
+    throw new Error("試験日は3日以上先の日付にしてください");
+  }
+  const weeks = Math.min(16, Math.max(1, Math.ceil(daysLeft / 7)));
+
+  const skills = await prisma.engineerSkill.findMany({
+    where: { userId: user.id },
+    include: { skill: true },
+    orderBy: { level: "desc" },
+    take: 15,
+  });
+  const currentSkills = skills
+    .map((s) => `${s.skill.name}(Lv${s.level})`)
+    .join(", ");
+
+  const items = await generatePlanItems({
+    certification: certification.trim(),
+    weeks,
+    currentSkills,
+  });
+
+  const monday = mondayOf(now);
+  const plan = await prisma.studyPlan.create({
+    data: {
+      userId: user.id,
+      certification: certification.trim(),
+      examDate,
+      items: {
+        create: items.map((it, i) => ({
+          order: i,
+          weekLabel: it.weekLabel,
+          title: it.title,
+          detail: it.detail,
+          // 週次で目安日を割り当て、最後は試験日
+          targetDate:
+            i === items.length - 1
+              ? examDate
+              : new Date(monday.getTime() + (i + 1) * 7 * DAY_MS),
+        })),
+      },
+    },
+  });
+  revalidatePath("/plan");
+  redirect(`/plan/${plan.id}`);
+}
+
+export async function toggleStudyItem(itemId: string, done: boolean) {
+  const user = await getCurrentUser();
+  const item = await prisma.studyPlanItem.findUnique({
+    where: { id: itemId },
+    include: { plan: true },
+  });
+  if (!item || item.plan.userId !== user.id) {
+    throw new Error("この項目を更新できません");
+  }
+  await prisma.studyPlanItem.update({
+    where: { id: itemId },
+    data: { done, doneAt: done ? new Date() : null },
+  });
+  revalidatePath(`/plan/${item.planId}`);
+}
+
+// ---------------------------------------------------------------------------
+// 役割シミュレーター（Phase 4）
+// ---------------------------------------------------------------------------
+
+export async function startRoleplay(scenarioId: string) {
+  const user = await getCurrentUser();
+  await prisma.roleplayScenario.findUniqueOrThrow({ where: { id: scenarioId } });
+
+  const session = await prisma.roleplaySession.create({
+    data: { userId: user.id, scenarioId, status: "IN_PROGRESS" },
+  });
+
+  // 相手役の第一声を生成して保存（失敗してもセッションは開始できる）
+  try {
+    const opening = await generateOpeningLine(scenarioId);
+    if (opening.trim()) {
+      await prisma.roleplayMessage.create({
+        data: { sessionId: session.id, role: "ASSISTANT", content: opening },
+      });
+    }
+  } catch (e) {
+    console.error("generateOpeningLine failed:", e);
+  }
+
+  redirect(`/roleplay/${session.id}`);
+}
+
+export async function endRoleplay(sessionId: string) {
+  const user = await getCurrentUser();
+  const session = await prisma.roleplaySession.findUniqueOrThrow({
+    where: { id: sessionId },
+  });
+  if (session.userId !== user.id) throw new Error("自分の演習のみ終了できます");
+  if (session.status === "COMPLETED") {
+    revalidatePath(`/roleplay/${sessionId}`);
+    return;
+  }
+
+  let feedbackText: string;
+  try {
+    const fb = await generateFeedback(sessionId);
+    feedbackText = JSON.stringify(fb);
+  } catch (e) {
+    console.error("generateFeedback failed:", e);
+    feedbackText = JSON.stringify({
+      perObjective: [],
+      overall: "フィードバックの生成に失敗しました（ANTHROPIC_API_KEYを確認してください）。",
+      advice: "",
+      score: 0,
+    });
+  }
+
+  await prisma.roleplaySession.update({
+    where: { id: sessionId },
+    data: { status: "COMPLETED", feedback: feedbackText },
+  });
+  revalidatePath(`/roleplay/${sessionId}`);
+}
 
 // ---------------------------------------------------------------------------
 // きせかえ（カラーパレット）
