@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { PALETTES } from "@/lib/palettes";
-import { setPalette } from "@/app/actions";
+import { setPalette, setDevUser } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -11,6 +12,10 @@ const ROLE_LABELS: Record<string, string> = {
 
 export default async function MyPage() {
   const user = await getCurrentUser();
+  const devLogin = process.env.DEV_LOGIN_ENABLED === "true";
+  const devUsers = devLogin
+    ? await prisma.user.findMany({ orderBy: { role: "asc" } })
+    : [];
 
   return (
     <div className="space-y-7">
@@ -83,6 +88,34 @@ export default async function MyPage() {
           </div>
         </div>
       </Window>
+
+      {devLogin && (
+        <Window title="DEBUG" titleEm=".sys">
+          <PixelLabel className="!text-inksoft">
+            DEV ONLY — ユーザー切替（本番はGoogle SSOに置換）
+          </PixelLabel>
+          <div className="mt-3 flex flex-wrap gap-2.5">
+            {devUsers.map((u) => (
+              <form
+                key={u.id}
+                action={async () => {
+                  "use server";
+                  await setDevUser(u.email);
+                }}
+              >
+                <button
+                  className={`btn8 px-4 py-2 text-[12px] ${
+                    u.id === user.id ? "btn8-ok" : ""
+                  }`}
+                >
+                  {u.name}（{ROLE_LABELS[u.role] ?? u.role}）
+                  {u.id === user.id && " ★"}
+                </button>
+              </form>
+            ))}
+          </div>
+        </Window>
+      )}
     </div>
   );
 }

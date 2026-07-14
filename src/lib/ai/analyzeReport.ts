@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { runConditionRules } from "@/lib/condition";
 import { completeJson, MODELS } from "./client";
 
 // 週報提出時のAI解析パイプライン（docs/weekly-report.md の設計に対応）
@@ -157,17 +158,11 @@ ${maskSensitive(report.shareText ?? "", [])}`;
       },
     });
 
-    // 「営業に直接相談したい」チェックは解析結果を待たず即アラート
-    if (report.wantsConsultation) {
-      await prisma.conditionAlert.create({
-        data: {
-          userId: report.userId,
-          level: "WARN",
-          trigger: "相談フラグ",
-          reason: "週報で「営業に直接相談したい」にチェックがありました。",
-        },
-      });
-    }
+    // 解析が終わったのでコンディション検知ルールを実行
+    // （相談フラグの即時アラートは submitReport 側。ここは変化検知系）
+    await runConditionRules(report.userId).catch((e) =>
+      console.error("runConditionRules failed:", e)
+    );
   } catch (e) {
     await prisma.reportAnalysis.update({
       where: { id: analysis.id },

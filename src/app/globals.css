@@ -29,6 +29,10 @@
   /* fixed across palettes */
   --pink-hot: #f24e9c; /* ACTION only */
   --lemon: #ffd84d;
+  /* semantic (condition) — 意味が変わらないよう全パレット固定 */
+  --good: #2e9e5b;
+  --warn: #e8a013;
+  --crit: #e5484d;
   color-scheme: light;
 }
 :root[data-palette="creamsoda"] {
@@ -125,6 +129,9 @@
   --color-quotebg: var(--quote-bg);
   --color-pinkhot: var(--pink-hot);
   --color-lemon: var(--lemon);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-crit: var(--crit);
   --font-sans: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic",
     "Noto Sans JP", Meiryo, sans-serif;
   --font-pixel: var(--font-dotgothic), "Hiragino Kaku Gothic ProN", monospace;
@@ -345,6 +352,50 @@ body {
   }
   .shadow-hard-sm {
     box-shadow: 3px 3px 0 var(--hard);
+  }
+
+  /* ---------- アラートレベルのチップ ---------- */
+  .chip8 {
+    display: inline-block;
+    font-family: var(--font-mono8);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    border: 2px solid var(--line);
+    border-radius: 5px;
+    padding: 1px 8px;
+    color: #fff;
+    box-shadow: 2px 2px 0 var(--hard);
+  }
+  .chip8-info {
+    background: var(--royal-2);
+  }
+  .chip8-warn {
+    background: var(--warn);
+  }
+  .chip8-crit {
+    background: var(--crit);
+  }
+
+  /* ---------- 8bit スパークライン ---------- */
+  .spark8 {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 42px;
+  }
+  .spark8 i {
+    width: 10px;
+    border: 2px solid var(--line);
+    border-radius: 2px;
+    display: block;
+    min-height: 6px;
+  }
+  .spark8 i.empty {
+    border-style: dashed;
+    background: transparent;
+    opacity: 0.45;
+    height: 100%;
   }
 }
 

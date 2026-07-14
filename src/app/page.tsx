@@ -70,6 +70,22 @@ export default async function Home() {
           </Window>
         </Link>
 
+        {(user.role === "SALES" || user.role === "ADMIN") && (
+          <Link href="/condition" className="group sm:col-span-2">
+            <Window
+              title="CONDITION"
+              titleEm=".mon"
+              className="transition-transform group-hover:-translate-y-0.5"
+            >
+              <PixelLabel>TEAM MONITOR</PixelLabel>
+              <p className="mt-1 text-[15px] font-extrabold">コンディション</p>
+              <p className="mt-1 text-[13px] text-inksoft">
+                担当エンジニアの週次コンディションとアラート対応（管理者・担当営業のみ）
+              </p>
+            </Window>
+          </Link>
+        )}
+
         <Link href="/resume" className="group sm:col-span-2">
           <Window
             title="経歴書"

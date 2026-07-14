@@ -1,11 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { mondayOf } from "@/lib/week";
 import { analyzeReport } from "@/lib/ai/analyzeReport";
 import { isPaletteId } from "@/lib/palettes";
+import {
+  createConsultationAlert,
+  scanAllEngineers,
+  getScopedEngineers,
+} from "@/lib/condition";
 
 // ---------------------------------------------------------------------------
 // 週報
@@ -66,6 +73,13 @@ export async function submitReport(formData: FormData) {
     },
   });
 
+  // 「営業に直接相談したい」は解析を待たず即時アラート（仕様: docs/weekly-report.md）
+  if (data.wantsConsultation) {
+    await createConsultationAlert(user.id).catch((e) =>
+      console.error("createConsultationAlert failed:", e)
+    );
+  }
+
   // AI解析（MVPでは同期実行。将来はジョブキューへ）
   try {
     await analyzeReport(report.id);
@@ -76,6 +90,75 @@ export async function submitReport(formData: FormData) {
 
   revalidatePath("/report");
   revalidatePath("/skills");
+  revalidatePath("/condition");
+}
+
+// ---------------------------------------------------------------------------
+// コンディションアラート（Phase 2）— 閲覧・操作は ADMIN / 担当営業のみ
+// ---------------------------------------------------------------------------
+
+/** viewer がこのアラートを操作できるか（ADMIN=全件 / SALES=担当エンジニアのみ） */
+async function assertAlertScope(alertId: string) {
+  const viewer = await getCurrentUser();
+  if (viewer.role !== "ADMIN" && viewer.role !== "SALES") {
+    throw new Error("コンディション情報へのアクセス権限がありません");
+  }
+  const alert = await prisma.conditionAlert.findUniqueOrThrow({
+    where: { id: alertId },
+  });
+  if (viewer.role === "SALES") {
+    const scoped = await getScopedEngineers(viewer);
+    if (!scoped.some((e) => e.id === alert.userId)) {
+      throw new Error("担当外のエンジニアのアラートは操作できません");
+    }
+  }
+  return alert;
+}
+
+export async function startAlert(alertId: string) {
+  await assertAlertScope(alertId);
+  await prisma.conditionAlert.update({
+    where: { id: alertId },
+    data: { status: "IN_PROGRESS" },
+  });
+  revalidatePath("/condition");
+}
+
+export async function closeAlert(alertId: string, formData: FormData) {
+  await assertAlertScope(alertId);
+  const note = formData.get("note");
+  if (typeof note !== "string" || note.trim() === "") {
+    throw new Error("対応記録（面談メモ）を入力してください");
+  }
+  await prisma.conditionAlert.update({
+    where: { id: alertId },
+    data: { status: "CLOSED", note: note.trim(), closedAt: new Date() },
+  });
+  revalidatePath("/condition");
+}
+
+export async function rescanConditions() {
+  const viewer = await getCurrentUser();
+  if (viewer.role !== "ADMIN" && viewer.role !== "SALES") {
+    throw new Error("コンディション情報へのアクセス権限がありません");
+  }
+  await scanAllEngineers();
+  revalidatePath("/condition");
+}
+
+// ---------------------------------------------------------------------------
+// 開発用ユーザー切替（DEV_LOGIN_ENABLED のときのみ・本番はSSOに置換）
+// ---------------------------------------------------------------------------
+
+export async function setDevUser(email: string) {
+  if (process.env.DEV_LOGIN_ENABLED !== "true") {
+    throw new Error("開発用ログインは無効です");
+  }
+  await prisma.user.findUniqueOrThrow({ where: { email } });
+  const store = await cookies();
+  store.set("dev-user", email, { path: "/" });
+  revalidatePath("/", "layout");
+  redirect("/");
 }
 
 // ---------------------------------------------------------------------------

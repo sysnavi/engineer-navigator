@@ -20,6 +20,7 @@ const NAV = [
   { href: "/report", label: "週報" },
   { href: "/skills", label: "スキルマップ" },
   { href: "/resume", label: "経歴書" },
+  { href: "/condition", label: "コンディション", roles: ["SALES", "ADMIN"] },
   { href: "/mypage", label: "マイページ" },
 ];
 
@@ -31,11 +32,15 @@ export default async function RootLayout({
   // きせかえパレット: ユーザー設定をSSRで<html>に刻む（チラつき防止）。
   // 未ログイン/未シード時はデフォルトにフォールバック。
   let palette = "sky";
+  let role = "ENGINEER";
   try {
-    palette = (await getCurrentUser()).palette;
+    const user = await getCurrentUser();
+    palette = user.palette;
+    role = user.role;
   } catch {
     // noop — デフォルトパレットで表示
   }
+  const nav = NAV.filter((n) => !n.roles || n.roles.includes(role));
 
   return (
     <html
@@ -61,7 +66,7 @@ export default async function RootLayout({
             </Link>
             <span className="flex-1" />
             <div className="flex flex-wrap justify-end gap-1 text-[13px]">
-              {NAV.map((n) => (
+              {nav.map((n) => (
                 <Link
                   key={n.href}
                   href={n.href}
