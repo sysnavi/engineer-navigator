@@ -15,7 +15,7 @@ Phase 0（基盤）+ Phase 1 の縦切りが実装済み。**実 ANTHROPIC_API_K
 ```
 
 画面は9つ: `/`(ホーム) / `/report`(週報・自動保存) / `/skills`(スキルマップ＋レーダー＋成長ログ) / `/resume`(経歴書・印刷=PDF) / `/condition`(営業・管理者向け) / `/mentor`(AIメンター) / `/plan`(資格学習プラン) / `/roleplay`(役割シミュレーター) / `/mypage`(きせかえ＋開発用ユーザー切替)。
-**Phase 1〜4 実装完了（2026-07-14）** ※Phase4のスキルマップ連携のみ未。8bit/Y2Kデザイン + きせかえ5種。コンディション検知は src/lib/condition.ts（急落/下降トレンド/乖離/高負荷/相談フラグ、未クローズ中は重複発火しない）。デモ: /mypage の DEBUG.sys で営業に切替→ /condition。デモ履歴はseed投入済み（engineer2@… は要注意の物語）。
+**Phase 1〜4 完了 + 会社独自ノウハウのRAG化 完了（2026-07-14）**。8bit/Y2Kデザイン + きせかえ5種。コンディション検知は src/lib/condition.ts（急落/下降トレンド/乖離/高負荷/相談フラグ、未クローズ中は重複発火しない）。デモ: /mypage の DEBUG.sys で営業に切替→ /condition。デモ履歴はseed投入済み（engineer2@… は要注意の物語）。
 
 ## 再開手順
 
@@ -26,13 +26,26 @@ npm run dev                   # http://localhost:3000
 open docs/design/styletile.html   # デザイン方向の見本（ブラウザで直接開ける）
 ```
 
-## メンターのRAGを有効化する（任意）
+## 会社独自ノウハウのRAG（このアプリの差別化の核）
+
+AIの提案・評価を一般知識ではなく**会社のノウハウ**で裏付ける。`KnowledgeChunk` を kind で分け、各AI呼び出し前に該当kindだけを検索して system に注入する（用途外の知識が混ざらないようにするため kind 絞り込みが重要）。
 
 ```bash
-# .env に VOYAGE_API_KEY を設定（https://www.voyageai.com/ で取得）してから:
-npm run ingest:learning       # content/learning/*.md を埋め込み投入
+# .env に VOYAGE_API_KEY（https://www.voyageai.com/）を設定してから:
+npm run ingest:knowledge      # content/knowledge/<kind>/*.md を埋め込み投入
 ```
-未設定でもメンターはClaude知識ベースで動作する。content/learning にヘッダ(# source/# topic/# url)付きの.mdを置けば追加投入できる（booknavi研修資産の流用先）。
+
+| kind ディレクトリ | 用途（注入先） |
+|---|---|
+| `learning/` | メンター・学習プラン |
+| `skill-criteria/` | 週報のスキル抽出（analyzeReport） |
+| `condition-playbook/` | コンディションのトーン解析・シグナル判断 |
+| `role-definition/` | 役割シミュレーターの評価 |
+| `rate-evidence/` | 経歴書の単価キーワード（現状は highlight.tsx の配列と対応させる運用） |
+
+- ヘッダ `# source:` `# topic:` `# url:` 付きの .md を置いて再ingestするだけで差し替え可能（booknavi研修資産・社内規程の流用先）
+- VOYAGE_API_KEY 未設定・該当なしなら全機能が従来どおり動く（RAGをスキップするだけ）
+- 距離しきい値は実測ベース: 学習=0.5 / ノウハウ=0.7（src/lib/ai/retrieval.ts のコメント参照）
 
 デモユーザー（cookie `dev-user` で切替、デフォルト engineer@sysnavi.co.jp）:
 `admin@sysnavi.co.jp` / `sales@sysnavi.co.jp` / `engineer@sysnavi.co.jp`
