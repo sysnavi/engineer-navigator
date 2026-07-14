@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "ingest:learning": "tsx scripts/ingest-learning.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",

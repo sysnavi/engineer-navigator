@@ -313,3 +313,22 @@ model RoleplayMessage {
   content   String
   createdAt DateTime        @default(now())
 }
+
+// ---------------------------------------------------------------------------
+// 学習コンテンツのRAG（Phase 3）— 埋め込みは Voyage AI（voyage-3.5, 1024次元）
+// embedding列と類似検索は raw SQL で扱う（Prismaのvector未対応のため）。
+// 投入は scripts/ingest-learning.ts、検索は src/lib/ai/retrieval.ts。
+// ---------------------------------------------------------------------------
+
+model LearningChunk {
+  id         String                  @id @default(cuid())
+  source     String // 資料名（例: "AWS IAM 入門"）
+  sourceUrl  String? // 任意の出典URL
+  topic      String? // 資格・カテゴリ（例: "AWS SAA" "JSTQB FL"）
+  content    String // チャンク本文
+  chunkIndex Int
+  embedding  Unsupported("vector(1024)")?
+  createdAt  DateTime                     @default(now())
+
+  @@index([source])
+}

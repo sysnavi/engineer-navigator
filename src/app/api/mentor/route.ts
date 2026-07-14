@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { chatStream } from "@/lib/ai/client";
 import { buildMentorMessages } from "@/lib/ai/mentor";
+import { searchLearningChunks, formatContextBlock } from "@/lib/ai/retrieval";
 
 // メンターの返信をストリーミングする。
 // body: { sessionId: string, content: string }
@@ -33,12 +34,17 @@ export async function POST(req: Request) {
 
   const { system, messages } = await buildMentorMessages(sessionId);
 
+  // RAG: 学習コンテンツから関連チャンクを検索し system に差し込む。
+  // VOYAGE_API_KEY 未設定・該当なしなら空文字（メンターは知識ベースのみで回答）。
+  const chunks = await searchLearningChunks(content.trim());
+  const systemWithContext = system + formatContextBlock(chunks);
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
         const { text } = await chatStream({
-          system,
+          system: systemWithContext,
           messages,
           onToken: (delta) => controller.enqueue(encoder.encode(delta)),
         });
