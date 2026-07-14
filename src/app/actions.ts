@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { mondayOf } from "@/lib/week";
 import { analyzeReport } from "@/lib/ai/analyzeReport";
+import { completeJson } from "@/lib/ai/client";
 import { isPaletteId } from "@/lib/palettes";
 import {
   createConsultationAlert,
@@ -181,6 +182,68 @@ export async function setDevUser(email: string) {
   revalidatePath("/", "layout");
   redirect("/");
 }
+
+// ---------------------------------------------------------------------------
+// AIメンター（Phase 3）
+// ---------------------------------------------------------------------------
+
+export async function createMentorSession(formData: FormData) {
+  const user = await getCurrentUser();
+  const topic = formData.get("topic");
+  const certification = formData.get("certification");
+  const firstMessage = formData.get("firstMessage");
+
+  const session = await prisma.mentorSession.create({
+    data: {
+      userId: user.id,
+      topic: typeof topic === "string" && topic.trim() ? topic.trim() : null,
+      certification:
+        typeof certification === "string" && certification.trim()
+          ? certification.trim()
+          : null,
+      messages:
+        typeof firstMessage === "string" && firstMessage.trim()
+          ? { create: { role: "USER", content: firstMessage.trim() } }
+          : undefined,
+    },
+  });
+  revalidatePath("/mentor");
+  redirect(`/mentor/${session.id}`);
+}
+
+/** 週報の「詰まりごと」から学習トピックを先回り提案（本人が起動） */
+export async function proposeStudyTopics() {
+  const user = await getCurrentUser();
+  const reports = await prisma.weeklyReport.findMany({
+    where: { userId: user.id, status: "SUBMITTED" },
+    orderBy: { weekStart: "desc" },
+    take: 4,
+    select: { struggleText: true, newText: true },
+  });
+  const struggles = reports
+    .map((r) => [r.struggleText, r.newText].filter(Boolean).join(" / "))
+    .filter(Boolean)
+    .join("\n");
+
+  if (!struggles) {
+    return { topics: [] as StudyTopic[] };
+  }
+
+  try {
+    const { data } = await completeJson<{ topics: StudyTopic[] }>({
+      system: `あなたはSES企業の技術メンターです。エンジニアの週報の「詰まったこと・新しく触れた技術」から、次に学ぶと効果的な学習トピックを2〜3件提案します。
+出力はJSONのみ。各トピックは title(短い学習テーマ), why(なぜ今これか・1文), firstQuestion(メンターに最初に聞くと良い具体的な問い) を持つ。
+スキーマ: { "topics": [{ "title": string, "why": string, "firstQuestion": string }] }`,
+      user: `## 最近の週報から\n${struggles}`,
+    });
+    return { topics: (data.topics ?? []).slice(0, 3) };
+  } catch (e) {
+    console.error("proposeStudyTopics failed:", e);
+    return { topics: [] as StudyTopic[], error: "提案の生成に失敗しました" };
+  }
+}
+
+export type StudyTopic = { title: string; why: string; firstQuestion: string };
 
 // ---------------------------------------------------------------------------
 // きせかえ（カラーパレット）

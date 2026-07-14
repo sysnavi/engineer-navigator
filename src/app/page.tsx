@@ -86,7 +86,21 @@ export default async function Home() {
           </Link>
         )}
 
-        <Link href="/resume" className="group sm:col-span-2">
+        <Link href="/mentor" className="group">
+          <Window
+            title="MENTOR"
+            titleEm=".exe"
+            className="transition-transform group-hover:-translate-y-0.5"
+          >
+            <PixelLabel>AI MENTOR</PixelLabel>
+            <p className="mt-1 text-[15px] font-extrabold">AIメンター</p>
+            <p className="mt-1 text-[13px] text-inksoft">
+              資格・技術を「現場でどう使うか」まで具体例つきで24時間相談
+            </p>
+          </Window>
+        </Link>
+
+        <Link href="/resume" className="group">
           <Window
             title="経歴書"
             titleEm=".doc"

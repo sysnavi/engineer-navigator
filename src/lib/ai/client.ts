@@ -56,3 +56,42 @@ export async function completeJson<T>(params: {
     },
   };
 }
+
+export type ChatMessage = { role: "user" | "assistant"; content: string };
+
+/**
+ * 対話用のストリーミング。モデル名はここで一元管理する（CLAUDE.mdの決まり）。
+ * onToken でトークンを逐次受け取り、戻り値で全文と使用量を返す。
+ */
+export async function chatStream(params: {
+  system: string;
+  messages: ChatMessage[];
+  model?: string;
+  maxTokens?: number;
+  onToken: (text: string) => void;
+}): Promise<{ text: string; usage: LlmUsage }> {
+  const model = params.model ?? MODELS.chat;
+  const stream = anthropic.messages.stream({
+    model,
+    max_tokens: params.maxTokens ?? 2048,
+    system: params.system,
+    messages: params.messages,
+  });
+
+  stream.on("text", (delta) => params.onToken(delta));
+
+  const final = await stream.finalMessage();
+  const text = final.content
+    .filter((b) => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+
+  return {
+    text,
+    usage: {
+      model,
+      inputTokens: final.usage.input_tokens,
+      outputTokens: final.usage.output_tokens,
+    },
+  };
+}

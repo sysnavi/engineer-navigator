@@ -19,6 +19,7 @@ export const metadata: Metadata = {
 const NAV = [
   { href: "/report", label: "週報" },
   { href: "/skills", label: "スキルマップ" },
+  { href: "/mentor", label: "メンター" },
   { href: "/resume", label: "経歴書" },
   { href: "/condition", label: "コンディション", roles: ["SALES", "ADMIN"] },
   { href: "/mypage", label: "マイページ" },
