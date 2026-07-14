@@ -1,6 +1,12 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { decideSuggestion } from "@/app/actions";
+import {
+  Window,
+  PixelTitle,
+  PixelLabel,
+  LevelBlocks,
+} from "@/components/retro";
 
 const CATEGORY_LABELS: Record<string, string> = {
   LANGUAGE: "言語",
@@ -17,13 +23,107 @@ const CATEGORY_LABELS: Record<string, string> = {
 const KIND_LABELS: Record<string, string> = {
   NEW_SKILL: "新スキル",
   LEVEL_UP: "レベルアップ",
-  EXPERIENCE: "実績",
+  EXPERIENCE: "実績 / EXP",
 };
+
+// ---- レーダーチャート（カテゴリ別平均レベル・SVG 8bit風） ----
+function RadarChart(props: { axes: { label: string; value: number }[] }) {
+  const { axes } = props;
+  const cx = 150;
+  const cy = 130;
+  const R = 88;
+  const MAX = 5;
+  const pt = (i: number, v: number) => {
+    const a = (Math.PI * 2 * i) / axes.length - Math.PI / 2;
+    const r = (R * v) / MAX;
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)] as const;
+  };
+  const poly = (v: number) =>
+    axes.map((_, i) => pt(i, v).map((n) => Math.round(n)).join(",")).join(" ");
+  const data = axes
+    .map((ax, i) => pt(i, ax.value).map((n) => Math.round(n)).join(","))
+    .join(" ");
+
+  return (
+    <svg
+      viewBox="0 0 300 265"
+      className="mx-auto w-full max-w-[340px]"
+      shapeRendering="crispEdges"
+      role="img"
+      aria-label={`カテゴリ別スキルレーダー: ${axes
+        .map((a) => `${a.label} ${a.value.toFixed(1)}`)
+        .join("、")}`}
+    >
+      {[1, 2, 3, 4, 5].map((v) => (
+        <polygon
+          key={v}
+          points={poly(v)}
+          fill="none"
+          stroke="var(--grid)"
+          strokeWidth={v === 5 ? 2.5 : 1.5}
+        />
+      ))}
+      {axes.map((_, i) => {
+        const [x, y] = pt(i, MAX);
+        return (
+          <line
+            key={i}
+            x1={cx}
+            y1={cy}
+            x2={x}
+            y2={y}
+            stroke="var(--grid)"
+            strokeWidth="1.5"
+          />
+        );
+      })}
+      <polygon
+        points={data}
+        fill="var(--royal-2)"
+        fillOpacity="0.35"
+        stroke="var(--royal)"
+        strokeWidth="3"
+      />
+      {axes.map((ax, i) => {
+        const [x, y] = pt(i, ax.value);
+        return (
+          <rect
+            key={i}
+            x={x - 4}
+            y={y - 4}
+            width="8"
+            height="8"
+            fill="var(--pink-hot)"
+            stroke="var(--line)"
+            strokeWidth="1.5"
+          />
+        );
+      })}
+      {axes.map((ax, i) => {
+        const [x, y] = pt(i, MAX + 1.1);
+        return (
+          <text
+            key={i}
+            x={x}
+            y={y}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize="11"
+            fontWeight="700"
+            fill="var(--ink)"
+          >
+            {ax.label}
+          </text>
+        );
+      })}
+    </svg>
+  );
+}
 
 export default async function SkillsPage() {
   const user = await getCurrentUser();
 
-  const [suggestions, skills] = await Promise.all([
+  const [suggestions, skills, histories] = await Promise.all([
     prisma.skillSuggestion.findMany({
       where: { userId: user.id, status: "PENDING" },
       orderBy: { createdAt: "desc" },
@@ -32,6 +132,12 @@ export default async function SkillsPage() {
       where: { userId: user.id },
       include: { skill: true },
       orderBy: [{ level: "desc" }],
+    }),
+    prisma.skillHistory.findMany({
+      where: { engineerSkill: { userId: user.id } },
+      include: { engineerSkill: { include: { skill: true } } },
+      orderBy: { changedAt: "desc" },
+      take: 8,
     }),
   ]);
 
@@ -42,51 +148,59 @@ export default async function SkillsPage() {
     byCategory.set(s.skill.category, list);
   }
 
+  const radarAxes = [...byCategory.entries()]
+    .map(([cat, list]) => ({
+      label: CATEGORY_LABELS[cat] ?? cat,
+      value: list.reduce((a, s) => a + s.level, 0) / list.length,
+    }))
+    .slice(0, 8);
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       <div>
-        <h1 className="text-xl font-bold">スキルマップ</h1>
-        <p className="text-sm text-zinc-500">{user.name}</p>
+        <PixelLabel>SKILL_MAP.sav — {user.name}</PixelLabel>
+        <PixelTitle as="h1" className="text-3xl text-royal">
+          スキルマップ
+        </PixelTitle>
       </div>
 
       {suggestions.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="font-semibold">
-            AIからの更新提案
-            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
-              {suggestions.length}件
-            </span>
-          </h2>
+        <Window
+          title="AIからの提案"
+          barClass="!bg-pinkhot"
+          bodyClass="p-5 space-y-4"
+        >
+          <PixelLabel className="!text-pinkhot">
+            LEVEL UP READY! — {suggestions.length}件
+          </PixelLabel>
           {suggestions.map((s) => (
             <div
               key={s.id}
-              className="rounded-md border border-zinc-200 bg-white p-4"
+              className="rounded-lg border-2 border-line8 bg-surface p-4 shadow-hard-sm"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">
-                    <span className="mr-2 rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600">
-                      {KIND_LABELS[s.kind]}
-                    </span>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-[240px] flex-1 space-y-2">
+                  <p className="flex flex-wrap items-center gap-2 text-[14px] font-extrabold">
+                    <span className="badge8">{KIND_LABELS[s.kind]}</span>
                     {s.skillName}
-                    {s.suggestedLevel != null && ` → Lv${s.suggestedLevel}`}
+                    {s.suggestedLevel != null && (
+                      <span className="text-royal2"> → Lv{s.suggestedLevel}</span>
+                    )}
                   </p>
-                  <p className="text-sm text-zinc-600">{s.reason}</p>
+                  <p className="text-[13px] text-inksoft">{s.reason}</p>
                   {s.evidenceQuote && (
-                    <p className="border-l-2 border-zinc-300 pl-2 text-xs text-zinc-500">
-                      週報より: 「{s.evidenceQuote}」
-                    </p>
+                    <p className="quote8">週報より:「{s.evidenceQuote}」</p>
                   )}
                 </div>
-                <div className="flex shrink-0 gap-2">
+                <div className="flex shrink-0 gap-2.5">
                   <form
                     action={async () => {
                       "use server";
                       await decideSuggestion(s.id, true);
                     }}
                   >
-                    <button className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700">
-                      承認
+                    <button className="btn8 btn8-ok px-4 py-2 text-[12px]">
+                      ◯ しょうにん
                     </button>
                   </form>
                   <form
@@ -95,49 +209,95 @@ export default async function SkillsPage() {
                       await decideSuggestion(s.id, false);
                     }}
                   >
-                    <button className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs hover:bg-zinc-100">
-                      却下
+                    <button className="btn8 px-4 py-2 text-[12px]">
+                      × きゃっか
                     </button>
                   </form>
                 </div>
               </div>
             </div>
           ))}
-        </section>
+        </Window>
       )}
 
-      <section className="space-y-4">
-        <h2 className="font-semibold">現在のスキル（{skills.length}）</h2>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Window title="RADAR" titleEm=".viz">
+          {radarAxes.length >= 3 ? (
+            <RadarChart axes={radarAxes} />
+          ) : (
+            <p className="py-8 text-center text-[13px] text-inksoft">
+              カテゴリが3つ以上になるとレーダーチャートが表示されます
+            </p>
+          )}
+        </Window>
+
+        <Window title="成長ログ" titleEm=".log">
+          {histories.length === 0 ? (
+            <p className="py-8 text-center text-[13px] text-inksoft">
+              提案を承認するとここに成長の履歴が刻まれます
+            </p>
+          ) : (
+            <ol className="space-y-3">
+              {histories.map((h) => (
+                <li
+                  key={h.id}
+                  className="flex items-center justify-between gap-3 border-b-2 border-dashed border-grid8 pb-2.5 last:border-0 last:pb-0"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-[13.5px] font-extrabold">
+                      {h.engineerSkill.skill.name}
+                    </p>
+                    <p className="font-pixel text-[11px] tracking-wide text-inksoft">
+                      {h.changedAt.toISOString().slice(0, 10)}
+                    </p>
+                  </div>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <LevelBlocks level={h.level} />
+                    <span className="font-pixel text-[12px] text-royal2">
+                      Lv{h.level}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </Window>
+      </div>
+
+      <Window title="現在のスキル" titleEm={` (${skills.length})`}>
         {skills.length === 0 && (
-          <p className="text-sm text-zinc-500">
+          <p className="text-[13px] text-inksoft">
             まだスキルが登録されていません。週報を提出するとAIが提案します。
           </p>
         )}
-        {[...byCategory.entries()].map(([category, list]) => (
-          <div key={category}>
-            <h3 className="mb-2 text-sm font-medium text-zinc-500">
-              {CATEGORY_LABELS[category] ?? category}
-            </h3>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {list.map((es) => (
-                <div
-                  key={es.id}
-                  className="flex items-center justify-between rounded-md border border-zinc-200 bg-white px-3 py-2"
-                >
-                  <span className="text-sm">{es.skill.name}</span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="text-xs text-zinc-400">
-                      {"●".repeat(es.level)}
-                      {"○".repeat(5 - es.level)}
+        <div className="space-y-5">
+          {[...byCategory.entries()].map(([category, list]) => (
+            <div key={category}>
+              <PixelLabel className="mb-2">
+                {CATEGORY_LABELS[category] ?? category}
+              </PixelLabel>
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                {list.map((es) => (
+                  <div
+                    key={es.id}
+                    className="flex items-center justify-between rounded-lg border-2 border-line8 bg-surface px-3 py-2.5 shadow-hard-sm"
+                  >
+                    <span className="text-[13.5px] font-bold">
+                      {es.skill.name}
                     </span>
-                    <span className="text-xs font-medium">Lv{es.level}</span>
-                  </span>
-                </div>
-              ))}
+                    <span className="flex items-center gap-2">
+                      <LevelBlocks level={es.level} />
+                      <span className="font-pixel text-[12px] text-royal2">
+                        Lv{es.level}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
-      </section>
+          ))}
+        </div>
+      </Window>
     </div>
   );
 }

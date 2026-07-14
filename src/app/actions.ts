@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { mondayOf } from "@/lib/week";
 import { analyzeReport } from "@/lib/ai/analyzeReport";
+import { isPaletteId } from "@/lib/palettes";
 
 // ---------------------------------------------------------------------------
 // 週報
@@ -75,6 +76,23 @@ export async function submitReport(formData: FormData) {
 
   revalidatePath("/report");
   revalidatePath("/skills");
+}
+
+// ---------------------------------------------------------------------------
+// きせかえ（カラーパレット）
+// ---------------------------------------------------------------------------
+
+export async function setPalette(palette: string) {
+  const user = await getCurrentUser();
+  if (!isPaletteId(palette)) {
+    throw new Error(`不明なパレットです: ${palette}`);
+  }
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { palette },
+  });
+  // <html data-palette> はルートレイアウトが刻むため全体を再検証
+  revalidatePath("/", "layout");
 }
 
 // ---------------------------------------------------------------------------

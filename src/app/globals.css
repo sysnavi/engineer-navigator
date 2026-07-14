@@ -1,26 +1,385 @@
 @import "tailwindcss";
 
+/* =============================================================
+   Engineer Navigator — 8bit / Y2K design tokens
+   パレット＝このトークン一式の差し替え。<html data-palette="…">
+   を切り替えるだけで全画面が着せ替わる（レジストリは src/lib/palettes.ts）。
+   固定: --pink-hot(行動ボタン) --lemon(バッジ) は全パレット共通。
+   見本: docs/design/styletile.html
+   ============================================================= */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #d7e7f4; /* desktop ground */
+  --grid: #c3daf4; /* graph-paper lines */
+  --royal: #004aad; /* chrome / titlebars / outlines */
+  --royal-2: #2a6fd6;
+  --sky8: #5dade2;
+  --peri: #c1dbff; /* light text on royal */
+  --ink: #12235f; /* text */
+  --ink-soft: #5566a0;
+  --win: #ffffff; /* window body */
+  --line: #12235f; /* borders */
+  --surface: #f7fbff; /* fields / rows */
+  --surface-2: #eaf1fb; /* empty blocks */
+  --quote-bg: #eef5ff;
+  --hard: rgba(18, 35, 95, 0.9); /* hard pixel shadow */
+  --ach-bg: #f9ecfd;
+  --ach-stripe: #fbeff8;
+  --ach-ink: #12235f;
+  /* fixed across palettes */
+  --pink-hot: #f24e9c; /* ACTION only */
+  --lemon: #ffd84d;
+  color-scheme: light;
+}
+:root[data-palette="creamsoda"] {
+  --paper: #f9ecfd;
+  --grid: #f1d8f3;
+  --royal: #8a3fc6;
+  --royal-2: #a667dc;
+  --sky8: #d48fe8;
+  --peri: #f3dcff;
+  --ink: #3d1a66;
+  --ink-soft: #8a6fae;
+  --win: #ffffff;
+  --line: #3d1a66;
+  --surface: #fbf4ff;
+  --surface-2: #f3e6fb;
+  --quote-bg: #f8edff;
+  --hard: rgba(61, 26, 102, 0.85);
+  --ach-bg: #fce3f2;
+  --ach-stripe: #f9d6ec;
+  --ach-ink: #3d1a66;
+}
+:root[data-palette="gameboy"] {
+  --paper: #e6efc8;
+  --grid: #d2e39e;
+  --royal: #306230;
+  --royal-2: #4c7c3c;
+  --sky8: #8bac0f;
+  --peri: #cadc9f;
+  --ink: #0f380f;
+  --ink-soft: #4c6b43;
+  --win: #f4f9e4;
+  --line: #0f380f;
+  --surface: #edf5d4;
+  --surface-2: #dde9b8;
+  --quote-bg: #e9f2ce;
+  --hard: rgba(15, 56, 15, 0.85);
+  --ach-bg: #dde9b8;
+  --ach-stripe: #d2e0a6;
+  --ach-ink: #0f380f;
+}
+:root[data-palette="midnight"] {
+  --paper: #0b1026;
+  --grid: #182050;
+  --royal: #2a6fd6;
+  --royal-2: #5da0f0;
+  --sky8: #7fd1ff;
+  --peri: #c1dbff;
+  --ink: #e4ecff;
+  --ink-soft: #93a5d8;
+  --win: #131b3e;
+  --line: #050a1e;
+  --surface: #1a2450;
+  --surface-2: #101a40;
+  --quote-bg: #152047;
+  --hard: rgba(0, 0, 0, 0.7);
+  --ach-bg: #2a1837;
+  --ach-stripe: #35204a;
+  --ach-ink: #f3e3ff;
+  color-scheme: dark;
+}
+:root[data-palette="sunset"] {
+  --paper: #fdf0dc;
+  --grid: #f6dcb4;
+  --royal: #d5552f;
+  --royal-2: #e2703f;
+  --sky8: #f0a24a;
+  --peri: #ffe1c2;
+  --ink: #5c2a12;
+  --ink-soft: #a56f4e;
+  --win: #fffaf2;
+  --line: #5c2a12;
+  --surface: #fdf4e5;
+  --surface-2: #f7e7cc;
+  --quote-bg: #fbeeda;
+  --hard: rgba(92, 42, 18, 0.8);
+  --ach-bg: #fbe3d0;
+  --ach-stripe: #f6d7bc;
+  --ach-ink: #5c2a12;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-paper: var(--paper);
+  --color-grid8: var(--grid);
+  --color-royal: var(--royal);
+  --color-royal2: var(--royal-2);
+  --color-sky8: var(--sky8);
+  --color-peri: var(--peri);
+  --color-ink: var(--ink);
+  --color-inksoft: var(--ink-soft);
+  --color-win: var(--win);
+  --color-line8: var(--line);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface-2);
+  --color-quotebg: var(--quote-bg);
+  --color-pinkhot: var(--pink-hot);
+  --color-lemon: var(--lemon);
+  --font-sans: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic",
+    "Noto Sans JP", Meiryo, sans-serif;
+  --font-pixel: var(--font-dotgothic), "Hiragino Kaku Gothic ProN", monospace;
+  --font-mono8: "Courier New", "Andale Mono", monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 27px, var(--grid) 27px 28px),
+    repeating-linear-gradient(90deg, transparent 0 27px, var(--grid) 27px 28px),
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+@layer components {
+  /* ---------- retro window ---------- */
+  .win8 {
+    background: var(--win);
+    border: 2.5px solid var(--line);
+    border-radius: 10px;
+    box-shadow: 5px 5px 0 var(--hard);
+    overflow: hidden;
+  }
+  .win8-bar {
+    background: var(--royal);
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 12px;
+    border-bottom: 2.5px solid var(--line);
+  }
+  .win8-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+  }
+  .win8-title {
+    color: #fff;
+    font-family: var(--font-mono8);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    margin-left: 4px;
+  }
+  .win8-title em {
+    color: var(--peri);
+    font-style: normal;
+  }
+  .win8-close {
+    color: #fff;
+    font-family: var(--font-mono8);
+    font-weight: 700;
+    border: 2px solid #fff;
+    border-radius: 4px;
+    padding: 0 6px;
+    font-size: 12px;
+    margin-left: auto;
+  }
+
+  /* ---------- buttons ---------- */
+  .btn8 {
+    font-family: var(--font-mono8);
+    font-weight: 700;
+    border: 2.5px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 20px;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 var(--hard);
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    transition:
+      transform 0.05s,
+      box-shadow 0.05s;
+    background: var(--win);
+    color: var(--ink);
+  }
+  .btn8:active {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  }
+  .btn8:focus-visible {
+    outline: 3px solid var(--pink-hot);
+    outline-offset: 2px;
+  }
+  .btn8-start {
+    background: var(--pink-hot);
+    color: #fff;
+  }
+  .btn8-ok {
+    background: var(--royal);
+    color: #fff;
+  }
+
+  /* ---------- form ---------- */
+  .field8 {
+    border: 2px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: var(--font-sans);
+    color: var(--ink);
+    background: var(--surface);
+    font-size: 13.5px;
+    width: 100%;
+  }
+  .field8:focus {
+    outline: 3px solid var(--sky8);
+    outline-offset: 1px;
+  }
+  .field8::placeholder {
+    color: var(--ink-soft);
+    opacity: 0.7;
+  }
+
+  /* pill-style radio (label wraps a sr-only input) */
+  .pill8 {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono8);
+    font-weight: 700;
+    font-size: 13px;
+    border: 2.5px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 var(--hard);
+    background: var(--win);
+    color: var(--ink);
+    transition:
+      transform 0.05s,
+      box-shadow 0.05s;
+  }
+  .pill8:has(:checked) {
+    background: var(--royal);
+    color: #fff;
+  }
+  .pill8:has(:focus-visible) {
+    outline: 3px solid var(--pink-hot);
+    outline-offset: 2px;
+  }
+  .pill8:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  }
+
+  /* ---------- skill level blocks ---------- */
+  .blk8 {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--line);
+    border-radius: 3px;
+    background: var(--surface-2);
+    display: inline-block;
+  }
+  .blk8.f {
+    background: var(--royal);
+    box-shadow:
+      inset -3px -3px 0 rgba(0, 0, 0, 0.18),
+      inset 3px 3px 0 rgba(255, 255, 255, 0.35);
+  }
+
+  /* ---------- badges / quotes ---------- */
+  .badge8 {
+    display: inline-block;
+    font-family: var(--font-mono8);
+    font-weight: 700;
+    font-size: 11px;
+    border: 2px solid var(--line);
+    border-radius: 5px;
+    padding: 1px 7px;
+    background: var(--lemon);
+    color: #12235f;
+    box-shadow: 2px 2px 0 var(--hard);
+  }
+  .quote8 {
+    border: 2px dashed var(--royal-2);
+    background: var(--quote-bg);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+
+  /* ---------- achievement banner ---------- */
+  .ach8 {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background:
+      repeating-linear-gradient(
+        0deg,
+        transparent 0 13px,
+        var(--ach-stripe) 13px 14px
+      ),
+      var(--ach-bg);
+    border: 2.5px solid var(--line);
+    border-radius: 10px;
+    box-shadow: 5px 5px 0 var(--hard);
+    padding: 16px 18px;
+    color: var(--ach-ink);
+  }
+
+  /* ---------- 単価交渉キーワードのハイライト ---------- */
+  .kw8 {
+    background: var(--royal);
+    color: #fff;
+    font-weight: 800;
+    padding: 0 5px;
+    border-radius: 3px;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+
+  .shadow-hard {
+    box-shadow: 5px 5px 0 var(--hard);
+  }
+  .shadow-hard-sm {
+    box-shadow: 3px 3px 0 var(--hard);
+  }
+}
+
+/* =============================================================
+   印刷（経歴書のPDFエクスポート）: 8bit装飾を落として営業向けの
+   通常組版にする。印刷対象は .print-root、それ以外は隠す。
+   ============================================================= */
+@media print {
+  body {
+    background: #fff !important;
+    color: #000;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .win8 {
+    border: 1px solid #999;
+    box-shadow: none;
+    border-radius: 4px;
+    break-inside: avoid;
+  }
+  .win8-bar {
+    display: none;
+  }
+  .kw8 {
+    background: #fff;
+    color: #000;
+    outline: 1.5px solid #000;
+    font-weight: 800;
+  }
+  .blk8 {
+    border-color: #666;
+  }
+  .blk8.f {
+    background: #444;
+    box-shadow: none;
+  }
 }

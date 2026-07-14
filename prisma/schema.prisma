@@ -22,6 +22,8 @@ model User {
   email     String   @unique
   name      String
   role      Role     @default(ENGINEER)
+  // UIカラーパレット（きせかえ）。値は src/lib/palettes.ts の PaletteId
+  palette   String   @default("sky")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
