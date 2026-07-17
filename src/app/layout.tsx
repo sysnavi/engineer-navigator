@@ -23,6 +23,7 @@ const NAV = [
   { href: "/plan", label: "学習プラン" },
   { href: "/quiz", label: "腕試し" },
   { href: "/roleplay", label: "役割演習" },
+  { href: "/yomoyama", label: "よもやま" },
   { href: "/resume", label: "経歴書" },
   { href: "/discover", label: "発見" },
   { href: "/condition", label: "コンディション", roles: ["SALES", "ADMIN"] },
