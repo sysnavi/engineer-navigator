@@ -1,108 +1,29 @@
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 import { highlightKeywords, RATE_KEYWORDS } from "@/lib/highlight";
+import {
+  loadResumeData,
+  CATEGORY_LABELS,
+  LEVEL_DEFS,
+  fmtMonth,
+} from "@/lib/resume-data";
 import {
   Window,
   PixelTitle,
   PixelLabel,
   LevelBlocks,
 } from "@/components/retro";
-import { PrintButton } from "./print-button";
-
-const CATEGORY_LABELS: Record<string, string> = {
-  LANGUAGE: "言語",
-  FRAMEWORK: "フレームワーク",
-  CLOUD: "クラウド",
-  DATABASE: "データベース",
-  AI: "AI",
-  TOOL: "ツール",
-  PROCESS: "工程",
-  SOFT: "ソフトスキル",
-  OTHER: "その他",
-};
-
-const LEVEL_DEFS: Record<number, string> = {
-  1: "学習中",
-  2: "指導のもとで実務可能",
-  3: "一人で実務可能",
-  4: "本番リリース経験・指導可能",
-  5: "設計判断・技術選定をリード",
-};
-
-function fmtMonth(d: Date | null): string {
-  if (!d) return "現在";
-  return `${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-type RoleplayStat = {
-  title: string;
-  count: number;
-  bestScore: number | null;
-  lastAt: Date;
-};
 
 export default async function ResumePage() {
   const user = await getCurrentUser();
-
-  const [skills, experiences, assignments, roleplays] = await Promise.all([
-    prisma.engineerSkill.findMany({
-      where: { userId: user.id },
-      include: { skill: true },
-      orderBy: [{ level: "desc" }],
-    }),
-    prisma.skillSuggestion.findMany({
-      where: { userId: user.id, status: "APPROVED", kind: "EXPERIENCE" },
-      include: { sourceReport: true },
-      orderBy: { decidedAt: "desc" },
-    }),
-    prisma.assignment.findMany({
-      where: { userId: user.id },
-      include: { project: true },
-      orderBy: { startedAt: "desc" },
-    }),
-    // 完了したロールプレイ演習は、リーダーシップのエビデンスとして経歴書に載せる
-    prisma.roleplaySession.findMany({
-      where: { userId: user.id, status: "COMPLETED" },
-      include: { scenario: true },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
-
-  // シナリオ別に集計（回数と最高スコア）
-  const roleplayStats = new Map<string, RoleplayStat>();
-  for (const r of roleplays) {
-    let score: number | null = null;
-    try {
-      score = r.feedback ? (JSON.parse(r.feedback).score as number) : null;
-    } catch {
-      score = null;
-    }
-    const cur = roleplayStats.get(r.scenario.title);
-    if (cur) {
-      cur.count += 1;
-      if (score != null && (cur.bestScore == null || score > cur.bestScore)) {
-        cur.bestScore = score;
-      }
-    } else {
-      roleplayStats.set(r.scenario.title, {
-        title: r.scenario.title,
-        count: 1,
-        bestScore: score,
-        lastAt: r.createdAt,
-      });
-    }
-  }
-  const roleplayList = [...roleplayStats.values()];
-
-  const byCategory = new Map<string, typeof skills>();
-  for (const s of skills) {
-    const list = byCategory.get(s.skill.category) ?? [];
-    list.push(s);
-    byCategory.set(s.skill.category, list);
-  }
-
-  const today = new Date();
-  const updated = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, "0")}/${String(today.getDate()).padStart(2, "0")}`;
+  const {
+    skills,
+    experiences,
+    assignments,
+    roleplays,
+    roleplayList,
+    byCategory,
+    updated,
+  } = await loadResumeData(user.id);
 
   return (
     <div className="print-root space-y-7">
@@ -113,7 +34,9 @@ export default async function ResumePage() {
             経歴書
           </PixelTitle>
         </div>
-        <PrintButton />
+        <a href="/api/resume/pdf" className="btn8 btn8-start no-print inline-block">
+          ▶ PDF出力
+        </a>
       </div>
 
       {/* ヘッダー（印刷時はここが先頭） */}
@@ -278,7 +201,7 @@ export default async function ResumePage() {
       </Window>
 
       <p className="no-print text-center font-pixel text-[12px] tracking-[0.1em] text-royal2">
-        「いんさつ / PDF」で営業向けの通常組版に変換されます（8bit装飾は自動で外れます）
+        「PDF出力」でそのまま渡せる通常組版のPDFをダウンロードできます（8bit装飾は自動で外れます）
       </p>
     </div>
   );

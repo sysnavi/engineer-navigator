@@ -27,10 +27,10 @@ async function buildContext(userId: string): Promise<string> {
       take: 15,
     }),
     prisma.weeklyReport.findMany({
-      where: { userId, status: "SUBMITTED", struggleText: { not: null } },
+      where: { userId, status: "SUBMITTED" },
       orderBy: { weekStart: "desc" },
       take: 3,
-      select: { struggleText: true, newText: true },
+      select: { struggleText: true, newText: true, shareText: true },
     }),
   ]);
 
@@ -41,10 +41,16 @@ async function buildContext(userId: string): Promise<string> {
     .map((r) => r.struggleText)
     .filter(Boolean)
     .join(" / ");
+  // 週報の設問7「AIメンターへの共有・相談」— 本人からメンターに宛てた共有事項
+  const shares = reports
+    .map((r) => r.shareText)
+    .filter(Boolean)
+    .join(" / ");
 
   return `## 相手のプロフィール（メンタリングの参考に。本人には言及しすぎない）
 現在のスキル: ${skillLine}
-最近の週報で詰まっていること: ${struggles || "（特に記載なし）"}`;
+最近の週報で詰まっていること: ${struggles || "（特に記載なし）"}
+週報でメンター宛てに共有されたこと: ${shares || "（特に記載なし）"}`;
 }
 
 /** セッション履歴 + コンテキストからメンターへ渡すメッセージ列を組み立てる */

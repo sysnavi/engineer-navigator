@@ -29,7 +29,6 @@ type ReportData = {
   struggleText: string | null;
   nextText: string | null;
   shareText: string | null;
-  wantsConsultation: boolean;
 };
 
 function PillRow(props: {
@@ -167,19 +166,10 @@ export function ReportForm(props: { report: ReportData | null; submitted: boolea
       />
       <Field
         name="shareText"
-        label="7. 会社への共有・相談"
+        label="7. AIメンターへの共有・相談"
+        placeholder="メンターに聞きたいこと・共有しておきたいこと（次の相談でメンターがこの内容を踏まえます）"
         defaultValue={r?.shareText}
       />
-
-      <label className="flex items-center gap-2.5 text-[13px] font-bold">
-        <input
-          type="checkbox"
-          name="wantsConsultation"
-          defaultChecked={r?.wantsConsultation}
-          className="h-4 w-4 accent-[var(--pink-hot)]"
-        />
-        営業に直接相談したい（チェックすると担当営業へすぐに通知されます）
-      </label>
 
       <div className="flex flex-wrap items-center gap-4">
         <button formAction={submitReport} className="btn8 btn8-start">
@@ -198,7 +188,7 @@ export function ReportForm(props: { report: ReportData | null; submitted: boolea
       </div>
       <p className="text-[11.5px] text-inksoft">
         提出するとAIが内容を解析し、スキルマップの更新提案と「今週の成長ポイント」を返します。
-        コンディションに関する記述は本人・管理者・担当営業のみ閲覧でき、人事評価には使用されません。
+        設問5・7に書いた内容は、AIメンターが次の相談のコンテキストとして参照します。
         入力は自動で下書き保存されます。
       </p>
     </form>

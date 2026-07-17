@@ -33,6 +33,22 @@ const PATTERN = new RegExp(
   "g"
 );
 
+/**
+ * テキストをキーワード境界で分割する（PDF出力など、web以外の描画で使う）。
+ * 例: "本番リリースを担当" → [{text:"本番リリース",isKeyword:true},{text:"を担当",isKeyword:false}]
+ */
+export function splitByKeywords(
+  text: string
+): { text: string; isKeyword: boolean }[] {
+  return text
+    .split(PATTERN)
+    .filter((p) => p !== "")
+    .map((p) => ({
+      text: p,
+      isKeyword: (RATE_KEYWORDS as readonly string[]).includes(p),
+    }));
+}
+
 /** テキスト中の単価交渉キーワードを <mark class="kw8"> で強調する */
 export function highlightKeywords(text: string): ReactNode {
   const parts = text.split(PATTERN);

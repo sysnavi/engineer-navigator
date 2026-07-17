@@ -119,7 +119,6 @@ export default async function ReportPage() {
               struggleText: report.struggleText,
               nextText: report.nextText,
               shareText: report.shareText,
-              wantsConsultation: report.wantsConsultation,
             }
           }
           submitted={submitted}
