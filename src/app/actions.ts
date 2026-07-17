@@ -301,6 +301,15 @@ export async function createMentorSession(formData: FormData) {
   const certification = formData.get("certification");
   const firstMessage = formData.get("firstMessage");
 
+  const nonEmpty = (v: FormDataEntryValue | null) =>
+    typeof v === "string" && v.trim().length > 0;
+  // 未入力ガード: 何も書かずに空のセッションを作らせない
+  if (!nonEmpty(topic) && !nonEmpty(certification) && !nonEmpty(firstMessage)) {
+    throw new Error(
+      "相談したいこと（資格・テーマ・聞きたいこと のいずれか）を入力してください。"
+    );
+  }
+
   const session = await prisma.mentorSession.create({
     data: {
       userId: user.id,
@@ -477,6 +486,17 @@ export async function endRoleplay(sessionId: string) {
   if (session.status === "COMPLETED") {
     revalidatePath(`/roleplay/${sessionId}`);
     return;
+  }
+
+  // 未入力ガード: 1回もやり取りしていない演習は評価できない。
+  // UI側でも終了ボタンを無効化しているが、直接呼ばれても無駄なAI呼び出しをしないための保険。
+  const userTurns = await prisma.roleplayMessage.count({
+    where: { sessionId, role: "USER" },
+  });
+  if (userTurns === 0) {
+    throw new Error(
+      "まだやり取りがありません。相手役と1回はやり取りしてから終了してください。"
+    );
   }
 
   // 停止中・レート超過なら終了処理を保留（後で再試行できるようセッションは進行中のまま）

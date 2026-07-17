@@ -136,38 +136,17 @@ export default async function RoleplaySessionPage({
           </details>
         </>
       ) : (
-        <>
-          <Window title="SIMULATION" titleEm=".live" bodyClass="p-4 sm:p-5">
-            <RoleplayChat
-              sessionId={session.id}
-              initial={session.messages.map((m) => ({
-                role: m.role as "USER" | "ASSISTANT",
-                content: m.content,
-              }))}
-            />
-          </Window>
-
-          <div className="rounded-lg border-2 border-line8 bg-surface p-4 shadow-hard-sm">
-            <p className="mb-2 font-pixel text-[11px] tracking-wide text-inksoft">
-              評価観点（この観点でフィードバックされます）
-            </p>
-            <ul className="mb-3 list-inside list-disc space-y-1 text-[12px] text-inksoft">
-              {objectives.map((o, i) => (
-                <li key={i}>{o}</li>
-              ))}
-            </ul>
-            <form
-              action={async () => {
-                "use server";
-                await endRoleplay(session.id);
-              }}
-            >
-              <button className="btn8 btn8-start text-[12px]">
-                ▶ 演習を終了してフィードバックを見る
-              </button>
-            </form>
-          </div>
-        </>
+        <Window title="SIMULATION" titleEm=".live" bodyClass="p-4 sm:p-5">
+          <RoleplayChat
+            sessionId={session.id}
+            initial={session.messages.map((m) => ({
+              role: m.role as "USER" | "ASSISTANT",
+              content: m.content,
+            }))}
+            endAction={endRoleplay.bind(null, session.id)}
+            objectives={objectives}
+          />
+        </Window>
       )}
     </div>
   );
