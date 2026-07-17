@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { mondayOf, formatWeek } from "@/lib/week";
 import { giveConsent } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { ReportForm } from "./report-form";
+import { InterviewChat } from "./interview";
 
 // 初回オンボーディング: 同意（AI解析・閲覧範囲・評価不使用）を取ってから週報を解錠する
 function ConsentGate() {
@@ -36,7 +38,12 @@ function ConsentGate() {
   );
 }
 
-export default async function ReportPage() {
+export default async function ReportPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mode?: string }>;
+}) {
+  const { mode } = await searchParams;
   const user = await getCurrentUser();
   if (!user.consentedAt) {
     return (
@@ -58,6 +65,7 @@ export default async function ReportPage() {
   });
 
   const submitted = report?.status === "SUBMITTED";
+  const interview = mode === "interview";
 
   return (
     <div className="space-y-7">
@@ -108,22 +116,49 @@ export default async function ReportPage() {
         </div>
       )}
 
-      <Window title="週報" titleEm=".exe">
-        <ReportForm
-          report={
-            report && {
-              conditionSelf: report.conditionSelf,
-              workloadSelf: report.workloadSelf,
-              didText: report.didText,
-              newText: report.newText,
-              struggleText: report.struggleText,
-              nextText: report.nextText,
-              shareText: report.shareText,
+      {/* 書き方の切替: フォーム / インタビュー（話すだけで週報になる） */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Link
+          href="/report"
+          className={`btn8 text-[12px] ${interview ? "" : "btn8-ok"}`}
+        >
+          フォームで書く
+        </Link>
+        <Link
+          href="/report?mode=interview"
+          className={`btn8 text-[12px] ${interview ? "btn8-ok" : ""}`}
+        >
+          🎙 インタビューで答える
+        </Link>
+        {interview && (
+          <span className="text-[11.5px] text-inksoft">
+            AIが1問ずつ聞きます。話すだけで週報のドラフトができます
+          </span>
+        )}
+      </div>
+
+      {interview ? (
+        <Window title="インタビュー" titleEm=".rec" bodyClass="p-4 sm:p-5">
+          <InterviewChat />
+        </Window>
+      ) : (
+        <Window title="週報" titleEm=".exe">
+          <ReportForm
+            report={
+              report && {
+                conditionSelf: report.conditionSelf,
+                workloadSelf: report.workloadSelf,
+                didText: report.didText,
+                newText: report.newText,
+                struggleText: report.struggleText,
+                nextText: report.nextText,
+                shareText: report.shareText,
+              }
             }
-          }
-          submitted={submitted}
-        />
-      </Window>
+            submitted={submitted}
+          />
+        </Window>
+      )}
     </div>
   );
 }

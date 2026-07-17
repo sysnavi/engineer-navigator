@@ -7,7 +7,8 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { mondayOf } from "@/lib/week";
 import { analyzeReport } from "@/lib/ai/analyzeReport";
-import { completeJson } from "@/lib/ai/client";
+import { completeJson, type ChatMessage } from "@/lib/ai/client";
+import { extractDraft } from "@/lib/ai/interview";
 import { generatePlanItems } from "@/lib/ai/studyplan";
 import { generateOpeningLine, generateFeedback } from "@/lib/ai/roleplay";
 import { isPaletteId } from "@/lib/palettes";
@@ -402,6 +403,46 @@ export async function setPalette(palette: string) {
   });
   // <html data-palette> はルートレイアウトが刻むため全体を再検証
   revalidatePath("/", "layout");
+}
+
+// ---------------------------------------------------------------------------
+// 週報インタビューモード: 会話ログ → 7設問ドラフトに変換して下書き保存
+// ---------------------------------------------------------------------------
+
+export async function summarizeInterview(transcript: ChatMessage[]) {
+  const user = await getCurrentUser();
+  if (!user.consentedAt) {
+    throw new Error("週報の利用にはオンボーディングでの同意が必要です");
+  }
+  if (
+    !Array.isArray(transcript) ||
+    transcript.length === 0 ||
+    transcript.length > 40 ||
+    !transcript.every(
+      (m) =>
+        (m.role === "user" || m.role === "assistant") &&
+        typeof m.content === "string" &&
+        m.content.length <= 2000
+    )
+  ) {
+    throw new Error("インタビューの内容が不正です");
+  }
+
+  const draft = await extractDraft(transcript);
+  const weekStart = mondayOf(new Date());
+
+  // 既存の下書き/提出済みに保存（提出済みステータスは変えない=フォームと同じ挙動）。
+  // update はインタビューで話題に出た設問だけの部分更新にする —
+  // null で上書きすると、触れなかった設問の既存の記入が消えてしまうため。
+  const touched = Object.fromEntries(
+    Object.entries(draft).filter(([, v]) => v !== null)
+  );
+  await prisma.weeklyReport.upsert({
+    where: { userId_weekStart: { userId: user.id, weekStart } },
+    update: touched,
+    create: { ...draft, userId: user.id, weekStart },
+  });
+  revalidatePath("/report");
 }
 
 // ---------------------------------------------------------------------------
