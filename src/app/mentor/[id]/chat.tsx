@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { MicButton } from "@/components/mic-button";
 
 type Msg = { role: "USER" | "ASSISTANT"; content: string };
 
@@ -123,9 +124,13 @@ export function MentorChat(props: { sessionId: string; initial: Msg[] }) {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onSend(e);
           }}
           rows={2}
-          placeholder="メンターに質問する（⌘/Ctrl+Enterで送信）"
+          placeholder="メンターに質問する。🎤で音声入力も（⌘/Ctrl+Enterで送信）"
           className="field8"
           disabled={streaming}
+        />
+        <MicButton
+          disabled={streaming}
+          onText={(t) => setInput((v) => (v ? `${v} ${t}` : t))}
         />
         <button
           type="submit"

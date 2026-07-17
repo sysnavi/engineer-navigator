@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { summarizeInterview } from "@/app/actions";
+import { MicButton } from "@/components/mic-button";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -139,9 +140,13 @@ export function InterviewChat() {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(e);
           }}
           rows={2}
-          placeholder="話し言葉でOK（⌘/Ctrl+Enterで送信）"
+          placeholder="話し言葉でOK。🎤で音声入力も（⌘/Ctrl+Enterで送信）"
           className="field8"
           disabled={streaming || summarizing}
+        />
+        <MicButton
+          disabled={streaming || summarizing}
+          onText={(t) => setInput((v) => (v ? `${v} ${t}` : t))}
         />
         <button
           type="submit"

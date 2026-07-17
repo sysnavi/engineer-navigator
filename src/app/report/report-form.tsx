@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { saveReportDraft, submitReport } from "@/app/actions";
+import { MicButton } from "@/components/mic-button";
 
 // 週報フォーム（クライアント）。入力が止まったら自動で下書き保存する。
 
@@ -64,20 +65,35 @@ function Field(props: {
   defaultValue?: string | null;
   rows?: number;
 }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  // 音声認識テキストを末尾に追記し、自動保存のためにinputイベントを発火する
+  function appendVoice(text: string) {
+    const ta = ref.current;
+    if (!ta) return;
+    ta.value = ta.value ? `${ta.value} ${text}` : text;
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    ta.focus();
+  }
+
   return (
     <div>
-      <label className="mb-1.5 block text-[13px] font-extrabold">
+      <label className="mb-1.5 flex items-center gap-2 text-[13px] font-extrabold">
         {props.label}
-        {props.required && <span className="ml-1 text-pinkhot">*</span>}
+        {props.required && <span className="text-pinkhot">*</span>}
       </label>
-      <textarea
-        name={props.name}
-        rows={props.rows ?? 3}
-        placeholder={props.placeholder}
-        defaultValue={props.defaultValue ?? ""}
-        required={props.required}
-        className="field8"
-      />
+      <div className="flex items-start gap-2">
+        <textarea
+          ref={ref}
+          name={props.name}
+          rows={props.rows ?? 3}
+          placeholder={props.placeholder}
+          defaultValue={props.defaultValue ?? ""}
+          required={props.required}
+          className="field8"
+        />
+        <MicButton onText={appendVoice} title={`${props.label}を音声で入力`} />
+      </div>
     </div>
   );
 }
