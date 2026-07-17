@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createMentorSession } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
+import { SubmitButton } from "@/components/submit-button";
 import { ProposeTopics } from "./propose";
 
 export default async function MentorPage() {
@@ -78,7 +79,9 @@ export default async function MentorPage() {
               className="field8"
             />
           </div>
-          <button className="btn8 btn8-start">▶ そうだんを始める</button>
+          <SubmitButton className="btn8 btn8-start" pendingLabel="準備中…">
+            ▶ そうだんを始める
+          </SubmitButton>
         </form>
       </Window>
 

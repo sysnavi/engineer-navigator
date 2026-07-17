@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createStudyPlan } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
+import { SubmitButton } from "@/components/submit-button";
 
 function daysLeft(examDate: Date, now: number): number {
   return Math.ceil((examDate.getTime() - now) / 86400_000);
@@ -50,7 +51,9 @@ export default async function PlanListPage() {
               <input name="examDate" type="date" required className="field8" />
             </div>
           </div>
-          <button className="btn8 btn8-start">▶ プランを作成</button>
+          <SubmitButton className="btn8 btn8-start" pendingLabel="AIが作成中…">
+            ▶ プランを作成
+          </SubmitButton>
           <p className="text-[11.5px] text-inksoft">
             試験日までを逆算し、あなたのスキルと社内教材を踏まえて週次の計画を生成します。
           </p>
