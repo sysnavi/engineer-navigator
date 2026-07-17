@@ -25,6 +25,7 @@ const NAV = [
   { href: "/resume", label: "経歴書" },
   { href: "/discover", label: "発見" },
   { href: "/condition", label: "コンディション", roles: ["SALES", "ADMIN"] },
+  { href: "/admin", label: "管理", roles: ["ADMIN"] },
   { href: "/mypage", label: "マイページ" },
 ];
 
