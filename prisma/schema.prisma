@@ -19,7 +19,9 @@ enum Role {
 
 model User {
   id        String   @id @default(cuid())
-  email     String   @unique
+  // 招待リンク認証のユーザーはメールを持たない（個人情報を保持しない方針）。
+  // dev/seedユーザーとGoogle SSO移行時のみ値が入る。
+  email     String?  @unique
   name      String
   role      Role     @default(ENGINEER)
   // UIカラーパレット（きせかえ）。値は src/lib/palettes.ts の PaletteId
@@ -49,6 +51,19 @@ model User {
   roleplaySessions RoleplaySession[]
   studyPlans       StudyPlan[]
   aiUsage          AiUsage[]
+  invite           Invite?
+}
+
+// 招待リンク認証（個人情報を持たない方針）。メール/パスワードの代わりに
+// 不透明トークンを1人1本発行し、それ自体がログイン資格になる。漏れても1人分・失効可能。
+model Invite {
+  id        String    @id @default(cuid())
+  token     String    @unique // URLに載る不透明トークン（推測不可）
+  note      String? // 管理用の目印（例:「Aさん用」）。PIIは入れない運用
+  user      User?     @relation(fields: [userId], references: [id])
+  userId    String?   @unique // 引き換え時に作られる/紐づくユーザー
+  createdAt DateTime  @default(now())
+  revokedAt DateTime? // 失効（このトークンでのログインを無効化）
 }
 
 // AI呼び出しの利用ログ。直近の件数からレート制限・自動停止を判定する（スパム対策）。

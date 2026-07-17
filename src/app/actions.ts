@@ -14,6 +14,8 @@ import { generateOpeningLine, generateFeedback } from "@/lib/ai/roleplay";
 import { isPaletteId } from "@/lib/palettes";
 import { isDomainId } from "@/lib/domains";
 import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
+import { createInvite } from "@/lib/invite";
+import { SESSION_COOKIE } from "@/lib/session";
 
 /** AiBlockedError をフォーム表示用の分かりやすい Error に変換して投げ直す */
 function throwFriendly(e: unknown): never {
@@ -289,6 +291,39 @@ export async function setUserSuspended(userId: string, suspend: boolean) {
       : { suspendedAt: null, suspendReason: null },
   });
   revalidatePath("/mypage");
+}
+
+// ---------------------------------------------------------------------------
+// 招待リンク（管理者のみ発行/失効） + ログアウト
+// ---------------------------------------------------------------------------
+
+export async function createInviteLink(formData: FormData) {
+  const me = await getCurrentUser();
+  if (me.role !== "ADMIN") {
+    throw new Error("この操作は管理者のみ実行できます");
+  }
+  const note = formData.get("note");
+  await createInvite(typeof note === "string" ? note : null);
+  revalidatePath("/mypage");
+}
+
+export async function revokeInvite(inviteId: string) {
+  const me = await getCurrentUser();
+  if (me.role !== "ADMIN") {
+    throw new Error("この操作は管理者のみ実行できます");
+  }
+  await prisma.invite.update({
+    where: { id: inviteId },
+    data: { revokedAt: new Date() },
+  });
+  revalidatePath("/mypage");
+}
+
+export async function logout() {
+  const store = await cookies();
+  store.delete(SESSION_COOKIE);
+  store.delete("dev-user");
+  redirect("/welcome");
 }
 
 // ---------------------------------------------------------------------------

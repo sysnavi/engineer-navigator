@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DotGothic16 } from "next/font/google";
-import { getCurrentUser } from "@/lib/auth";
+import { getOptionalUser } from "@/lib/auth";
 import "./globals.css";
 
 const dotGothic = DotGothic16({
@@ -37,14 +37,14 @@ export default async function RootLayout({
   // 未ログイン/未シード時はデフォルトにフォールバック。
   let palette = "sky";
   let role = "ENGINEER";
-  try {
-    const user = await getCurrentUser();
+  const user = await getOptionalUser();
+  const loggedIn = !!user;
+  if (user) {
     palette = user.palette;
     role = user.role;
-  } catch {
-    // noop — デフォルトパレットで表示
   }
-  const nav = NAV.filter((n) => !n.roles || n.roles.includes(role));
+  // 未ログイン（/welcome 等）ではナビを出さない
+  const nav = loggedIn ? NAV.filter((n) => !n.roles || n.roles.includes(role)) : [];
 
   return (
     <html

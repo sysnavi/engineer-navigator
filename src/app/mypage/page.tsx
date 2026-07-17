@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { PALETTES } from "@/lib/palettes";
@@ -8,6 +9,9 @@ import {
   updateShareSettings,
   updateTargetDomains,
   setUserSuspended,
+  createInviteLink,
+  revokeInvite,
+  logout,
 } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { ReportToggle } from "./report-toggle";
@@ -61,6 +65,21 @@ export default async function MyPage() {
     usageByUser.map((u) => [u.userId, u._count._all])
   );
 
+  // 招待リンク一覧（管理者のみ）と、リンク組み立て用のオリジン
+  const invites = isAdmin
+    ? await prisma.invite.findMany({
+        orderBy: { createdAt: "desc" },
+        include: { user: { select: { name: true, handle: true } } },
+      })
+    : [];
+  let origin = "";
+  if (isAdmin) {
+    const h = await headers();
+    const host = h.get("host") ?? "";
+    const proto = h.get("x-forwarded-proto") ?? "http";
+    origin = host ? `${proto}://${host}` : "";
+  }
+
   return (
     <div className="space-y-7">
       <div>
@@ -91,10 +110,11 @@ export default async function MyPage() {
           >
             {user.name.charAt(0)}
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="text-[15px] font-extrabold">{user.name}</p>
             <p className="text-[12.5px] text-inksoft">
-              {user.email} ・ {ROLE_LABELS[user.role] ?? user.role}
+              {user.email ? `${user.email} ・ ` : ""}
+              {ROLE_LABELS[user.role] ?? user.role}
             </p>
             <p className="mt-0.5 font-pixel text-[11px] tracking-wide text-inksoft">
               {user.consentedAt
@@ -102,6 +122,11 @@ export default async function MyPage() {
                 : "CONSENT — 未同意（週報の初回起動時に確認します）"}
             </p>
           </div>
+          <form action={logout}>
+            <button className="btn8 shrink-0 px-3 py-1.5 text-[11px]">
+              ログアウト
+            </button>
+          </form>
         </div>
       </Window>
 
@@ -315,6 +340,74 @@ export default async function MyPage() {
               );
             })}
           </div>
+
+          <div className="mt-5">
+            <PixelLabel className="mb-2">
+              招待リンク — テスターを追加（個人情報は不要）
+            </PixelLabel>
+            <form
+              action={createInviteLink}
+              className="flex items-end gap-2"
+            >
+              <input
+                name="note"
+                placeholder="目印（任意・例: Aさん用）"
+                className="field8"
+              />
+              <button className="btn8 btn8-start shrink-0 text-[12px]">
+                ＋ 発行
+              </button>
+            </form>
+            <div className="mt-3 space-y-2">
+              {invites.length === 0 && (
+                <p className="text-[12px] text-inksoft">
+                  まだ招待リンクはありません。上のボタンで発行してください。
+                </p>
+              )}
+              {invites.map((inv) => {
+                const revoked = !!inv.revokedAt;
+                const joinUrl = `${origin}/join/${inv.token}`;
+                return (
+                  <div
+                    key={inv.id}
+                    className="rounded-lg border-2 border-line8 bg-surface px-3 py-2 shadow-hard-sm"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="min-w-0 truncate text-[12.5px] font-bold">
+                        {inv.note || "（目印なし）"}
+                        {inv.user ? (
+                          <span className="ml-1.5 font-pixel text-[10px] text-royal2">
+                            使用中: {inv.user.handle ?? inv.user.name}
+                          </span>
+                        ) : (
+                          <span className="ml-1.5 font-pixel text-[10px] text-inksoft">
+                            未使用
+                          </span>
+                        )}
+                        {revoked && (
+                          <span className="ml-1.5 font-pixel text-[10px] text-pinkhot">
+                            失効済み
+                          </span>
+                        )}
+                      </p>
+                      {!revoked && (
+                        <form action={revokeInvite.bind(null, inv.id)}>
+                          <button className="btn8 shrink-0 px-2.5 py-1 text-[10px]">
+                            失効
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                    {!revoked && (
+                      <p className="mt-1 break-all rounded border-2 border-dashed border-grid8 bg-win px-2 py-1 font-pixel text-[10.5px] text-inksoft">
+                        {joinUrl}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </Window>
       )}
 
@@ -324,12 +417,14 @@ export default async function MyPage() {
             DEV ONLY — ユーザー切替（本番はGoogle SSOに置換）
           </PixelLabel>
           <div className="mt-3 flex flex-wrap gap-2.5">
-            {devUsers.map((u) => (
+            {devUsers
+              .filter((u) => u.email)
+              .map((u) => (
               <form
                 key={u.id}
                 action={async () => {
                   "use server";
-                  await setDevUser(u.email);
+                  await setDevUser(u.email!);
                 }}
               >
                 <button

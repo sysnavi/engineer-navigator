@@ -1,19 +1,41 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
+import { SESSION_COOKIE, DEV_COOKIE } from "@/lib/session";
+import { userFromSessionToken } from "@/lib/invite";
 
-// 開発用の簡易認証。cookie "dev-user" のメールでユーザーを特定する。
-// 本番導入時は Google Workspace SSO (sysnavi.co.jp 限定) に置き換える。
+// 認証は2系統:
+// 1) 招待リンクセッション（本番/公開用）: cookie "en_session" のトークンから Invite→User を解決。
+//    個人情報（メール・パスワード）は保持しない。
+// 2) 開発用ログイン（DEV_LOGIN_ENABLED のときのみ）: cookie "dev-user" のメールで特定。
+//    ローカル開発の利便のため。本番では無効。
 
+const DEV_LOGIN = process.env.DEV_LOGIN_ENABLED === "true";
 const DEFAULT_DEV_USER = "engineer@sysnavi.co.jp";
 
-export async function getCurrentUser() {
+/** ログイン中ユーザーを返す。未ログインなら null（gate 側でハンドリング）。 */
+export async function getOptionalUser() {
   const store = await cookies();
-  const email = store.get("dev-user")?.value ?? DEFAULT_DEV_USER;
-  const user = await prisma.user.findUnique({ where: { email } });
+
+  const token = store.get(SESSION_COOKIE)?.value;
+  if (token) {
+    const user = await userFromSessionToken(token);
+    if (user) return user;
+  }
+
+  if (DEV_LOGIN) {
+    const email = store.get(DEV_COOKIE)?.value ?? DEFAULT_DEV_USER;
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (user) return user;
+  }
+
+  return null;
+}
+
+/** ログイン必須。未ログインは例外（middleware が /welcome へ誘導するため通常は到達しない）。 */
+export async function getCurrentUser() {
+  const user = await getOptionalUser();
   if (!user) {
-    throw new Error(
-      `ユーザーが見つかりません: ${email}（npx prisma db seed を実行してください）`
-    );
+    throw new Error("NOT_AUTHENTICATED");
   }
   return user;
 }

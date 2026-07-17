@@ -555,6 +555,22 @@ async function main() {
   });
 
   console.log("Seeded public profiles (engineer-demo, cloud-taro)");
+
+  // 管理者ブートストラップ用の招待リンク。本番では ADMIN_INVITE_TOKEN を設定してから
+  // seed し、その /join/<token> を一度開けば管理者としてログインできる（以後はADMIN画面で発行）。
+  const adminInviteToken =
+    process.env.ADMIN_INVITE_TOKEN || "dev-admin-bootstrap";
+  await prisma.invite.upsert({
+    where: { id: "invite-admin-bootstrap" },
+    update: { token: adminInviteToken, revokedAt: null },
+    create: {
+      id: "invite-admin-bootstrap",
+      token: adminInviteToken,
+      note: "管理者ブートストラップ",
+      userId: admin.id,
+    },
+  });
+  console.log(`Admin join link: /join/${adminInviteToken}`);
 }
 
 main()
