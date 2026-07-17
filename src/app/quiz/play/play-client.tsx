@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { submitQuizAnswer, rateQuiz, type AnswerResult } from "../actions";
+import {
+  submitQuizAnswer,
+  rateQuiz,
+  setQuizHidden,
+  type AnswerResult,
+} from "../actions";
 
 type Q = {
   id: string;
@@ -16,15 +21,20 @@ type Q = {
 // 解答後に0-10で任意評価 → 全員の集計が良問スコアになる。AIは使わない=トークンゼロ。
 
 export function QuizPlay(props: { questions: Q[] }) {
+  // 出題バッチはマウント時に固定する。サーバーアクション後の自動再描画で props が
+  // 差し替わっても、セッション中の問題が入れ替わらないようにする（表示中の問題が
+  // 数秒後に別問題へ変わるバグの対策）。
+  const [questions] = useState(props.questions);
   const [i, setI] = useState(0);
   const [chosen, setChosen] = useState<number | null>(null);
   const [result, setResult] = useState<AnswerResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [rated, setRated] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
 
-  const q = props.questions[i];
-  const done = i >= props.questions.length;
+  const q = questions[i];
+  const done = i >= questions.length;
 
   async function choose(idx: number) {
     if (result || busy) return;
@@ -51,10 +61,20 @@ export function QuizPlay(props: { questions: Q[] }) {
     }
   }
 
+  async function toggleHidden(v: boolean) {
+    setHidden(v);
+    try {
+      await setQuizHidden(q.id, v);
+    } catch {
+      setHidden(!v);
+    }
+  }
+
   function next() {
     setChosen(null);
     setResult(null);
     setRated(false);
+    setHidden(false);
     setI((n) => n + 1);
   }
 
@@ -66,7 +86,7 @@ export function QuizPlay(props: { questions: Q[] }) {
         </p>
         <p className="mt-2 font-pixel text-4xl text-royal">
           {correctCount}
-          <span className="text-2xl text-inksoft">/{props.questions.length}</span>
+          <span className="text-2xl text-inksoft">/{questions.length}</span>
         </p>
         <p className="mt-2 text-[13px]">おつかれさま！腕試し完了です。</p>
         <div className="mt-4 flex justify-center gap-2">
@@ -85,7 +105,7 @@ export function QuizPlay(props: { questions: Q[] }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between font-pixel text-[11px] tracking-wide text-inksoft">
         <span>
-          Q{i + 1} / {props.questions.length}
+          Q{i + 1} / {questions.length}
         </span>
         <span className="chip8 chip8-info">{q.topic}</span>
       </div>
@@ -164,11 +184,26 @@ export function QuizPlay(props: { questions: Q[] }) {
             )}
           </div>
 
+          <label className="mt-3 flex cursor-pointer items-center gap-2 text-[12px]">
+            <input
+              type="checkbox"
+              checked={hidden}
+              onChange={(e) => toggleHidden(e.target.checked)}
+              className="h-4 w-4 accent-[var(--pink-hot)]"
+            />
+            この問題はもう表示しない
+            {hidden && (
+              <span className="font-pixel text-[10px] text-royal2">
+                （非表示にしました）
+              </span>
+            )}
+          </label>
+
           <button
             onClick={next}
-            className="btn8 btn8-start mt-4 w-full text-[12px]"
+            className="btn8 btn8-start mt-3 w-full text-[12px]"
           >
-            {i + 1 < props.questions.length ? "▶ 次の問題" : "▶ 結果を見る"}
+            {i + 1 < questions.length ? "▶ 次の問題" : "▶ 結果を見る"}
           </button>
         </div>
       )}

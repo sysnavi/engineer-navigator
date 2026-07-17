@@ -18,6 +18,8 @@ export default async function QuizPlayPage({
     prisma.quizQuestion.findMany({
       where: {
         authorId: { not: user.id },
+        // 「もう表示しない」に指定した問題は除外
+        hiddenBy: { none: { userId: user.id } },
         ...(topic ? { topic } : {}),
       },
       take: 100,

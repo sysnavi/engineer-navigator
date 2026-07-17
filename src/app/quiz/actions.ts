@@ -84,6 +84,22 @@ export async function submitQuizAnswer(
   return { correct, answerIndex: q.answerIndex, explanation: q.explanation };
 }
 
+/** 「もう表示しない」の設定（本人にだけ以後出題されなくなる） */
+export async function setQuizHidden(questionId: string, hidden: boolean) {
+  const user = await getCurrentUser();
+  if (hidden) {
+    await prisma.quizHidden.upsert({
+      where: { questionId_userId: { questionId, userId: user.id } },
+      create: { questionId, userId: user.id },
+      update: {},
+    });
+  } else {
+    await prisma.quizHidden.deleteMany({
+      where: { questionId, userId: user.id },
+    });
+  }
+}
+
 /** 問題を0-10で評価（1人1票・上書き可）。全員分を集計して良問スコアに反映。 */
 export async function rateQuiz(questionId: string, score: number) {
   const user = await getCurrentUser();
