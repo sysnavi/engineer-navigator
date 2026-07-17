@@ -26,6 +26,10 @@ model User {
   palette   String   @default("sky")
   // 初回オンボーディングの同意（AI解析・閲覧範囲・評価不使用）取得日時。null=未同意
   consentedAt DateTime?
+  // 公開共有（個人サービス）: 成長の道筋を他ユーザーが見て学べるように。デフォルト非公開。
+  handle    String?  @unique // 公開URL用のハンドル（/u/<handle>）。ペンネーム可
+  bio       String? // 公開プロフィールの自己紹介
+  isPublic  Boolean  @default(false) // プロフィールを公開するか（本人が意識的にオン）
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -90,6 +94,9 @@ model WeeklyReport {
   shareText    String? // 会社への共有・相談
 
   wantsConsultation Boolean      @default(false) // 営業に直接相談したい
+  // 公開共有: この週報を公開プロフィールに載せるか。デフォルト非公開。
+  // 公開時もコンディション（設問1・2・5・7とスコア）は表示しない — 成長の記録のみ。
+  isPublic          Boolean      @default(false)
   status            ReportStatus @default(DRAFT)
   submittedAt       DateTime?
   createdAt         DateTime     @default(now())

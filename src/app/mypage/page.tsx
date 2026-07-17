@@ -1,8 +1,11 @@
+import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { PALETTES } from "@/lib/palettes";
-import { setPalette, setDevUser } from "@/app/actions";
+import { setPalette, setDevUser, updateShareSettings } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
+import { ReportToggle } from "./report-toggle";
+import { formatWeek } from "@/lib/week";
 
 const ROLE_LABELS: Record<string, string> = {
   ENGINEER: "エンジニア",
@@ -13,9 +16,17 @@ const ROLE_LABELS: Record<string, string> = {
 export default async function MyPage() {
   const user = await getCurrentUser();
   const devLogin = process.env.DEV_LOGIN_ENABLED === "true";
-  const devUsers = devLogin
-    ? await prisma.user.findMany({ orderBy: { role: "asc" } })
-    : [];
+  const [devUsers, submittedReports] = await Promise.all([
+    devLogin
+      ? prisma.user.findMany({ orderBy: { role: "asc" } })
+      : Promise.resolve([]),
+    prisma.weeklyReport.findMany({
+      where: { userId: user.id, status: "SUBMITTED" },
+      orderBy: { weekStart: "desc" },
+      take: 12,
+      select: { id: true, weekStart: true, isPublic: true },
+    }),
+  ]);
 
   return (
     <div className="space-y-7">
@@ -46,6 +57,86 @@ export default async function MyPage() {
             </p>
           </div>
         </div>
+      </Window>
+
+      {/* 公開共有の設定 */}
+      <Window title="SHARE" titleEm=".cfg">
+        <PixelLabel>PUBLIC PROFILE — 成長を公開して学び合う</PixelLabel>
+        <form action={updateShareSettings} className="mt-3 space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-[12px] font-extrabold">
+                ハンドル（公開URL用・ペンネーム可）
+              </label>
+              <div className="flex items-center gap-1.5">
+                <span className="font-pixel text-[12px] text-inksoft">
+                  /u/
+                </span>
+                <input
+                  name="handle"
+                  defaultValue={user.handle ?? ""}
+                  placeholder="tsuyoshi_dev"
+                  className="field8"
+                />
+              </div>
+              <p className="mt-1 text-[11px] text-inksoft">
+                半角英数字・ハイフン・アンダースコア 3〜20文字
+              </p>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[12px] font-extrabold">
+                自己紹介（任意）
+              </label>
+              <textarea
+                name="bio"
+                rows={2}
+                defaultValue={user.bio ?? ""}
+                placeholder="例: SESでバックエンド中心。AWSと生成AI活用を勉強中。"
+                className="field8"
+              />
+            </div>
+          </div>
+          <label className="flex items-center gap-2.5 text-[13px] font-bold">
+            <input
+              type="checkbox"
+              name="isPublic"
+              defaultChecked={user.isPublic}
+              className="h-4 w-4 accent-[var(--pink-hot)]"
+            />
+            プロフィールを公開する（発見ページに載り、/u/ハンドル で見られます）
+          </label>
+          <p className="rounded-lg border-2 border-dashed border-royal2 bg-quotebg px-3 py-2 text-[11.5px] text-inksoft">
+            🔒 公開されるのは<b>スキル・成長の道筋・実績・演習</b>と、あなたが個別に公開指定した週報の「やったこと／新技術／来週」だけです。
+            <b>コンディション（気分・稼働・詰まり・メンター相談）は公開されません。</b>
+          </p>
+          <div className="flex items-center gap-3">
+            <button className="btn8 btn8-start">▶ 保存</button>
+            {user.isPublic && user.handle && (
+              <Link
+                href={`/u/${user.handle}`}
+                className="font-pixel text-[11px] tracking-wide text-royal2 hover:text-pinkhot"
+              >
+                公開ページを見る →
+              </Link>
+            )}
+          </div>
+        </form>
+
+        {submittedReports.length > 0 && (
+          <div className="mt-5">
+            <PixelLabel className="mb-2">週報の公開</PixelLabel>
+            <div className="space-y-2">
+              {submittedReports.map((r) => (
+                <ReportToggle
+                  key={r.id}
+                  id={r.id}
+                  label={`${formatWeek(r.weekStart)} の週報`}
+                  initial={r.isPublic}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </Window>
 
       <Window title="PALETTE" titleEm=".cfg">

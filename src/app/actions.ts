@@ -157,6 +157,66 @@ export async function rescanConditions() {
 }
 
 // ---------------------------------------------------------------------------
+// 公開共有（プロフィール / 週報）
+// ---------------------------------------------------------------------------
+
+const HANDLE_RE = /^[a-z0-9_-]{3,20}$/;
+
+export async function updateShareSettings(formData: FormData) {
+  const user = await getCurrentUser();
+  const rawHandle = formData.get("handle");
+  const bio = formData.get("bio");
+  const isPublic = formData.get("isPublic") === "on";
+
+  let handle: string | null = null;
+  if (typeof rawHandle === "string" && rawHandle.trim() !== "") {
+    handle = rawHandle.trim().toLowerCase();
+    if (!HANDLE_RE.test(handle)) {
+      throw new Error(
+        "ハンドルは半角英数字・ハイフン・アンダースコア3〜20文字で入力してください"
+      );
+    }
+    const taken = await prisma.user.findFirst({
+      where: { handle, id: { not: user.id } },
+      select: { id: true },
+    });
+    if (taken) throw new Error("そのハンドルは既に使われています");
+  }
+
+  // 公開するにはハンドルが必須
+  if (isPublic && !handle) {
+    throw new Error("公開するにはハンドルを設定してください");
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      handle,
+      bio: typeof bio === "string" && bio.trim() !== "" ? bio.trim() : null,
+      isPublic,
+    },
+  });
+  revalidatePath("/mypage");
+  revalidatePath("/discover");
+}
+
+export async function toggleReportPublic(reportId: string, isPublic: boolean) {
+  const user = await getCurrentUser();
+  const report = await prisma.weeklyReport.findUnique({
+    where: { id: reportId },
+    select: { userId: true },
+  });
+  if (!report || report.userId !== user.id) {
+    throw new Error("この週報を更新できません");
+  }
+  await prisma.weeklyReport.update({
+    where: { id: reportId },
+    data: { isPublic },
+  });
+  revalidatePath("/mypage");
+}
+
+// ---------------------------------------------------------------------------
 // オンボーディング同意（AI解析・閲覧範囲・評価不使用）
 // ---------------------------------------------------------------------------
 

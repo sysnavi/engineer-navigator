@@ -313,6 +313,92 @@ async function main() {
     });
   }
   console.log(`Seeded ${scenarios.length} roleplay scenarios`);
+
+  // -------------------------------------------------------------------------
+  // 公開共有（発見ページ）のデモ: engineer と engineer2 を別々の成長の道筋で公開
+  // -------------------------------------------------------------------------
+
+  await prisma.user.update({
+    where: { id: engineer.id },
+    data: {
+      handle: "engineer-demo",
+      bio: "SESでバックエンド中心。受発注/在庫まわりの実装から本番リリースまで。最近は生成AI活用とSQLチューニングを強化中。",
+      isPublic: true,
+    },
+  });
+  await prisma.user.update({
+    where: { id: engineer2.id },
+    data: {
+      handle: "cloud-taro",
+      bio: "インフラ・クラウド志向。オンプレ運用からAWS移行を担当し、IaCとコンテナ基盤を勉強中。次はSAA取得を目標に。",
+      isPublic: true,
+    },
+  });
+
+  // engineer2 に「クラウド/インフラ」系の成長の道筋（EngineerSkill + 履歴）を作る
+  const cloudPath: { skill: string; steps: { level: number; weeksAgo: number; note: string }[] }[] =
+    [
+      {
+        skill: "AWS",
+        steps: [
+          { level: 2, weeksAgo: 20, note: "研修とハンズオンで基礎を学習" },
+          { level: 3, weeksAgo: 10, note: "検証環境をEC2/VPCで構築、一人で運用" },
+          { level: 4, weeksAgo: 2, note: "本番のAWS移行に関与、リリースまで担当" },
+        ],
+      },
+      {
+        skill: "Docker",
+        steps: [
+          { level: 2, weeksAgo: 16, note: "既存アプリのコンテナ化を指導下で実施" },
+          { level: 3, weeksAgo: 6, note: "マルチステージビルドを一人で設計" },
+        ],
+      },
+      {
+        skill: "Kubernetes",
+        steps: [{ level: 1, weeksAgo: 3, note: "学習開始・ローカルで検証中" }],
+      },
+      {
+        skill: "PostgreSQL",
+        steps: [
+          { level: 2, weeksAgo: 14, note: "運用中DBのバックアップ/リストアを担当" },
+          { level: 3, weeksAgo: 4, note: "スロークエリの調査・改善を一人で実施" },
+        ],
+      },
+    ];
+
+  const base = mondayOf(new Date());
+  for (const p of cloudPath) {
+    const skill = await prisma.skill.findUnique({ where: { name: p.skill } });
+    if (!skill) continue;
+    const last = p.steps[p.steps.length - 1];
+    const es = await prisma.engineerSkill.upsert({
+      where: { userId_skillId: { userId: engineer2.id, skillId: skill.id } },
+      update: { level: last.level },
+      create: { userId: engineer2.id, skillId: skill.id, level: last.level },
+    });
+    // 履歴を作り直す（再実行で重複しないように一旦消す）
+    await prisma.skillHistory.deleteMany({ where: { engineerSkillId: es.id } });
+    for (const st of p.steps) {
+      const changedAt = new Date(base);
+      changedAt.setUTCDate(changedAt.getUTCDate() - 7 * st.weeksAgo);
+      await prisma.skillHistory.create({
+        data: {
+          engineerSkillId: es.id,
+          level: st.level,
+          changedAt,
+          sourceNote: st.note,
+        },
+      });
+    }
+  }
+
+  // 両者の直近の週報を公開指定（コンディションは公開ビューに出ない）
+  await prisma.weeklyReport.updateMany({
+    where: { userId: { in: [engineer.id, engineer2.id] }, status: "SUBMITTED" },
+    data: { isPublic: true },
+  });
+
+  console.log("Seeded public profiles (engineer-demo, cloud-taro)");
 }
 
 main()
