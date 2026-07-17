@@ -2,9 +2,15 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { PALETTES } from "@/lib/palettes";
-import { setPalette, setDevUser, updateShareSettings } from "@/app/actions";
+import {
+  setPalette,
+  setDevUser,
+  updateShareSettings,
+  updateTargetDomains,
+} from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { ReportToggle } from "./report-toggle";
+import { DOMAINS } from "@/lib/domains";
 import { formatWeek } from "@/lib/week";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -57,6 +63,37 @@ export default async function MyPage() {
             </p>
           </div>
         </div>
+      </Window>
+
+      {/* 目指す技術領域（キャリアの方向性） */}
+      <Window title="GOAL" titleEm=".cfg">
+        <PixelLabel>目指す領域 — 伸ばしたいロールを選ぶ</PixelLabel>
+        <p className="mt-2 text-[12.5px] text-inksoft">
+          何を目指すか（複数可）で、メンターの提案や役割演習のアドバイスがその方向に寄ります。
+        </p>
+        <form action={updateTargetDomains} className="mt-3 space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {DOMAINS.map((d) => {
+              const on = user.targetDomains.includes(d.id);
+              return (
+                <label key={d.id} className="cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="domains"
+                    value={d.id}
+                    defaultChecked={on}
+                    className="peer sr-only"
+                  />
+                  <span className="inline-flex items-center gap-1.5 rounded-lg border-[2.5px] border-line8 bg-surface px-3 py-1.5 text-[12.5px] font-bold text-ink shadow-hard-sm transition-transform peer-checked:bg-royal peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-pinkhot">
+                    <span aria-hidden="true">{d.emoji}</span>
+                    {d.label}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <button className="btn8 btn8-start text-[12px]">▶ 保存</button>
+        </form>
       </Window>
 
       {/* 公開共有の設定 */}

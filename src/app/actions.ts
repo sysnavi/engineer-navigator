@@ -12,6 +12,7 @@ import { extractDraft } from "@/lib/ai/interview";
 import { generatePlanItems } from "@/lib/ai/studyplan";
 import { generateOpeningLine, generateFeedback } from "@/lib/ai/roleplay";
 import { isPaletteId } from "@/lib/palettes";
+import { isDomainId } from "@/lib/domains";
 import {
   createConsultationAlert,
   runWeeklyScan,
@@ -198,6 +199,20 @@ export async function updateShareSettings(formData: FormData) {
   });
   revalidatePath("/mypage");
   revalidatePath("/discover");
+}
+
+// 目指す技術領域（キャリアの方向性）を保存。値は src/lib/domains.ts のIDのみ許可。
+export async function updateTargetDomains(formData: FormData) {
+  const user = await getCurrentUser();
+  const domains = formData
+    .getAll("domains")
+    .filter((v): v is string => typeof v === "string")
+    .filter(isDomainId);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { targetDomains: Array.from(new Set(domains)) },
+  });
+  revalidatePath("/mypage");
 }
 
 export async function toggleReportPublic(reportId: string, isPublic: boolean) {

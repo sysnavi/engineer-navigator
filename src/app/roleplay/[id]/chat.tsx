@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MicButton } from "@/components/mic-button";
+import { SendingOverlay } from "@/components/sending-overlay";
 
 type Msg = { role: "USER" | "ASSISTANT"; content: string };
 
@@ -68,6 +69,7 @@ export function RoleplayChat(props: { sessionId: string; initial: Msg[] }) {
 
   return (
     <div className="flex flex-col gap-4">
+      <SendingOverlay show={streaming} label="送信中" />
       <div className="space-y-3">
         {messages.map((m, i) => (
           <div

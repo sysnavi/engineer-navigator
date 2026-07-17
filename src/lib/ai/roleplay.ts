@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { domainsToLabels } from "@/lib/domains";
 import { chatStream, completeJson, type ChatMessage } from "./client";
 import { searchKnowledge, formatContextBlock } from "./retrieval";
 
@@ -70,10 +71,15 @@ export async function generateFeedback(
 ): Promise<FeedbackResult> {
   const session = await prisma.roleplaySession.findUniqueOrThrow({
     where: { id: sessionId },
-    include: { scenario: true, messages: { orderBy: { createdAt: "asc" } } },
+    include: {
+      scenario: true,
+      messages: { orderBy: { createdAt: "asc" } },
+      user: { select: { targetDomains: true } },
+    },
   });
 
   const objectives = (session.scenario.objectives as string[]) ?? [];
+  const goals = domainsToLabels(session.user.targetDomains);
   const transcript = session.messages
     .map(
       (m) => `${m.role === "USER" ? "エンジニア" : "相手役"}: ${m.content}`
@@ -101,10 +107,14 @@ export async function generateFeedback(
 - overall(総評, 2〜3文), advice(次に試すと良い1つの具体的アドバイス), score(0-100の総合点)。
 - 甘すぎず厳しすぎず、次に活きる建設的な評価にする。
 - 自社の職務定義書が与えられている場合は、一般論より必ずそれを優先し、評価の根拠に使う。
+- 本人が目指す技術領域が示されている場合、advice はその方向のロールに近づく具体的な一歩にする。
 - 出力はJSONのみ:
 { "perObjective": [{ "objective": string, "good": string, "improve": string }], "overall": string, "advice": string, "score": number }${knowledgeBlock}`,
     user: `## シナリオ
 ${session.scenario.title} — ${session.scenario.description}
+
+## 本人が目指す技術領域
+${goals || "（未設定）"}
 
 ## 評価観点
 ${objectives.map((o, i) => `${i + 1}. ${o}`).join("\n")}

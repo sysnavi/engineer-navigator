@@ -324,6 +324,7 @@ async function main() {
       handle: "engineer-demo",
       bio: "SESでバックエンド中心。受発注/在庫まわりの実装から本番リリースまで。最近は生成AI活用とSQLチューニングを強化中。",
       isPublic: true,
+      targetDomains: ["web", "fullstack"],
     },
   });
   await prisma.user.update({
@@ -332,6 +333,7 @@ async function main() {
       handle: "cloud-taro",
       bio: "インフラ・クラウド志向。オンプレ運用からAWS移行を担当し、IaCとコンテナ基盤を勉強中。次はSAA取得を目標に。",
       isPublic: true,
+      targetDomains: ["infra"],
     },
   });
 

@@ -19,6 +19,11 @@ export function MicButton(props: {
   const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const recRef = useRef<SpeechRecognition | null>(null);
+  // onText を ref で持つ。認識開始時にハンドラが束縛する props が古くならないように。
+  const onTextRef = useRef(props.onText);
+  useEffect(() => {
+    onTextRef.current = props.onText;
+  }, [props.onText]);
 
   useEffect(() => {
     // SSRでは window が無いため、対応判定はマウント後に行う必要がある（正当なeffect内setState）
@@ -36,16 +41,27 @@ export function MicButton(props: {
     if (!SR) return;
     const rec = new SR();
     rec.lang = "ja-JP";
-    rec.interimResults = false;
+    // interim も受け取る。短い発話や早めに認識が終わるケースで、確定(isFinal)前に
+    // onend してしまい何も反映されない不具合を防ぐため、暫定テキストも保持しておく。
+    rec.interimResults = true;
     rec.continuous = false;
+
+    let finalText = "";
+    let interimText = "";
     rec.onresult = (e) => {
-      let text = "";
+      interimText = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) text += e.results[i][0].transcript;
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalText += t;
+        else interimText += t;
       }
-      if (text) props.onText(text);
     };
-    rec.onend = () => setListening(false);
+    rec.onend = () => {
+      // 確定分が無くても、拾えた暫定テキストは反映する（認識できたのに空、を防ぐ）。
+      const text = (finalText + interimText).trim();
+      if (text) onTextRef.current(text);
+      setListening(false);
+    };
     rec.onerror = () => setListening(false);
     recRef.current = rec;
     try {
