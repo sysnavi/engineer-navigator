@@ -12,12 +12,15 @@ type Msg = { role: "USER" | "ASSISTANT"; content: string };
 export function MentorChat(props: { sessionId: string; initial: Msg[] }) {
   const [messages, setMessages] = useState<Msg[]>(props.initial);
   const [streaming, setStreaming] = useState(false);
+  // 応答待ち（最初の1文字が届くまで）。オーバーレイはこの間だけ出す。
+  const [waiting, setWaiting] = useState(false);
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const started = useRef(false);
 
   async function stream(sessionId: string) {
     setStreaming(true);
+    setWaiting(true);
     setMessages((m) => [...m, { role: "ASSISTANT", content: "" }]);
     try {
       const res = await fetch("/api/mentor", {
@@ -32,6 +35,8 @@ export function MentorChat(props: { sessionId: string; initial: Msg[] }) {
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
+        // 回答を描き始めたらオーバーレイは消す
+        setWaiting(false);
         setMessages((m) => {
           const copy = [...m];
           copy[copy.length - 1] = {
@@ -54,6 +59,7 @@ export function MentorChat(props: { sessionId: string; initial: Msg[] }) {
       });
     } finally {
       setStreaming(false);
+      setWaiting(false);
     }
   }
 
@@ -90,7 +96,7 @@ export function MentorChat(props: { sessionId: string; initial: Msg[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <SendingOverlay show={streaming} label="送信中" />
+      <SendingOverlay show={waiting} label="送信中" />
       <div className="space-y-3">
         {messages.map((m, i) => (
           <div
