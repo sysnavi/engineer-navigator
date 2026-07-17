@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { chatStream } from "@/lib/ai/client";
 import { buildMentorMessages } from "@/lib/ai/mentor";
 import { searchLearningChunks, formatContextBlock } from "@/lib/ai/retrieval";
+import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
 
 // メンターの返信をストリーミングする。
 // body: { sessionId: string, content: string }
@@ -25,6 +26,19 @@ export async function POST(req: Request) {
   });
   if (!session || session.userId !== user.id) {
     return new Response("セッションが見つかりません", { status: 404 });
+  }
+
+  // スパム・過剰利用対策: トークンを使う前にレート制限・停止をチェック
+  try {
+    await assertAiAllowed(user.id, "mentor-chat");
+  } catch (e) {
+    if (e instanceof AiBlockedError) {
+      return new Response(`[${e.userMessage}]`, {
+        status: 429,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
+    throw e;
   }
 
   // ユーザーメッセージを保存

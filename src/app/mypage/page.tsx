@@ -7,10 +7,12 @@ import {
   setDevUser,
   updateShareSettings,
   updateTargetDomains,
+  setUserSuspended,
 } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { ReportToggle } from "./report-toggle";
 import { DOMAINS } from "@/lib/domains";
+import { AI_LIMITS } from "@/lib/usage";
 import { formatWeek } from "@/lib/week";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -22,17 +24,42 @@ const ROLE_LABELS: Record<string, string> = {
 export default async function MyPage() {
   const user = await getCurrentUser();
   const devLogin = process.env.DEV_LOGIN_ENABLED === "true";
-  const [devUsers, submittedReports] = await Promise.all([
-    devLogin
-      ? prisma.user.findMany({ orderBy: { role: "asc" } })
-      : Promise.resolve([]),
-    prisma.weeklyReport.findMany({
-      where: { userId: user.id, status: "SUBMITTED" },
-      orderBy: { weekStart: "desc" },
-      take: 12,
-      select: { id: true, weekStart: true, isPublic: true },
-    }),
-  ]);
+  const isAdmin = user.role === "ADMIN";
+  const dayAgo = new Date(new Date().getTime() - 24 * 60 * 60_000);
+  const [devUsers, submittedReports, adminUsers, usageByUser] =
+    await Promise.all([
+      devLogin
+        ? prisma.user.findMany({ orderBy: { role: "asc" } })
+        : Promise.resolve([]),
+      prisma.weeklyReport.findMany({
+        where: { userId: user.id, status: "SUBMITTED" },
+        orderBy: { weekStart: "desc" },
+        take: 12,
+        select: { id: true, weekStart: true, isPublic: true },
+      }),
+      isAdmin
+        ? prisma.user.findMany({
+            orderBy: [{ suspendedAt: "desc" }, { name: "asc" }],
+            select: {
+              id: true,
+              name: true,
+              role: true,
+              suspendedAt: true,
+              suspendReason: true,
+            },
+          })
+        : Promise.resolve([]),
+      isAdmin
+        ? prisma.aiUsage.groupBy({
+            by: ["userId"],
+            where: { createdAt: { gte: dayAgo } },
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
+    ]);
+  const usageMap = new Map(
+    usageByUser.map((u) => [u.userId, u._count._all])
+  );
 
   return (
     <div className="space-y-7">
@@ -42,6 +69,19 @@ export default async function MyPage() {
           マイページ
         </PixelTitle>
       </div>
+
+      {user.suspendedAt && (
+        <div className="rounded-lg border-[2.5px] border-pinkhot bg-quotebg px-4 py-3 shadow-hard-sm">
+          <p className="font-pixel text-[13px] tracking-wide text-pinkhot">
+            ⛔ ACCOUNT SUSPENDED — アカウント停止中
+          </p>
+          <p className="mt-1 text-[12.5px] text-ink">
+            現在このアカウントではAI機能（週報解析・メンター・役割演習など）をご利用いただけません。
+            {user.suspendReason ? `（理由: ${user.suspendReason}）` : ""}
+            心当たりがない場合は管理者にご連絡ください。
+          </p>
+        </div>
+      )}
 
       <Window title="PLAYER" titleEm=".dat">
         <div className="flex items-center gap-4">
@@ -221,6 +261,62 @@ export default async function MyPage() {
           </div>
         </div>
       </Window>
+
+      {isAdmin && (
+        <Window title="ADMIN" titleEm=".sys">
+          <PixelLabel>
+            アカウント管理 — スパム・過剰なAI利用への対応
+          </PixelLabel>
+          <p className="mt-2 text-[12px] text-inksoft">
+            「本日」は直近24時間のAI呼び出し回数。1日{AI_LIMITS.perDay}回で自動的に当日打ち止め、
+            {AI_LIMITS.autoSuspendPerDay}回を超えると自動停止します。手動での停止・復帰もできます。
+          </p>
+          <div className="mt-3 space-y-2">
+            {adminUsers.map((u) => {
+              const count = usageMap.get(u.id) ?? 0;
+              const suspended = !!u.suspendedAt;
+              const isSelf = u.id === user.id;
+              return (
+                <div
+                  key={u.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border-2 border-line8 bg-surface px-3 py-2 shadow-hard-sm"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-extrabold">
+                      {u.name}
+                      <span className="ml-1.5 font-pixel text-[10px] tracking-wide text-inksoft">
+                        {ROLE_LABELS[u.role] ?? u.role}
+                      </span>
+                    </p>
+                    <p className="text-[11.5px] text-inksoft">
+                      本日 {count} 回
+                      {suspended && (
+                        <span className="ml-1.5 text-pinkhot">
+                          ・停止中
+                          {u.suspendReason ? `（${u.suspendReason}）` : ""}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  {!isSelf && (
+                    <form
+                      action={setUserSuspended.bind(null, u.id, !suspended)}
+                    >
+                      <button
+                        className={`btn8 shrink-0 px-3 py-1.5 text-[11px] ${
+                          suspended ? "btn8-ok" : ""
+                        }`}
+                      >
+                        {suspended ? "▶ 復帰" : "⛔ 停止"}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Window>
+      )}
 
       {devLogin && (
         <Window title="DEBUG" titleEm=".sys">

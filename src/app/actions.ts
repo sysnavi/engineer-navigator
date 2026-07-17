@@ -13,6 +13,13 @@ import { generatePlanItems } from "@/lib/ai/studyplan";
 import { generateOpeningLine, generateFeedback } from "@/lib/ai/roleplay";
 import { isPaletteId } from "@/lib/palettes";
 import { isDomainId } from "@/lib/domains";
+import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
+
+/** AiBlockedError をフォーム表示用の分かりやすい Error に変換して投げ直す */
+function throwFriendly(e: unknown): never {
+  if (e instanceof AiBlockedError) throw new Error(e.userMessage);
+  throw e;
+}
 import {
   createConsultationAlert,
   runWeeklyScan,
@@ -92,11 +99,13 @@ export async function submitReport(formData: FormData) {
   }
 
   // AI解析（MVPでは同期実行。将来はジョブキューへ）
+  // 停止中・レート超過なら解析はスキップ（提出自体は成功。ANTHROPIC_API_KEY未設定時と同じ扱い）
   try {
+    await assertAiAllowed(user.id, "report-analysis");
     await analyzeReport(report.id);
   } catch (e) {
     // 解析失敗しても提出自体は成功扱い（ReportAnalysis.status=FAILEDに記録済み）
-    console.error("analyzeReport failed:", e);
+    console.error("analyzeReport skipped/failed:", e);
   }
 
   revalidatePath("/report");
@@ -262,6 +271,27 @@ export async function setDevUser(email: string) {
 }
 
 // ---------------------------------------------------------------------------
+// アカウント停止（管理者のみ・スパム/過剰利用対策）
+// ---------------------------------------------------------------------------
+
+export async function setUserSuspended(userId: string, suspend: boolean) {
+  const me = await getCurrentUser();
+  if (me.role !== "ADMIN") {
+    throw new Error("この操作は管理者のみ実行できます");
+  }
+  if (suspend && userId === me.id) {
+    throw new Error("自分自身は停止できません");
+  }
+  await prisma.user.update({
+    where: { id: userId },
+    data: suspend
+      ? { suspendedAt: new Date(), suspendReason: "管理者による手動停止" }
+      : { suspendedAt: null, suspendReason: null },
+  });
+  revalidatePath("/mypage");
+}
+
+// ---------------------------------------------------------------------------
 // AIメンター（Phase 3）
 // ---------------------------------------------------------------------------
 
@@ -308,6 +338,7 @@ export async function proposeStudyTopics() {
   }
 
   try {
+    await assertAiAllowed(user.id, "study-topics");
     const { data } = await completeJson<{ topics: StudyTopic[] }>({
       system: `あなたはSES企業の技術メンターです。エンジニアの週報の「詰まったこと・新しく触れた技術」から、次に学ぶと効果的な学習トピックを2〜3件提案します。
 出力はJSONのみ。各トピックは title(短い学習テーマ), why(なぜ今これか・1文), firstQuestion(メンターに最初に聞くと良い具体的な問い) を持つ。
@@ -317,7 +348,9 @@ export async function proposeStudyTopics() {
     return { topics: (data.topics ?? []).slice(0, 3) };
   } catch (e) {
     console.error("proposeStudyTopics failed:", e);
-    return { topics: [] as StudyTopic[], error: "提案の生成に失敗しました" };
+    const error =
+      e instanceof AiBlockedError ? e.userMessage : "提案の生成に失敗しました";
+    return { topics: [] as StudyTopic[], error };
   }
 }
 
@@ -356,6 +389,8 @@ export async function createStudyPlan(formData: FormData) {
   const currentSkills = skills
     .map((s) => `${s.skill.name}(Lv${s.level})`)
     .join(", ");
+
+  await assertAiAllowed(user.id, "study-plan").catch(throwFriendly);
 
   const items = await generatePlanItems({
     certification: certification.trim(),
@@ -410,6 +445,8 @@ export async function toggleStudyItem(itemId: string, done: boolean) {
 
 export async function startRoleplay(scenarioId: string) {
   const user = await getCurrentUser();
+  // 停止中・レート超過ならセッションを作らせない（開始時に相手役の生成でトークンを使うため）
+  await assertAiAllowed(user.id, "roleplay-start").catch(throwFriendly);
   await prisma.roleplayScenario.findUniqueOrThrow({ where: { id: scenarioId } });
 
   const session = await prisma.roleplaySession.create({
@@ -441,6 +478,9 @@ export async function endRoleplay(sessionId: string) {
     revalidatePath(`/roleplay/${sessionId}`);
     return;
   }
+
+  // 停止中・レート超過なら終了処理を保留（後で再試行できるようセッションは進行中のまま）
+  await assertAiAllowed(user.id, "roleplay-feedback").catch(throwFriendly);
 
   let feedbackText: string;
   try {
@@ -502,6 +542,8 @@ export async function summarizeInterview(transcript: ChatMessage[]) {
   ) {
     throw new Error("インタビューの内容が不正です");
   }
+
+  await assertAiAllowed(user.id, "interview-summarize").catch(throwFriendly);
 
   const draft = await extractDraft(transcript);
   const weekStart = mondayOf(new Date());

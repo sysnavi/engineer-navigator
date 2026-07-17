@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { chatStream, type ChatMessage } from "@/lib/ai/client";
 import { buildInterviewSystem } from "@/lib/ai/interview";
+import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
 
 // 週報インタビューの次の質問をストリーミングする。
 // 会話はDBに保存しないステートレス設計: クライアントが transcript を毎回送る。
@@ -34,6 +35,19 @@ export async function POST(req: Request) {
   );
   if (!sane) {
     return new Response("messages の形式が不正です", { status: 400 });
+  }
+
+  // スパム・過剰利用対策: トークンを使う前にレート制限・停止をチェック
+  try {
+    await assertAiAllowed(user.id, "interview");
+  } catch (e) {
+    if (e instanceof AiBlockedError) {
+      return new Response(`[${e.userMessage}]`, {
+        status: 429,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
+    throw e;
   }
 
   const system = await buildInterviewSystem(user.id);

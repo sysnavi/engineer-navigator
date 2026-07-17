@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { chatStream } from "@/lib/ai/client";
 import { buildRoleplayMessages } from "@/lib/ai/roleplay";
+import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
 
 // ロールプレイの相手役の返信をストリーミングする。
 // body: { sessionId, content }
@@ -25,6 +26,19 @@ export async function POST(req: Request) {
   }
   if (session.status === "COMPLETED") {
     return new Response("この演習は終了済みです", { status: 409 });
+  }
+
+  // スパム・過剰利用対策: トークンを使う前にレート制限・停止をチェック
+  try {
+    await assertAiAllowed(user.id, "roleplay-chat");
+  } catch (e) {
+    if (e instanceof AiBlockedError) {
+      return new Response(`[${e.userMessage}]`, {
+        status: 429,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
+    throw e;
   }
 
   await prisma.roleplayMessage.create({
