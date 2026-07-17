@@ -1,13 +1,22 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { startRoleplay } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
+import { ScenarioShuffle } from "./scenario-shuffle";
 
 export default async function RoleplayListPage() {
   const user = await getCurrentUser();
   const [scenarios, sessions] = await Promise.all([
-    prisma.roleplayScenario.findMany({ orderBy: { createdAt: "asc" } }),
+    prisma.roleplayScenario.findMany({
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        emoji: true,
+        title: true,
+        description: true,
+        domains: true,
+      },
+    }),
     prisma.roleplaySession.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
@@ -27,27 +36,7 @@ export default async function RoleplayListPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {scenarios.map((s) => (
-          <Window key={s.id} title="SCENARIO" titleEm=".sim">
-            <p className="text-[14px] font-extrabold">{s.title}</p>
-            <p className="mt-1.5 min-h-[64px] text-[12.5px] text-inksoft">
-              {s.description}
-            </p>
-            <form
-              action={async () => {
-                "use server";
-                await startRoleplay(s.id);
-              }}
-              className="mt-2"
-            >
-              <button className="btn8 btn8-start w-full text-[12px]">
-                ▶ START
-              </button>
-            </form>
-          </Window>
-        ))}
-      </div>
+      <ScenarioShuffle scenarios={scenarios} userDomains={user.targetDomains} />
 
       <Window title="演習の履歴" titleEm={` (${sessions.length})`}>
         {sessions.length === 0 ? (

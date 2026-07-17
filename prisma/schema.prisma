@@ -293,6 +293,10 @@ model RoleplayScenario {
   description String
   persona     String // AIが演じる役（顧客・メンバー等）の設定
   objectives  Json // 評価観点（リーダー職務定義書ベース）
+  // 8bitカードの識別用アイコン
+  emoji       String   @default("🎯")
+  // 関連する技術領域（src/lib/domains.ts のID）。シャッフルで本人の目標領域を優先するのに使う
+  domains     String[] @default([])
   createdAt   DateTime @default(now())
 
   sessions RoleplaySession[]
