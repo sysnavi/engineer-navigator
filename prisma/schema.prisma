@@ -52,6 +52,60 @@ model User {
   studyPlans       StudyPlan[]
   aiUsage          AiUsage[]
   invite           Invite?
+  quizQuestions    QuizQuestion[]    @relation("QuizAuthor")
+  quizRatings      QuizRating[]
+  quizAttempts     QuizAttempt[]
+}
+
+// 良問バンク（Phase 5）: ユーザーが四択問題を作り、みんなで解いて育てる。
+// 採点はローカル完結（AIトークン消費ゼロ）。良問スコアは全員の評価の集計で決まる。
+model QuizQuestion {
+  id          String   @id @default(cuid())
+  author      User     @relation("QuizAuthor", fields: [authorId], references: [id])
+  authorId    String
+  topic       String // お題（例: "AWS IAM" "TCP/IP"）。出題の絞り込みに使う
+  domains     String[] @default([]) // 関連技術領域（src/lib/domains.ts のID・任意）
+  prompt      String
+  choices     String[] // 選択肢（4つ想定）
+  answerIndex Int // 正解の選択肢index（クライアントには渡さず採点はサーバー）
+  explanation String?
+  // 良問スコアの集計（全員分の評価を集約。若手の誤評価対策で個人でなく総意を採用）
+  ratingSum   Int      @default(0)
+  ratingCount Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  ratings  QuizRating[]
+  attempts QuizAttempt[]
+
+  @@index([topic])
+}
+
+// 1問への評価（0-10）。1人1票・上書き可。集計は QuizQuestion 側に反映。
+model QuizRating {
+  id         String       @id @default(cuid())
+  question   QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId String
+  user       User         @relation(fields: [userId], references: [id])
+  userId     String
+  score      Int
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@unique([questionId, userId])
+}
+
+// 解答履歴（正誤の記録・統計と「解いた問題」の把握に使う）
+model QuizAttempt {
+  id          String       @id @default(cuid())
+  question    QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId  String
+  user        User         @relation(fields: [userId], references: [id])
+  userId      String
+  chosenIndex Int
+  correct     Boolean
+  createdAt   DateTime     @default(now())
+
+  @@index([userId, questionId])
 }
 
 // 招待リンク認証（個人情報を持たない方針）。メール/パスワードの代わりに

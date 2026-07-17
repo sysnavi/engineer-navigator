@@ -556,6 +556,172 @@ async function main() {
 
   console.log("Seeded public profiles (engineer-demo, cloud-taro)");
 
+  // -------------------------------------------------------------------------
+  // 良問バンク（Phase 5）のサンプル四択。engineer(デフォルト)以外が作者なので
+  // engineer が腕試しで解ける。評価はサンプルとして数件付与。
+  // -------------------------------------------------------------------------
+  const quizzes: {
+    id: string;
+    authorId: string;
+    topic: string;
+    domains: string[];
+    prompt: string;
+    choices: string[];
+    answerIndex: number;
+    explanation: string;
+    ratings: { userId: string; score: number }[];
+  }[] = [
+    {
+      id: "quiz-iam-1",
+      authorId: engineer2.id,
+      topic: "AWS IAM",
+      domains: ["infra"],
+      prompt: "IAMロールとIAMユーザーの最も大きな違いはどれ？",
+      choices: [
+        "ロールは長期の固定認証情報を持ち、ユーザーは持たない",
+        "ロールは一時的な認証情報を発行して借りる仕組み、ユーザーは固定の認証情報を持つ",
+        "両者に違いはなく呼び方が異なるだけ",
+        "ユーザーはEC2にしか使えない",
+      ],
+      answerIndex: 1,
+      explanation:
+        "ロールは必要な時にSTSで一時キーを借りる仕組み。EC2やLambdaにアタッチすればキーをコードに埋めずに済む。ユーザーは人や外部アプリに紐づく固定の認証情報。",
+      ratings: [
+        { userId: engineer.id, score: 9 },
+        { userId: engineer3.id, score: 8 },
+        { userId: admin.id, score: 10 },
+      ],
+    },
+    {
+      id: "quiz-tcp-1",
+      authorId: engineer2.id,
+      topic: "TCP/IP",
+      domains: ["infra", "web"],
+      prompt: "TCPの3ウェイハンドシェイクの正しい順序はどれ？",
+      choices: [
+        "SYN → ACK → SYN-ACK",
+        "SYN → SYN-ACK → ACK",
+        "ACK → SYN → SYN-ACK",
+        "SYN-ACK → SYN → ACK",
+      ],
+      answerIndex: 1,
+      explanation:
+        "クライアントがSYN、サーバがSYN-ACKで応答、クライアントがACKを返して接続確立。",
+      ratings: [
+        { userId: engineer.id, score: 7 },
+        { userId: sales.id, score: 6 },
+      ],
+    },
+    {
+      id: "quiz-sql-1",
+      authorId: admin.id,
+      topic: "SQL",
+      domains: ["web", "fullstack"],
+      prompt:
+        "INNER JOIN と LEFT JOIN の違いとして正しいのはどれ？",
+      choices: [
+        "LEFT JOIN は左表の行を必ず残し、右表に一致が無ければNULLで埋める",
+        "INNER JOIN は左表の行を必ず残す",
+        "両者は完全に同じ結果になる",
+        "LEFT JOIN は右表の行を必ず残す",
+      ],
+      answerIndex: 0,
+      explanation:
+        "LEFT JOIN は左表基準。マッチしない右表側はNULL。INNER JOIN は両表で一致する行だけを返す。",
+      ratings: [
+        { userId: engineer.id, score: 8 },
+        { userId: engineer3.id, score: 9 },
+      ],
+    },
+    {
+      id: "quiz-git-1",
+      authorId: engineer2.id,
+      topic: "Git",
+      domains: ["web", "fullstack"],
+      prompt:
+        "共有ブランチで既にpush済みのコミットを『なかったこと』にしたい。安全な方法はどれ？",
+      choices: [
+        "git reset --hard で消して force push する",
+        "git revert で打ち消しコミットを作る",
+        "コミットを手で削除する",
+        "リポジトリを作り直す",
+      ],
+      answerIndex: 1,
+      explanation:
+        "共有履歴の書き換え(force push)は他人の履歴を壊す。revert なら打ち消しコミットが積まれ、履歴を壊さず安全。",
+      ratings: [
+        { userId: engineer.id, score: 10 },
+        { userId: admin.id, score: 9 },
+        { userId: sales.id, score: 8 },
+      ],
+    },
+    {
+      id: "quiz-http-1",
+      authorId: admin.id,
+      topic: "HTTP",
+      domains: ["web"],
+      prompt: "HTTPステータス 401 と 403 の違いとして正しいのはどれ？",
+      choices: [
+        "401は認証が必要（誰か分からない）、403は認証済みだが権限が無い",
+        "401はサーバエラー、403はクライアントエラー",
+        "どちらも同じ意味",
+        "401はリダイレクト、403は成功",
+      ],
+      answerIndex: 0,
+      explanation:
+        "401 Unauthorized は『認証してね』、403 Forbidden は『あなたは分かったが、その操作は許可されていない』。",
+      ratings: [{ userId: engineer.id, score: 7 }],
+    },
+    {
+      id: "quiz-linux-1",
+      authorId: engineer2.id,
+      topic: "Linux",
+      domains: ["infra"],
+      prompt:
+        "ファイルのパーミッションが 644 のとき、正しい説明はどれ？",
+      choices: [
+        "所有者は読み書き、グループとその他は読みのみ",
+        "全員が読み書き実行できる",
+        "所有者だけが読み書き実行できる",
+        "誰も書き込めない",
+      ],
+      answerIndex: 0,
+      explanation:
+        "6=rw-, 4=r--。所有者rw、グループr、その他r。実行(x)は付いていない。",
+      ratings: [
+        { userId: engineer.id, score: 6 },
+        { userId: engineer3.id, score: 7 },
+      ],
+    },
+  ];
+
+  for (const q of quizzes) {
+    const sum = q.ratings.reduce((s, r) => s + r.score, 0);
+    const base = {
+      topic: q.topic,
+      domains: q.domains,
+      prompt: q.prompt,
+      choices: q.choices,
+      answerIndex: q.answerIndex,
+      explanation: q.explanation,
+      ratingSum: sum,
+      ratingCount: q.ratings.length,
+    };
+    await prisma.quizQuestion.upsert({
+      where: { id: q.id },
+      update: base,
+      create: { id: q.id, authorId: q.authorId, ...base },
+    });
+    for (const r of q.ratings) {
+      await prisma.quizRating.upsert({
+        where: { questionId_userId: { questionId: q.id, userId: r.userId } },
+        update: { score: r.score },
+        create: { questionId: q.id, userId: r.userId, score: r.score },
+      });
+    }
+  }
+  console.log(`Seeded ${quizzes.length} quiz questions`);
+
   // 管理者ブートストラップ用の招待リンク。本番では ADMIN_INVITE_TOKEN を設定してから
   // seed し、その /join/<token> を一度開けば管理者としてログインできる（以後はADMIN画面で発行）。
   const adminInviteToken =

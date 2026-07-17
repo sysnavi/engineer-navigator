@@ -21,6 +21,7 @@ const NAV = [
   { href: "/skills", label: "スキルマップ" },
   { href: "/mentor", label: "メンター" },
   { href: "/plan", label: "学習プラン" },
+  { href: "/quiz", label: "腕試し" },
   { href: "/roleplay", label: "役割演習" },
   { href: "/resume", label: "経歴書" },
   { href: "/discover", label: "発見" },
