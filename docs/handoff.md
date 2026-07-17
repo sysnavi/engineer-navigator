@@ -18,7 +18,7 @@ Phase 0（基盤）+ Phase 1 の縦切りが実装済み。**実 ANTHROPIC_API_K
    → 本人が承認/却下(/skills) → EngineerSkill反映 + SkillHistory記録
 ```
 
-画面は9つ: `/`(ホーム) / `/report`(週報・自動保存) / `/skills`(スキルマップ＋レーダー＋成長ログ) / `/resume`(経歴書・印刷=PDF) / `/condition`(営業・管理者向け) / `/mentor`(AIメンター) / `/plan`(資格学習プラン) / `/roleplay`(役割シミュレーター) / `/mypage`(きせかえ＋開発用ユーザー切替)。
+画面は11+: `/`(ホーム) / `/report`(週報・自動保存) / `/skills`(スキルマップ＋レーダー＋成長ログ) / `/resume`(経歴書・印刷=PDF) / `/condition`(営業・管理者向け) / `/mentor`(AIメンター) / `/plan`(資格学習プラン) / `/roleplay`(役割シミュレーター) / `/discover`(発見) / `/u/[handle]`(公開プロフィール) / `/mypage`(きせかえ＋共有設定＋開発用ユーザー切替)。
 **Phase 1〜4 完了 + 会社独自ノウハウのRAG化 完了（2026-07-14）**。8bit/Y2Kデザイン + きせかえ5種。コンディション検知は src/lib/condition.ts（急落/下降トレンド/乖離/高負荷/相談フラグ、未クローズ中は重複発火しない）。デモ: /mypage の DEBUG.sys で営業に切替→ /condition。デモ履歴はseed投入済み（engineer2@… は要注意の物語）。
 
 ## 再開手順
@@ -82,6 +82,8 @@ npm run ingest:knowledge      # content/knowledge/<kind>/*.md を埋め込み投
 - Prisma 7 系。client出力は `src/generated/prisma`（gitignore済み、`npx prisma generate` で再生成）。DB接続は `@prisma/adapter-pg` 経由（`src/lib/db.ts`）
 - 認証は本番未対応（開発用cookie方式）。本番は Google Workspace SSO(sysnavi.co.jp限定) に置換予定
 - /report 画面の「設問間の大きな空白」はアプリのバグではない（ブラウザプレビューペインが0幅で描画したアーティファクト。実ページは正常）
+- **マイグレーション運用**: 非対話シェルでは `migrate dev` が使えない（seed実行や@unique制約の確認プロンプトで止まる）。additive変更は「手書き migration.sql + `migrate deploy`」で適用する。適用済みmigrationを手編集するとチェックサム不整合で`migrate dev`が全面停止→`_prisma_migrations.checksum`を現ファイルのsha256に更新して整合（resetは全データ消えるので厳禁）
+- **公開共有の鉄則**: 公開ビュー(/u/[handle], /discover, src/lib/public-profile.ts)にコンディション(設問1/2/5/7・スコア)を絶対に含めない。SELECTすらしない設計を維持すること
 
 ## 未実装・今後
 
