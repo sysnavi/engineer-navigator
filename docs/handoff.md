@@ -84,6 +84,7 @@ npm run ingest:knowledge      # content/knowledge/<kind>/*.md を埋め込み投
 - /report 画面の「設問間の大きな空白」はアプリのバグではない（ブラウザプレビューペインが0幅で描画したアーティファクト。実ページは正常）
 - **マイグレーション運用**: 非対話シェルでは `migrate dev` が使えない（seed実行や@unique制約の確認プロンプトで止まる）。additive変更は「手書き migration.sql + `migrate deploy`」で適用する。適用済みmigrationを手編集するとチェックサム不整合で`migrate dev`が全面停止→`_prisma_migrations.checksum`を現ファイルのsha256に更新して整合（resetは全データ消えるので厳禁）
 - **公開共有の鉄則**: 公開ビュー(/u/[handle], /discover, src/lib/public-profile.ts)にコンディション(設問1/2/5/7・スコア)を絶対に含めない。SELECTすらしない設計を維持すること
+- **AIレート制限/停止**: 全AI呼び出しは `src/lib/usage.ts` の `assertAiAllowed(userId, kind)` を**トークン消費前に**通す（3ストリーミングRoute + 週報解析/メンター提案/学習プラン/ロールプレイ開始・評価/インタビュー要約）。1分15回・24h300回で拒否、24h600回超で自動停止（`AI_RATE_PER_MINUTE`/`AI_RATE_PER_DAY`/`AI_AUTO_SUSPEND_PER_DAY`で調整）。新しいAI入口を足したら必ずこのガードを通すこと。停止/復帰は管理者のみ（マイページADMINパネル、`setUserSuspended`）
 
 ## 未実装・今後
 
