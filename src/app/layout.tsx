@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { DotGothic16 } from "next/font/google";
 import { getOptionalUser } from "@/lib/auth";
+import { RegisterSW } from "@/components/register-sw";
 import "./globals.css";
 
 const dotGothic = DotGothic16({
@@ -14,6 +15,19 @@ const dotGothic = DotGothic16({
 export const metadata: Metadata = {
   title: "Engineer Navigator",
   description: "週報からスキルと成長をデータ化する、エンジニアの成長OS",
+  manifest: "/manifest.webmanifest",
+  applicationName: "Engineer Navigator",
+  appleWebApp: {
+    capable: true,
+    title: "EngNavi",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#004aad",
 };
 
 const NAV = [
@@ -56,36 +70,38 @@ export default async function RootLayout({
       {...(palette !== "sky" ? { "data-palette": palette } : {})}
     >
       <body className="min-h-full">
+        <RegisterSW />
         <header className="no-print sticky top-0 z-10 border-b-[2.5px] border-line8 bg-royal shadow-hard-sm">
-          <nav className="mx-auto flex max-w-4xl items-center gap-2 px-4 py-2.5">
-            <span
-              className="mr-1 inline-flex gap-1.5"
-              aria-hidden="true"
-            >
-              <i className="h-3 w-3 rounded-full border-2 border-white bg-pinkhot" />
-              <i className="h-3 w-3 rounded-full border-2 border-white bg-lemon" />
-            </span>
+          <div className="mx-auto flex max-w-4xl flex-col gap-1.5 px-4 py-2.5 sm:flex-row sm:items-center sm:gap-2">
             <Link
               href="/"
-              className="whitespace-nowrap font-pixel text-[15px] tracking-wide text-white"
+              className="flex shrink-0 items-center gap-1.5 whitespace-nowrap font-pixel text-[15px] tracking-wide text-white"
             >
+              <span className="inline-flex gap-1.5" aria-hidden="true">
+                <i className="h-3 w-3 rounded-full border-2 border-white bg-pinkhot" />
+                <i className="h-3 w-3 rounded-full border-2 border-white bg-lemon" />
+              </span>
               EngineerNavigator<span className="text-peri">.exe</span>
             </Link>
-            <span className="flex-1" />
-            <div className="flex flex-wrap justify-end gap-1 text-[13px]">
-              {nav.map((n) => (
-                <Link
-                  key={n.href}
-                  href={n.href}
-                  className="whitespace-nowrap rounded-md border-2 border-transparent px-2.5 py-1 font-bold text-peri hover:border-peri hover:text-white"
-                >
-                  {n.label}
-                </Link>
-              ))}
-            </div>
-          </nav>
+            {nav.length > 0 && (
+              <nav
+                className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-0.5 text-[13px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:ml-auto sm:flex-wrap sm:justify-end sm:overflow-visible sm:px-0 sm:pb-0"
+                aria-label="メインナビゲーション"
+              >
+                {nav.map((n) => (
+                  <Link
+                    key={n.href}
+                    href={n.href}
+                    className="shrink-0 whitespace-nowrap rounded-md border-2 border-transparent px-2.5 py-1 font-bold text-peri hover:border-peri hover:text-white"
+                  >
+                    {n.label}
+                  </Link>
+                ))}
+              </nav>
+            )}
+          </div>
         </header>
-        <main className="mx-auto max-w-4xl px-4 py-8">{children}</main>
+        <main className="mx-auto max-w-4xl px-4 py-6 sm:py-8">{children}</main>
       </body>
     </html>
   );
