@@ -18,7 +18,12 @@ Phase 0（基盤）+ Phase 1 の縦切りが実装済み。**実 ANTHROPIC_API_K
    → 本人が承認/却下(/skills) → EngineerSkill反映 + SkillHistory記録
 ```
 
-画面は11+: `/`(ホーム) / `/report`(週報・自動保存) / `/skills`(スキルマップ＋レーダー＋成長ログ) / `/resume`(経歴書・印刷=PDF) / `/condition`(営業・管理者向け) / `/mentor`(AIメンター) / `/plan`(資格学習プラン) / `/roleplay`(役割シミュレーター) / `/discover`(発見) / `/u/[handle]`(公開プロフィール) / `/mypage`(きせかえ＋共有設定＋開発用ユーザー切替)。
+画面は15+: `/`(ホーム) / `/report`(週報・自動保存) / `/skills`(スキルマップ＋レーダー＋成長ログ) / `/resume`(経歴書・印刷=PDF) / `/condition`(営業・管理者向け) / `/mentor`(AIメンター) / `/plan`(資格学習プラン) / `/quiz`(良問バンク=四択・腕試し) / `/roleplay`(役割シミュレーター) / `/yomoyama`(現場のよもやま掲示板) / `/discover`(発見) / `/u/[handle]`(公開プロフィール) / `/admin`(管理者ダッシュボード) / `/welcome`(招待制LP) / `/mypage`(きせかえ＋共有設定)。
+
+**Phase 5-6 追加機能（2026-07-17）:**
+- **管理者ダッシュボード /admin**（admin限定・非管理者404）: 全ユーザー分析(サマリ6枚+ユーザー表)＋BAN(停止/復帰)＋招待発行/失効を集約。マイページからは撤去。
+- **良問バンク /quiz**: ユーザーが四択を作り皆で解いて育てる問題集。採点はサーバー(submitQuizAnswer)でローカル完結＝**AIトークン消費ゼロ**、正解はクライアントに渡さない。評価(0-10)は`rateQuiz`がトランザクションで**全員分を集計**(QuizQuestion.ratingSum/Count)＝1問の良問スコアは総意で決まる。QuizQuestion/QuizRating(@@unique questionId+userId)/QuizAttempt。
+- **よもやま掲示板 /yomoyama**: ハンドル名で現場の話を投稿。投稿前にAI門番(src/lib/ai/moderation.ts)が①個人特定 ②会社/案件固有名 ③実在著名人 ④誹謗中傷/荒らし を検知しブロック(本文はデータ扱いでインジェクション耐性)。postYomoyamaは`assertAiAllowed`通過→門番→OKだけ保存、ブロック時は理由と修正案を返す。AIチェック失敗時は安全側でブロック。
 **Phase 1〜4 完了 + 会社独自ノウハウのRAG化 完了（2026-07-14）**。8bit/Y2Kデザイン + きせかえ5種。コンディション検知は src/lib/condition.ts（急落/下降トレンド/乖離/高負荷/相談フラグ、未クローズ中は重複発火しない）。デモ: /mypage の DEBUG.sys で営業に切替→ /condition。デモ履歴はseed投入済み（engineer2@… は要注意の物語）。
 
 ## 再開手順
