@@ -23,8 +23,8 @@ function ConsentGate() {
         </li>
         <li className="rounded-lg border-2 border-line8 bg-surface p-3 shadow-hard-sm">
           <b>2. 閲覧範囲は限定されます</b> —
-          コンディション（設問1・2・5とスコア）を見られるのは<b>あなた・管理者・担当営業だけ</b>です。
-          実績（設問3・4）は経歴書として営業活動に使われます。
+          コンディション（設問1・2・5とスコア）を見られるのは<b>あなたと管理者だけ</b>です。
+          実績（設問3・4）は経歴書に反映されます。
         </li>
         <li className="rounded-lg border-2 border-line8 bg-surface p-3 shadow-hard-sm">
           <b>3. 人事評価には使いません</b> —

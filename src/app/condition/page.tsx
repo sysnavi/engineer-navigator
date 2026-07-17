@@ -62,7 +62,7 @@ export default async function ConditionPage() {
         <Window title="ACCESS DENIED" barClass="!bg-crit">
           <PixelLabel className="!text-crit">403 — FORBIDDEN</PixelLabel>
           <p className="mt-2 text-[13.5px]">
-            コンディション情報は<b>管理者と担当営業のみ</b>が閲覧できます。
+            コンディション情報は<b>管理者のみ</b>が閲覧できます。
           </p>
           <p className="mt-1 text-[12.5px] text-inksoft">
             あなた自身のコンディションは週報画面のフィードバックで確認できます。
@@ -106,7 +106,7 @@ export default async function ConditionPage() {
       </div>
 
       <p className="rounded-lg border-2 border-dashed border-royal2 bg-quotebg px-4 py-2.5 text-[12px] text-inksoft">
-        🔒 このページは<b>管理者と担当営業のみ</b>閲覧できます（担当営業は自分の案件のエンジニアのみ）。
+        🔒 このページは<b>管理者のみ</b>閲覧できます。
         コンディションデータは早期フォローのためのもので、<b>人事評価には使用しません</b>。
         解析が行われることは週報画面で本人に明示しています。
       </p>
@@ -206,7 +206,7 @@ export default async function ConditionPage() {
       <Window title="TEAM" titleEm=".sav">
         {engineers.length === 0 ? (
           <p className="py-4 text-center text-[13px] text-inksoft">
-            担当中のエンジニアがいません（案件の営業担当に設定されると表示されます）
+            対象のエンジニアがいません
           </p>
         ) : (
           <div className="space-y-3">

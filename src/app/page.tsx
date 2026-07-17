@@ -70,22 +70,6 @@ export default async function Home() {
           </Window>
         </Link>
 
-        {(user.role === "SALES" || user.role === "ADMIN") && (
-          <Link href="/condition" className="group sm:col-span-2">
-            <Window
-              title="CONDITION"
-              titleEm=".mon"
-              className="transition-transform group-hover:-translate-y-0.5"
-            >
-              <PixelLabel>TEAM MONITOR</PixelLabel>
-              <p className="mt-1 text-[15px] font-extrabold">コンディション</p>
-              <p className="mt-1 text-[13px] text-inksoft">
-                担当エンジニアの週次コンディションとアラート対応（管理者・担当営業のみ）
-              </p>
-            </Window>
-          </Link>
-        )}
-
         <Link href="/mentor" className="group">
           <Window
             title="MENTOR"
@@ -96,6 +80,34 @@ export default async function Home() {
             <p className="mt-1 text-[15px] font-extrabold">AIメンター</p>
             <p className="mt-1 text-[13px] text-inksoft">
               資格・技術を「現場でどう使うか」まで具体例つきで24時間相談
+            </p>
+          </Window>
+        </Link>
+
+        <Link href="/plan" className="group">
+          <Window
+            title="STUDY_PLAN"
+            titleEm=".sav"
+            className="transition-transform group-hover:-translate-y-0.5"
+          >
+            <PixelLabel>STUDY PLAN</PixelLabel>
+            <p className="mt-1 text-[15px] font-extrabold">学習プラン</p>
+            <p className="mt-1 text-[13px] text-inksoft">
+              資格の試験日から逆算した週次カリキュラムをAIが作成
+            </p>
+          </Window>
+        </Link>
+
+        <Link href="/quiz" className="group">
+          <Window
+            title="QUIZ_BANK"
+            titleEm=".dat"
+            className="transition-transform group-hover:-translate-y-0.5"
+          >
+            <PixelLabel>腕試し</PixelLabel>
+            <p className="mt-1 text-[15px] font-extrabold">良問バンク</p>
+            <p className="mt-1 text-[13px] text-inksoft">
+              四択でスキルチェック。良問はみんなで作って育てる
             </p>
           </Window>
         </Link>
@@ -114,26 +126,79 @@ export default async function Home() {
           </Window>
         </Link>
 
+        <Link href="/yomoyama" className="group">
+          <Window
+            title="YOMOYAMA"
+            titleEm=".log"
+            className="transition-transform group-hover:-translate-y-0.5"
+          >
+            <PixelLabel>よもやま</PixelLabel>
+            <p className="mt-1 text-[15px] font-extrabold">現場のよもやま話</p>
+            <p className="mt-1 text-[13px] text-inksoft">
+              悲喜こもごもをハンドル名で共有（AI門番つきで安心）
+            </p>
+          </Window>
+        </Link>
+
         <Link href="/resume" className="group">
           <Window
             title="経歴書"
             titleEm=".doc"
             className="transition-transform group-hover:-translate-y-0.5"
           >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <PixelLabel>CAREER SHEET</PixelLabel>
-                <p className="mt-1 text-[15px] font-extrabold">経歴書</p>
-                <p className="mt-1 text-[13px] text-inksoft">
-                  スキル {skillCount} 件・実績 {expCount} 件から自動組版。営業向けに印刷/PDFエクスポート
-                </p>
-              </div>
-              <span className="btn8 pointer-events-none text-[12px]">
-                ひらく ▶
-              </span>
-            </div>
+            <PixelLabel>CAREER SHEET</PixelLabel>
+            <p className="mt-1 text-[15px] font-extrabold">経歴書</p>
+            <p className="mt-1 text-[13px] text-inksoft">
+              スキル {skillCount} 件・実績 {expCount} 件から自動組版。PDFで出力
+            </p>
           </Window>
         </Link>
+
+        <Link href="/discover" className="group">
+          <Window
+            title="DISCOVER"
+            titleEm=".net"
+            className="transition-transform group-hover:-translate-y-0.5"
+          >
+            <PixelLabel>DISCOVER</PixelLabel>
+            <p className="mt-1 text-[15px] font-extrabold">発見</p>
+            <p className="mt-1 text-[13px] text-inksoft">
+              他の人の「成長の道筋」を見て、自分の学びに活かす
+            </p>
+          </Window>
+        </Link>
+
+        {(user.role === "SALES" || user.role === "ADMIN") && (
+          <Link href="/condition" className="group">
+            <Window
+              title="CONDITION"
+              titleEm=".mon"
+              className="transition-transform group-hover:-translate-y-0.5"
+            >
+              <PixelLabel>CONDITION</PixelLabel>
+              <p className="mt-1 text-[15px] font-extrabold">コンディション</p>
+              <p className="mt-1 text-[13px] text-inksoft">
+                エンジニアの週次コンディションとアラートを見守る（管理者向け）
+              </p>
+            </Window>
+          </Link>
+        )}
+
+        {user.role === "ADMIN" && (
+          <Link href="/admin" className="group">
+            <Window
+              title="ADMIN"
+              titleEm=".sys"
+              className="transition-transform group-hover:-translate-y-0.5"
+            >
+              <PixelLabel>ADMIN CONSOLE</PixelLabel>
+              <p className="mt-1 text-[15px] font-extrabold">管理ダッシュボード</p>
+              <p className="mt-1 text-[13px] text-inksoft">
+                全ユーザー分析・招待リンク発行・アカウント管理
+              </p>
+            </Window>
+          </Link>
+        )}
       </div>
 
       <p className="text-center font-pixel text-[12px] tracking-[0.1em] text-royal2">
