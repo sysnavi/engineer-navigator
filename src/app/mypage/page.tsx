@@ -11,8 +11,29 @@ import {
 } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { ReportToggle } from "./report-toggle";
+import { InheritPanel } from "./inherit-panel";
 import { DOMAINS } from "@/lib/domains";
 import { formatWeek } from "@/lib/week";
+import {
+  getPlayerStats,
+  getLineage,
+  BEQUEST_RATE,
+  REBIRTH_MIN_LEVEL,
+} from "@/lib/exp";
+import { PixelAvatar } from "@/components/pixel-avatar";
+
+// 家系図の実績ハイライト用ラベル（EXPソース→日本語）
+const COUNT_LABELS: Record<string, string> = {
+  report: "週報",
+  quizAuthored: "作問",
+  roleplayCompleted: "演習",
+  quizAttempt: "腕試し",
+  quizRated: "評価",
+  mentorSession: "相談",
+  planCreated: "プラン",
+  yomoyamaPost: "よもやま",
+  suggestionApproved: "スキル承認",
+};
 
 const ROLE_LABELS: Record<string, string> = {
   ENGINEER: "エンジニア",
@@ -24,7 +45,7 @@ export default async function MyPage() {
   const user = await getCurrentUser();
   const devLogin = process.env.DEV_LOGIN_ENABLED === "true";
   const isAdmin = user.role === "ADMIN";
-  const [devUsers, submittedReports] = await Promise.all([
+  const [devUsers, submittedReports, player, lineage] = await Promise.all([
     devLogin
       ? prisma.user.findMany({ orderBy: { role: "asc" } })
       : Promise.resolve([]),
@@ -34,6 +55,8 @@ export default async function MyPage() {
       take: 12,
       select: { id: true, weekStart: true, isPublic: true },
     }),
+    getPlayerStats(user.id),
+    getLineage(user.id),
   ]);
 
   return (
@@ -94,6 +117,122 @@ export default async function MyPage() {
             </form>
           </div>
         </div>
+      </Window>
+
+      {/* アバター継承（転生）: 卵を産んで遺伝子を受け継ぐ（Issue #1） */}
+      <Window title="INHERIT" titleEm=".sys">
+        <PixelLabel>INHERIT — 継承（転生）と家系図</PixelLabel>
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          <div className="grid h-[76px] w-[76px] shrink-0 place-items-center rounded-lg border-[2.5px] border-line8 bg-surface">
+            <PixelAvatar
+              sprite={player.stage.sprite}
+              px={6}
+              accent={player.genes?.dominant.color}
+            />
+          </div>
+          <div className="min-w-[220px] flex-1">
+            <p className="font-pixel text-[13px] tracking-wide text-royal">
+              第{player.generation}世代 — Lv {player.level}・{player.stage.name}
+            </p>
+            {player.genes ? (
+              <p className="mt-1 text-[12.5px]">
+                遺伝子:{" "}
+                <b style={{ color: player.genes.dominant.color }}>
+                  {player.genes.dominant.name}
+                </b>
+                {player.genes.recessive && (
+                  <>
+                    {" "}
+                    ×{" "}
+                    <b style={{ color: player.genes.recessive.color }}>
+                      {player.genes.recessive.name}
+                    </b>
+                  </>
+                )}
+                <span className="ml-1.5 rounded-md border-2 border-line8 bg-quotebg px-1.5 py-0.5 font-pixel text-[10.5px]">
+                  {player.genes.title}
+                </span>
+              </p>
+            ) : (
+              <p className="mt-1 text-[12.5px] text-inksoft">
+                初代。マイスター（Lv{REBIRTH_MIN_LEVEL}）に到達すると「卵を産む」が解放され、
+                遺伝子と遺産を次の世代へ受け継げます。
+                <b>継承でしか出会えない姿</b>（けんじゃ・でんせつ…）も。
+              </p>
+            )}
+            <p className="mt-1 text-[11.5px] text-inksoft">
+              生涯EXP {player.lifetimeExp}（積み上げは転生しても消えません）
+            </p>
+          </div>
+          <InheritPanel
+            canRebirth={player.canRebirth}
+            level={player.level}
+            minLevel={REBIRTH_MIN_LEVEL}
+            generation={player.generation}
+            stageName={player.stage.name}
+            bequestPreview={Math.round(player.exp * BEQUEST_RATE)}
+          />
+        </div>
+
+        {lineage.length > 0 && (
+          <div className="mt-5">
+            <PixelLabel className="mb-2">FAMILY TREE — 家系図</PixelLabel>
+            <div className="space-y-2">
+              {lineage.map((g) => {
+                const highlights = Object.entries(g.counts)
+                  .filter(([k, n]) => n > 0 && COUNT_LABELS[k])
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 3);
+                return (
+                  <div
+                    key={g.gen}
+                    className="flex flex-wrap items-center gap-3 rounded-lg border-2 border-dashed border-peri bg-surface px-3 py-2"
+                  >
+                    <div className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-md border-2 border-line8 bg-win">
+                      <PixelAvatar
+                        sprite={g.spriteAtEnd}
+                        px={4}
+                        accent={g.dominant?.color}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-pixel text-[11.5px] tracking-wide">
+                        第{g.gen}世代 — Lv{g.levelAtEnd}・{g.stageAtEnd}で卵を産む
+                        <span className="ml-2 text-inksoft">
+                          {g.endedAt.toISOString().slice(0, 10)}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 text-[11.5px] text-inksoft">
+                        {g.dominant && (
+                          <b style={{ color: g.dominant.color }}>
+                            {g.dominant.short}
+                          </b>
+                        )}
+                        {g.recessive && (
+                          <>
+                            ×
+                            <b style={{ color: g.recessive.color }}>
+                              {g.recessive.short}
+                            </b>
+                          </>
+                        )}
+                        {highlights.length > 0 && (
+                          <>
+                            {" ｜ "}
+                            {highlights
+                              .map(([k, n]) => `${COUNT_LABELS[k]}×${n}`)
+                              .join("・")}
+                          </>
+                        )}
+                        {" ｜ "}この世代のEXP {g.expInGen} ／ 遺産 +{g.bequest}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </Window>
 
       {/* 目指す技術領域（キャリアの方向性） */}

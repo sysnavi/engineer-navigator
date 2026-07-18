@@ -24,7 +24,7 @@ export default async function PublicProfilePage({
   const profile = await loadPublicProfile(handle);
   if (!profile) notFound();
 
-  const { user, byCategory, histories, experiences, roleplayCount, reports } =
+  const { user, byCategory, histories, experiences, roleplayCount, reports, generation } =
     profile;
 
   return (
@@ -34,6 +34,11 @@ export default async function PublicProfilePage({
           <PixelLabel>PUBLIC PROFILE — @{user.handle}</PixelLabel>
           <PixelTitle as="h1" className="text-3xl text-royal">
             {user.name}
+            {generation >= 2 && (
+              <span className="ml-2.5 align-middle font-pixel text-[13px] tracking-wide text-pinkhot">
+                ★第{generation}世代
+              </span>
+            )}
           </PixelTitle>
           {user.bio && (
             <p className="mt-1.5 max-w-[60ch] text-[13px] text-inksoft">

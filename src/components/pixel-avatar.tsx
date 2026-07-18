@@ -74,9 +74,51 @@ const SPRITES: Record<string, string[]> = {
     ".kggggggk.",
     "..kkkkkk..",
   ],
+  // --- 継承（転生）限定の形態 (Issue #1) ---
+  goldegg: [
+    "...kkkk...",
+    "..kyyyyk..",
+    ".kyywyyyk.",
+    ".kywyyyyk.",
+    "kyyyykyyyk",
+    "kyyykykyyk",
+    "kyyyykyyyk",
+    "kyyyyyywyk",
+    ".kyyyyyyk.",
+    "..kkkkkk..",
+  ],
+  sage: [
+    "...kbbk...",
+    "..kbbbbk..",
+    ".kbbbbbbk.",
+    "kyyyyyyyyk",
+    "kyykyykyyk",
+    "kypyookpyk",
+    "kyyyooyyyk",
+    "kbbbbbbbbk",
+    ".kbbbbbbk.",
+    "..kkkkkk..",
+  ],
+  legend: [
+    "s.ky.yk..s",
+    ".kyyyyyyk.",
+    "skyyyyyyks",
+    "kyykyykyyk",
+    "kyyyyyyyyk",
+    "kypyookpyk",
+    "kyyyooyyyk",
+    "kwwwwwwwwk",
+    ".kwwwwwwk.",
+    "s.kkkkkk.s",
+  ],
 };
 
-export function PixelAvatar(props: { sprite: string; px?: number }) {
+// accent: 遺伝子カラーのオーラ枠（継承2世代目以降の血統表現）。CSS変数を渡す
+export function PixelAvatar(props: {
+  sprite: string;
+  px?: number;
+  accent?: string;
+}) {
   const rows = SPRITES[props.sprite] ?? SPRITES.egg;
   const px = props.px ?? 6;
   const cols = rows[0].length;
@@ -87,6 +129,9 @@ export function PixelAvatar(props: { sprite: string; px?: number }) {
         display: "grid",
         gridTemplateColumns: `repeat(${cols}, ${px}px)`,
         imageRendering: "pixelated",
+        ...(props.accent
+          ? { boxShadow: `0 0 0 3px ${props.accent}`, borderRadius: 3 }
+          : {}),
       }}
     >
       {rows.flatMap((row, y) =>

@@ -14,6 +14,7 @@ import { generateOpeningLine, generateFeedback } from "@/lib/ai/roleplay";
 import { isPaletteId } from "@/lib/palettes";
 import { isDomainId } from "@/lib/domains";
 import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
+import { performRebirth } from "@/lib/exp";
 import { createInvite } from "@/lib/invite";
 import { SESSION_COOKIE } from "@/lib/session";
 
@@ -240,6 +241,20 @@ export async function toggleReportPublic(reportId: string, isPublic: boolean) {
     data: { isPublic },
   });
   revalidatePath("/mypage");
+}
+
+// ---------------------------------------------------------------------------
+// アバター継承（転生・Issue #1）
+// ---------------------------------------------------------------------------
+
+/** 転生（継承）: 本人の明示操作からのみ。データは一切消さず、世代の墓標を1行残す。
+ *  結果はマイページの孵化演出モーダルで表示する。 */
+export async function rebirthAvatar() {
+  const user = await getCurrentUser();
+  const result = await performRebirth(user.id);
+  revalidatePath("/mypage");
+  revalidatePath("/");
+  return result;
 }
 
 // ---------------------------------------------------------------------------

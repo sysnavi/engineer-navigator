@@ -100,11 +100,20 @@ export default async function Home() {
             </div>
             <div className="flex items-center gap-3.5 px-3.5 py-3">
               <div className="grid h-[84px] w-[84px] shrink-0 place-items-center rounded-lg border-[2.5px] border-line8 bg-surface">
-                <PixelAvatar sprite={player.stage.sprite} px={7} />
+                <PixelAvatar
+                  sprite={player.stage.sprite}
+                  px={7}
+                  accent={player.genes?.dominant.color}
+                />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-pixel text-[14px] tracking-wide">
                   {user.handle ?? user.name}
+                  {player.generation >= 2 && (
+                    <span className="ml-1.5 text-[10.5px] text-royal2">
+                      第{player.generation}世代
+                    </span>
+                  )}
                 </p>
                 <p className="font-pixel text-[11px] tracking-[0.1em] text-pinkhot">
                   Lv {player.level} — {player.stage.name}
@@ -114,6 +123,14 @@ export default async function Home() {
                     </span>
                   )}
                 </p>
+                {player.genes && (
+                  <p
+                    className="truncate font-pixel text-[10px] tracking-[0.08em]"
+                    style={{ color: player.genes.dominant.color }}
+                  >
+                    ◆ {player.genes.title}
+                  </p>
+                )}
                 <div className="mt-1.5 flex gap-[3px]" aria-label={`次のレベルまで ${player.expToNextLevel} EXP`}>
                   {Array.from({ length: 10 }, (_, i) => (
                     <i

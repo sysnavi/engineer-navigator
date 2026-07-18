@@ -14,7 +14,7 @@ export async function loadPublicProfile(handle: string) {
   });
   if (!user || !user.isPublic) return null;
 
-  const [skills, histories, experiences, roleplays, reports] = await Promise.all([
+  const [skills, histories, experiences, roleplays, reports, pastGenerations] = await Promise.all([
     prisma.engineerSkill.findMany({
       where: { userId: user.id },
       include: { skill: true },
@@ -48,6 +48,8 @@ export async function loadPublicProfile(handle: string) {
         nextText: true,
       },
     }),
+    // アバター継承（転生）の世代数。ゲーム実績のみでコンディションとは無関係
+    prisma.avatarGeneration.count({ where: { userId: user.id } }),
   ]);
 
   const byCategory = new Map<string, typeof skills>();
@@ -68,6 +70,7 @@ export async function loadPublicProfile(handle: string) {
     roleplayCount,
     reports,
     topSkills: skills.slice(0, 5),
+    generation: pastGenerations + 1,
   };
 }
 
@@ -99,11 +102,15 @@ export async function listPublicProfiles() {
           kind: "EXPERIENCE",
         },
       });
+      const pastGenerations = await prisma.avatarGeneration.count({
+        where: { user: { handle: u.handle } },
+      });
       return {
         ...u,
         topSkills: skills.map((s) => ({ name: s.skill.name, level: s.level })),
         maxLevel: skills[0]?.level ?? 0,
         expCount,
+        generation: pastGenerations + 1,
       };
     })
   );

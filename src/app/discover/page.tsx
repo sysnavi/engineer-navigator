@@ -33,7 +33,14 @@ export default async function DiscoverPage() {
                 className="h-full transition-transform group-hover:-translate-y-0.5"
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-[15px] font-extrabold">{p.name}</span>
+                  <span className="text-[15px] font-extrabold">
+                    {p.name}
+                    {p.generation >= 2 && (
+                      <span className="ml-1.5 font-pixel text-[10.5px] font-normal tracking-wide text-pinkhot">
+                        ★第{p.generation}世代
+                      </span>
+                    )}
+                  </span>
                   <span className="font-pixel text-[11px] text-inksoft">
                     @{p.handle}
                   </span>

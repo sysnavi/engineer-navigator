@@ -1,5 +1,12 @@
 import { prisma } from "@/lib/db";
 import { mondayOf } from "@/lib/week";
+import {
+  geneById,
+  genesFromExpBySource,
+  lineageTitle,
+  pureRunOf,
+  type GeneDef,
+} from "@/lib/genes";
 
 // プレイヤーEXP（Phase 7: ゲーム性の土台）。
 // 方針: サイトでの「全活動」をEXP化する。学び・貢献に厚く、消費に薄く。
@@ -34,23 +41,47 @@ export function expForLevel(level: number): number {
   return 50 * (level - 1) * (level - 1);
 }
 
-// 進化段階（レベルから決定的に決まる。保存不要）
+// 進化段階（レベルと世代から決定的に決まる。保存不要）。
+// minGeneration 付きは継承（転生）でしか辿り着けない形態（Issue #1: 周回が最強への道）
 export type AvatarStage = {
   minLevel: number;
+  minGeneration?: number; // 省略時は 1（初代から到達可能）
   name: string;
-  sprite: "egg" | "chick" | "minarai" | "ichininmae" | "meister";
+  sprite:
+    | "egg"
+    | "chick"
+    | "minarai"
+    | "ichininmae"
+    | "meister"
+    | "goldegg"
+    | "sage"
+    | "legend";
 };
 export const STAGES: AvatarStage[] = [
   { minLevel: 1, name: "たまご", sprite: "egg" },
+  { minLevel: 1, minGeneration: 2, name: "きんのたまご", sprite: "goldegg" },
   { minLevel: 3, name: "ひよこ", sprite: "chick" },
   { minLevel: 5, name: "みならい", sprite: "minarai" },
   { minLevel: 7, name: "いちにんまえ", sprite: "ichininmae" },
   { minLevel: 12, name: "マイスター", sprite: "meister" },
+  { minLevel: 14, minGeneration: 2, name: "けんじゃ", sprite: "sage" },
+  { minLevel: 16, minGeneration: 3, name: "でんせつ", sprite: "legend" },
 ];
-export function stageForLevel(level: number): AvatarStage {
+
+// 転生（継承）の解放条件: 現世代でマイスター（Lv12）に到達していること
+export const REBIRTH_MIN_LEVEL = 12;
+// 遺産: 現世代EXPの5%が次世代の初期EXPになる
+export const BEQUEST_RATE = 0.05;
+
+export function stageFor(level: number, generation: number): AvatarStage {
   let cur = STAGES[0];
-  for (const s of STAGES) if (level >= s.minLevel) cur = s;
+  for (const s of STAGES)
+    if (level >= s.minLevel && generation >= (s.minGeneration ?? 1)) cur = s;
   return cur;
+}
+/** 後方互換: 世代1として解決（公開ビュー等、世代を持たない文脈用） */
+export function stageForLevel(level: number): AvatarStage {
+  return stageFor(level, 1);
 }
 
 // 「今日」の日付（week.ts の mondayOf と同じ流儀: サーバーローカルの年月日をUTC日付として保存）
@@ -107,9 +138,27 @@ function analyzeVisits(dates: Date[]): {
 
 export type WeekActivity = { label: string; exp: number };
 
+// 世代集計（AvatarGeneration.summary の中身）。
+// cumulative は転生時点の生涯集計（次世代の遺伝子判定の基準点）、inGen はその世代分の差分
+export type GenerationSummary = {
+  cumulative: { expBySource: Record<string, number>; counts: Record<string, number> };
+  inGen: { expBySource: Record<string, number>; counts: Record<string, number> };
+};
+
+export type PlayerGenes = {
+  dominant: GeneDef;
+  recessive: GeneDef | null;
+  title: string; // 血統の称号（組み合わせ限定・純血統）
+  pureRun: number; // 同じ優性遺伝子が連続した世代数
+};
+
 export type PlayerStats = {
-  exp: number;
+  exp: number; // 現世代EXP（レベル・進化はこれで決まる）
+  lifetimeExp: number; // 生涯EXP（積み上げは消えない）
   level: number;
+  generation: number; // 第何世代か（1始まり）
+  genes: PlayerGenes | null; // 初代は null（遺伝子は継承で得る）
+  canRebirth: boolean; // 転生（継承）可能か = 現世代Lvが REBIRTH_MIN_LEVEL 以上
   stage: AvatarStage;
   nextStage: AvatarStage | null;
   levelProgress: number; // 現レベル帯の進捗（EXPバー用・0..1）
@@ -117,6 +166,9 @@ export type PlayerStats = {
   currentStreak: number; // 連続訪問日数
   weekExp: number;
   weekActivities: WeekActivity[];
+  // 転生処理・家系図用の生涯集計（表示には使わない）
+  expBySource: Record<string, number>;
+  activityCounts: Record<string, number>;
 };
 
 /** プレイヤーのEXP/レベル/今週の獲得内訳を既存データから導出する */
@@ -139,6 +191,7 @@ export async function getPlayerStats(userId: string): Promise<PlayerStats> {
     planDone,
     user,
     visits,
+    pastGenerations,
     // ---- 今週分 ----
     wReports,
     wSuggestions,
@@ -183,6 +236,11 @@ export async function getPlayerStats(userId: string): Promise<PlayerStats> {
       where: { userId },
       select: { date: true },
     }),
+    prisma.avatarGeneration.findMany({
+      where: { userId },
+      orderBy: { gen: "asc" },
+      select: { gen: true, expSnapshot: true, bequest: true, dominantGene: true, recessiveGene: true },
+    }),
     prisma.weeklyReport.count({
       where: { userId, status: "SUBMITTED", submittedAt: { gte: weekStart } },
     }),
@@ -225,27 +283,63 @@ export async function getPlayerStats(userId: string): Promise<PlayerStats> {
   const wVisits = visits.filter((v) => v.date >= weekStart).length;
 
   const W = EXP_WEIGHTS;
+  // 生涯のソース別EXP（遺伝子判定・転生時のサマリ確定に使う）
+  const activityCounts: Record<string, number> = {
+    report: reports,
+    publicReport: publicReports,
+    suggestionApproved: suggestionsApproved,
+    roleplayCompleted: roleplays,
+    quizAttempt: attempts,
+    quizCorrectBonus: corrects,
+    quizAuthored: authored,
+    goodQuestionBonus: goodCount,
+    quizRated: ratings,
+    mentorSession: mentorSessions,
+    planCreated: plans,
+    yomoyamaPost: posts,
+    planItemDone: planDone,
+    publicProfile: user.isPublic ? 1 : 0,
+    visit: visitStats.days,
+    streakWeekBonus: visitStats.weekBonusCount,
+  };
+  const expBySource = Object.fromEntries(
+    Object.entries(activityCounts).map(([k, n]) => [
+      k,
+      n * (W[k as keyof typeof W] ?? 0),
+    ])
+  );
+  const lifetimeExp = Object.values(expBySource).reduce((s, v) => s + v, 0);
+
+  // 継承（転生）: 現世代EXP = 生涯EXP − 転生時点のスナップショット + 遺産。
+  // EXP重み変更や投稿削除で生涯EXPが目減りしても負にならないよう0クランプ
+  const lastGen = pastGenerations.at(-1);
+  const generation = pastGenerations.length + 1;
   const exp =
-    reports * W.report +
-    publicReports * W.publicReport +
-    suggestionsApproved * W.suggestionApproved +
-    roleplays * W.roleplayCompleted +
-    attempts * W.quizAttempt +
-    corrects * W.quizCorrectBonus +
-    authored * W.quizAuthored +
-    goodCount * W.goodQuestionBonus +
-    ratings * W.quizRated +
-    mentorSessions * W.mentorSession +
-    plans * W.planCreated +
-    posts * W.yomoyamaPost +
-    planDone * W.planItemDone +
-    (user.isPublic ? W.publicProfile : 0) +
-    visitStats.days * W.visit +
-    visitStats.weekBonusCount * W.streakWeekBonus;
+    Math.max(0, lifetimeExp - (lastGen?.expSnapshot ?? 0)) +
+    (lastGen?.bequest ?? 0);
+
+  // 現世代の遺伝子 = 直前の世代（親）から継承したもの
+  let genes: PlayerGenes | null = null;
+  if (lastGen) {
+    const dominant = geneById(lastGen.dominantGene);
+    if (dominant) {
+      const pureRun = pureRunOf(pastGenerations.map((g) => g.dominantGene));
+      genes = {
+        dominant,
+        recessive: geneById(lastGen.recessiveGene),
+        title: lineageTitle(dominant.id, geneById(lastGen.recessiveGene)?.id ?? null, pureRun),
+        pureRun,
+      };
+    }
+  }
 
   const level = levelFromExp(exp);
-  const stage = stageForLevel(level);
-  const nextStage = STAGES.find((s) => s.minLevel > level) ?? null;
+  const stage = stageFor(level, generation);
+  // 次の進化: 現世代のままで到達できる形態のみ案内する
+  const nextStage =
+    STAGES.find(
+      (s) => s.minLevel > level && generation >= (s.minGeneration ?? 1)
+    ) ?? null;
 
   const cur = expForLevel(level);
   const next = expForLevel(level + 1);
@@ -277,7 +371,11 @@ export async function getPlayerStats(userId: string): Promise<PlayerStats> {
 
   return {
     exp,
+    lifetimeExp,
     level,
+    generation,
+    genes,
+    canRebirth: level >= REBIRTH_MIN_LEVEL,
     stage,
     nextStage,
     levelProgress,
@@ -285,5 +383,120 @@ export async function getPlayerStats(userId: string): Promise<PlayerStats> {
     currentStreak: visitStats.currentStreak,
     weekExp: weekActivities.reduce((s, a) => s + a.exp, 0),
     weekActivities,
+    expBySource,
+    activityCounts,
   };
+}
+
+export type RebirthResult = {
+  endedGen: number; // 卵を産んで終えた世代
+  newGen: number; // 生まれた世代
+  levelAtEnd: number;
+  stageAtEnd: string;
+  dominant: GeneDef;
+  recessive: GeneDef | null;
+  title: string;
+  bequest: number;
+  // 新世代の開始状態（遺産EXPで即レベルアップしている場合があるので実値を返す）
+  newLevel: number;
+  newStageName: string;
+  newSprite: string;
+};
+
+/** 転生（継承）を実行する。本人の明示操作からのみ呼ぶこと（Issue #1: 勝手に起きない）。
+ *  完了世代の実績から遺伝子を確定し、AvatarGeneration に墓標を1行残す。
+ *  週報・投稿・スキル等のデータは一切消さない（生涯EXPは導出のまま永続）。 */
+export async function performRebirth(userId: string): Promise<RebirthResult> {
+  const stats = await getPlayerStats(userId);
+  if (!stats.canRebirth) {
+    throw new Error(
+      `転生にはマイスター（Lv${REBIRTH_MIN_LEVEL}）到達が必要です`
+    );
+  }
+
+  // 直前の転生時点の生涯集計（この世代分の差分を出す基準点）
+  const prev = await prisma.avatarGeneration.findFirst({
+    where: { userId },
+    orderBy: { gen: "desc" },
+    select: { summary: true, dominantGene: true },
+  });
+  const prevCum = (prev?.summary as GenerationSummary | null)?.cumulative;
+
+  const delta = (cur: Record<string, number>, base?: Record<string, number>) =>
+    Object.fromEntries(
+      Object.entries(cur).map(([k, v]) => [k, Math.max(0, v - (base?.[k] ?? 0))])
+    );
+  const inGenExp = delta(stats.expBySource, prevCum?.expBySource);
+  const inGenCounts = delta(stats.activityCounts, prevCum?.counts);
+
+  const { dominant, recessive } = genesFromExpBySource(inGenExp);
+  const summary: GenerationSummary = {
+    cumulative: { expBySource: stats.expBySource, counts: stats.activityCounts },
+    inGen: { expBySource: inGenExp, counts: inGenCounts },
+  };
+  const bequest = Math.round(stats.exp * BEQUEST_RATE);
+
+  // gen の @@unique([userId, gen]) が二重転生（連打・並行リクエスト）を弾く
+  await prisma.avatarGeneration.create({
+    data: {
+      userId,
+      gen: stats.generation,
+      expSnapshot: stats.lifetimeExp,
+      expInGen: stats.exp,
+      levelAtEnd: stats.level,
+      stageAtEnd: stats.stage.name,
+      spriteAtEnd: stats.stage.sprite,
+      dominantGene: dominant,
+      recessiveGene: recessive,
+      bequest,
+      summary,
+    },
+  });
+
+  const domDef = geneById(dominant)!;
+  const recDef = geneById(recessive);
+  // 称号は「新世代が受け継いだ血統」として計算（純血統は今回の優性も数える）
+  const pureRun = pureRunOf([
+    ...(await prisma.avatarGeneration.findMany({
+      where: { userId },
+      orderBy: { gen: "asc" },
+      select: { dominantGene: true },
+    })).map((g) => g.dominantGene),
+  ]);
+  const newGen = stats.generation + 1;
+  const newLevel = levelFromExp(bequest);
+  const newStage = stageFor(newLevel, newGen);
+  return {
+    endedGen: stats.generation,
+    newGen,
+    levelAtEnd: stats.level,
+    stageAtEnd: stats.stage.name,
+    dominant: domDef,
+    recessive: recDef,
+    title: lineageTitle(dominant, recessive, pureRun),
+    bequest,
+    newLevel,
+    newStageName: newStage.name,
+    newSprite: newStage.sprite,
+  };
+}
+
+/** 家系図（マイページ用）: 歴代世代を新しい順に */
+export async function getLineage(userId: string) {
+  const rows = await prisma.avatarGeneration.findMany({
+    where: { userId },
+    orderBy: { gen: "desc" },
+  });
+  return rows.map((r) => ({
+    gen: r.gen,
+    endedAt: r.endedAt,
+    expInGen: r.expInGen,
+    levelAtEnd: r.levelAtEnd,
+    stageAtEnd: r.stageAtEnd,
+    spriteAtEnd: r.spriteAtEnd,
+    dominant: geneById(r.dominantGene),
+    recessive: geneById(r.recessiveGene),
+    bequest: r.bequest,
+    counts: ((r.summary as GenerationSummary | null)?.inGen?.counts ?? {}) as Record<string, number>,
+  }));
 }

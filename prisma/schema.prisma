@@ -58,6 +58,32 @@ model User {
   quizHidden       QuizHidden[]
   yomoyamaPosts    YomoyamaPost[]
   visits           UserVisit[]
+  avatarGenerations AvatarGeneration[]
+}
+
+// アバター継承（転生）: 完了した世代の記録。1行 = 家系図の1段（先祖）。
+// 現世代の番号は「行数 + 1」で導出。現世代EXPは exp.ts が
+// 「生涯EXP（導出） − 最新行の expSnapshot + bequest」で導出する（Issue #1）。
+// 遺伝子・到達形態はこの行に確定保存（EXP重みを将来変えても家系図が書き換わらないように）。
+model AvatarGeneration {
+  id            String   @id @default(cuid())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  gen           Int // 第何世代として生きたか（1始まり）
+  endedAt       DateTime @default(now()) // 転生（卵を産んだ）日時
+  expSnapshot   Int // 転生時点の生涯EXP。現世代EXP導出の基準点
+  expInGen      Int // この世代で稼いだEXP（家系図表示用に確定保存）
+  levelAtEnd    Int
+  stageAtEnd    String // 到達形態の名前（"マイスター" 等）
+  spriteAtEnd   String // 到達形態のスプライトID（家系図でのアバター表示用）
+  dominantGene  String // 優性遺伝子（src/lib/genes.ts の GeneId）
+  recessiveGene String? // 劣性遺伝子（活動が1カテゴリに偏っていた世代は null）
+  bequest       Int // 次世代に引き継ぐ初期EXP（遺産）。転生時に確定
+  // 活動集計。cumulative=転生時点の生涯集計（次世代の遺伝子判定の基準点）、
+  // inGen=この世代分の差分（家系図の実績ハイライト表示用）
+  summary       Json
+
+  @@unique([userId, gen])
 }
 
 // サイト訪問の記録（1日1行）。訪問EXPと連続ログインストリークの算出に使う。
