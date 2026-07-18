@@ -57,6 +57,18 @@ model User {
   quizAttempts     QuizAttempt[]
   quizHidden       QuizHidden[]
   yomoyamaPosts    YomoyamaPost[]
+  visits           UserVisit[]
+}
+
+// サイト訪問の記録（1日1行）。訪問EXPと連続ログインストリークの算出に使う。
+// 記録はレイアウトで（ログイン済みのページ表示時に skipDuplicates で1回だけ）。
+model UserVisit {
+  id     String   @id @default(cuid())
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  date   DateTime @db.Date
+
+  @@unique([userId, date])
 }
 
 // よもやま掲示板（Phase 6）: 現場の悲喜こもごもをハンドル名で共有。

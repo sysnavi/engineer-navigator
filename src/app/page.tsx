@@ -108,6 +108,11 @@ export default async function Home() {
                 </p>
                 <p className="font-pixel text-[11px] tracking-[0.1em] text-pinkhot">
                   Lv {player.level} — {player.stage.name}
+                  {player.currentStreak >= 2 && (
+                    <span className="ml-1.5 text-[#f59f00]">
+                      🔥{player.currentStreak}日連続
+                    </span>
+                  )}
                 </p>
                 <div className="mt-1.5 flex gap-[3px]" aria-label={`次のレベルまで ${player.expToNextLevel} EXP`}>
                   {Array.from({ length: 10 }, (_, i) => (

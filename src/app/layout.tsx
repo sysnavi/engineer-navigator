@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { DotGothic16 } from "next/font/google";
 import { getOptionalUser } from "@/lib/auth";
+import { recordVisit } from "@/lib/exp";
 import { RegisterSW } from "@/components/register-sw";
 import "./globals.css";
 
@@ -59,6 +60,8 @@ export default async function RootLayout({
   if (user) {
     palette = user.palette;
     role = user.role;
+    // 訪問EXP: 1日1回だけ記録（skipDuplicatesで2回目以降は何もしない・失敗しても画面は出す）
+    await recordVisit(user.id);
   }
   // 未ログイン（/welcome 等）ではナビを出さない
   const nav = loggedIn ? NAV.filter((n) => !n.roles || n.roles.includes(role)) : [];
