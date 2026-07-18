@@ -27,6 +27,7 @@ Phase 0（基盤）+ Phase 1 の縦切りが実装済み。**実 ANTHROPIC_API_K
 - **PixelAvatar** `src/components/pixel-avatar.tsx`: 段階別スプライトをCSS gridで描画（画像不要・パレット変数準拠）。
 - **継承（転生）システム（2026-07-18, Issue #1）**: マイスター(Lv12)到達で「卵を産む」が解放。データは一切消さず `AvatarGeneration` に世代の墓標を1行残し、現世代EXP=「生涯EXP−スナップショット+遺産(前世代EXPの5%)」で導出（0クランプ必須・重み変更ドリフト対策）。**遺伝子** `src/lib/genes.ts`: 世代内で最も稼いだ活動カテゴリ→優性/2位→劣性（6種・決定的・乱数なし）、組み合わせ称号＋純血統(同優性3代)。**継承限定形態**: きんのたまご(gen2+ Lv1)/けんじゃ(gen2+ Lv14)/でんせつ(gen3+ Lv16)＝周回が最強への道。UI: マイページ INHERIT.sys（2段階確認モーダル→孵化演出→家系図）、TOPカードに世代・血統称号・遺伝子色オーラ枠、公開面(/u・/discover)に世代バッジ（世代数のみSELECT、コンディション鉄則は維持）。**新しいEXPソースを足したら exp.ts の EXP_WEIGHTS に加えて genes.ts の SOURCES 割当も更新すること。**
 - 将来のローグライク（潜れる深さ=Lv）・レアペット・作業環境コレクションはこの上に乗せる。継承の世代数・遺伝子はローグライク(#3)の深度ボーナスの入力になる予定。
+- **LOADING宇宙人（2026-07-19, Issue #7）**: 20種（10形状×2カラー）× 通常/にっこり差分 = 40PNG（`public/aliens/`）。原本は `scripts/gen-aliens.py` の文字マップ（1文字=1ドット、実行で再生成、一覧は docs/design/aliens-sheet*.png）。`<LoadingAlien>`（src/components/loading-alien.tsx）がランダム1体+3アクション（ぱたぱた/にっこり/ジャンプ、globals.cssのalien-*）を抽選、連続同キャラはsessionStorageで回避、reduced-motionは静止。**塩梅ルール: 体感1秒超の待ちだけに出す** — ルート遷移(loading.tsx)とAI待ち(sending-overlay)のみ。保存等の短い待ちには出さない（ガチャの新鮮味維持）。#2のレアキャラ来訪・図鑑と設定を共有できる。
 
 **Phase 5-6 追加機能（2026-07-17）:**
 - **管理者ダッシュボード /admin**（admin限定・非管理者404）: 全ユーザー分析(サマリ6枚+ユーザー表)＋BAN(停止/復帰)＋招待発行/失効を集約。マイページからは撤去。

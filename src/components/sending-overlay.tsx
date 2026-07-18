@@ -3,6 +3,9 @@
 // 送信中（AI応答待ち）を画面中央に大きく出すオーバーレイ。
 // 左下の小さな表示だと気づきにくい、というフィードバックへの対応。
 // pointer-events-none で操作は妨げず、視認性だけを上げる。
+// AI待ちは数秒かかるので宇宙人の見せ場（Issue #7）。
+
+import { LoadingAlien } from "@/components/loading-alien";
 
 export function SendingOverlay(props: {
   show: boolean;
@@ -18,11 +21,7 @@ export function SendingOverlay(props: {
     >
       <div className="absolute inset-0 bg-ink/25" />
       <div className="relative flex flex-col items-center gap-2 rounded-xl border-[3px] border-line8 bg-win px-8 py-6 text-center shadow-hard">
-        <div className="flex gap-1.5" aria-hidden="true">
-          <i className="h-3.5 w-3.5 animate-bounce rounded-full border-2 border-line8 bg-pinkhot [animation-delay:-0.2s]" />
-          <i className="h-3.5 w-3.5 animate-bounce rounded-full border-2 border-line8 bg-lemon [animation-delay:-0.1s]" />
-          <i className="h-3.5 w-3.5 animate-bounce rounded-full border-2 border-line8 bg-royal2" />
-        </div>
+        <LoadingAlien size={72} />
         <p className="font-pixel text-2xl tracking-wider text-royal">
           {props.label ?? "送信中"}
           <span className="blink">_</span>
