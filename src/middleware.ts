@@ -20,7 +20,10 @@ export function middleware(req: NextRequest) {
   return NextResponse.redirect(url);
 }
 
-// 静的アセット・API・公開ルート（/welcome, /join）は除外。それ以外の画面をゲート。
+// 静的アセット・API・公開ルート（/welcome, /join）・PWAアセット
+// （manifest / sw.js / 各種アイコン）は除外。それ以外の画面をゲート。
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api|welcome|join).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|api|welcome|join|manifest.webmanifest|sw.js|icon|apple-icon).*)",
+  ],
 };
