@@ -8,7 +8,7 @@ import { MicButton } from "@/components/mic-button";
 // よもやまの投稿フォーム。AI門番でブロックされたら理由をその場に表示し、
 // 本人が直して再投稿できるようにする。
 
-export function PostForm() {
+export function PostForm(props: { onPosted?: () => void }) {
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [issues, setIssues] = useState<string[]>([]);
@@ -25,6 +25,7 @@ export function PostForm() {
       const res = await postYomoyama(text);
       if (res.ok) {
         setBody("");
+        props.onPosted?.();
         router.refresh();
       } else {
         setError(res.error);

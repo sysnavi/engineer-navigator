@@ -1,7 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { Window, PixelTitle, PixelLabel } from "@/components/retro";
-import { PostForm } from "./post-form";
+import { PixelTitle, PixelLabel } from "@/components/retro";
+import { Composer } from "./composer";
 import { LikeButton } from "./like-button";
 import { CommentForm } from "./comment-form";
 import { setAllowComments, deleteComment } from "./actions";
@@ -48,13 +48,7 @@ export default async function YomoyamaPage() {
         </p>
       </div>
 
-      <Window title="つぶやく" titleEm=".new">
-        <PostForm />
-        <p className="mt-2 rounded-lg border-2 border-dashed border-royal2 bg-quotebg px-3 py-2 text-[11.5px] text-inksoft">
-          🛡 投稿前にAIが確認し、<b>個人名・会社名・案件名・著名人への言及・攻撃的な表現</b>
-          を含む投稿はブロックされます。コメントも同じチェックを通ります。
-        </p>
-      </Window>
+      <Composer />
 
       <div className="space-y-3">
         {posts.length === 0 ? (
