@@ -2,6 +2,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { PostForm } from "./post-form";
+import { LikeButton } from "./like-button";
+import { CommentForm } from "./comment-form";
+import { setAllowComments, deleteComment } from "./actions";
 
 function timeAgo(d: Date): string {
   const diff = new Date().getTime() - d.getTime();
@@ -16,11 +19,21 @@ function timeAgo(d: Date): string {
 }
 
 export default async function YomoyamaPage() {
-  await getCurrentUser();
+  const me = await getCurrentUser();
+  const isAdmin = me.role === "ADMIN";
+
   const posts = await prisma.yomoyamaPost.findMany({
     orderBy: { createdAt: "desc" },
     take: 50,
-    include: { author: { select: { handle: true, name: true } } },
+    include: {
+      author: { select: { id: true, handle: true, name: true } },
+      _count: { select: { likes: true } },
+      likes: { where: { userId: me.id }, select: { id: true } },
+      comments: {
+        orderBy: { createdAt: "asc" },
+        include: { author: { select: { handle: true, name: true } } },
+      },
+    },
   });
 
   return (
@@ -39,7 +52,7 @@ export default async function YomoyamaPage() {
         <PostForm />
         <p className="mt-2 rounded-lg border-2 border-dashed border-royal2 bg-quotebg px-3 py-2 text-[11.5px] text-inksoft">
           🛡 投稿前にAIが確認し、<b>個人名・会社名・案件名・著名人への言及・攻撃的な表現</b>
-          を含む投稿はブロックされます。安心して書ける場を保つためのしくみです。
+          を含む投稿はブロックされます。コメントも同じチェックを通ります。
         </p>
       </Window>
 
@@ -49,24 +62,103 @@ export default async function YomoyamaPage() {
             まだ投稿はありません。最初のひとことをどうぞ。
           </p>
         ) : (
-          posts.map((p) => (
-            <div
-              key={p.id}
-              className="rounded-lg border-2 border-line8 bg-surface px-4 py-3 shadow-hard-sm"
-            >
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <span className="font-pixel text-[11px] tracking-wide text-royal2">
-                  {p.author.handle ?? p.author.name}
-                </span>
-                <span className="font-pixel text-[10px] tracking-wide text-inksoft">
-                  {timeAgo(p.createdAt)}
-                </span>
+          posts.map((p) => {
+            const mine = p.author.id === me.id;
+            const liked = p.likes.length > 0;
+            return (
+              <div
+                key={p.id}
+                className="rounded-lg border-2 border-line8 bg-surface px-4 py-3 shadow-hard-sm"
+              >
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <span className="font-pixel text-[11px] tracking-wide text-royal2">
+                    {p.author.handle ?? p.author.name}
+                  </span>
+                  <span className="font-pixel text-[10px] tracking-wide text-inksoft">
+                    {timeAgo(p.createdAt)}
+                  </span>
+                </div>
+                <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed">
+                  {p.body}
+                </p>
+
+                {/* いいね + コメント数 + 投稿者のコメント可否トグル */}
+                <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                  <LikeButton
+                    postId={p.id}
+                    initialLiked={liked}
+                    initialCount={p._count.likes}
+                  />
+                  <span className="font-pixel text-[10px] tracking-wide text-inksoft">
+                    💬 {p.comments.filter((c) => !c.deletedAt).length}
+                  </span>
+                  {mine && (
+                    <form
+                      action={setAllowComments.bind(
+                        null,
+                        p.id,
+                        !p.allowComments
+                      )}
+                      className="ml-auto"
+                    >
+                      <button className="font-pixel text-[10px] tracking-wide text-inksoft underline-offset-2 hover:text-royal2 hover:underline">
+                        コメント: {p.allowComments ? "受付中 → 停止" : "停止中 → 再開"}
+                      </button>
+                    </form>
+                  )}
+                </div>
+
+                {/* コメント一覧 */}
+                {p.comments.length > 0 && (
+                  <div className="mt-2.5 space-y-1.5 border-t-2 border-dashed border-grid8 pt-2.5">
+                    {p.comments.map((c) =>
+                      c.deletedAt ? (
+                        <p
+                          key={c.id}
+                          className="text-[11.5px] italic text-inksoft"
+                        >
+                          — このコメントは削除されました —
+                        </p>
+                      ) : (
+                        <div key={c.id} className="flex items-start gap-2">
+                          <div className="min-w-0 flex-1">
+                            <span className="font-pixel text-[10px] tracking-wide text-royal2">
+                              {c.author.handle ?? c.author.name}
+                            </span>
+                            <span className="ml-1.5 font-pixel text-[9px] tracking-wide text-inksoft">
+                              {timeAgo(c.createdAt)}
+                            </span>
+                            <p className="whitespace-pre-wrap text-[12.5px] leading-relaxed">
+                              {c.body}
+                            </p>
+                          </div>
+                          {isAdmin && (
+                            <form action={deleteComment.bind(null, c.id)}>
+                              <button
+                                className="shrink-0 font-pixel text-[9px] tracking-wide text-pinkhot hover:underline"
+                                title="管理者として削除"
+                              >
+                                削除
+                              </button>
+                            </form>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+
+                {/* コメント投稿欄（受付中のみ） */}
+                {p.allowComments ? (
+                  <CommentForm postId={p.id} />
+                ) : (
+                  <p className="mt-2 font-pixel text-[10px] tracking-wide text-inksoft">
+                    この投稿はコメントを受け付けていません。
+                  </p>
+                )}
               </div>
-              <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed">
-                {p.body}
-              </p>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

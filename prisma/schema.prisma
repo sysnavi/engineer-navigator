@@ -57,6 +57,8 @@ model User {
   quizAttempts     QuizAttempt[]
   quizHidden       QuizHidden[]
   yomoyamaPosts    YomoyamaPost[]
+  yomoyamaLikes    YomoyamaLike[]
+  yomoyamaComments YomoyamaComment[]
   visits           UserVisit[]
   avatarGenerations AvatarGeneration[]
 }
@@ -100,13 +102,47 @@ model UserVisit {
 // よもやま掲示板（Phase 6）: 現場の悲喜こもごもをハンドル名で共有。
 // 投稿はAI門番(src/lib/ai/moderation.ts)を通過したものだけ保存される。
 model YomoyamaPost {
-  id        String   @id @default(cuid())
-  author    User     @relation(fields: [authorId], references: [id])
-  authorId  String
-  body      String
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  author        User     @relation(fields: [authorId], references: [id])
+  authorId      String
+  body          String
+  // 投稿者が他者コメントの受付をON/OFFできる（OFF時は新規コメント不可・既存は残る）
+  allowComments Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  likes    YomoyamaLike[]
+  comments YomoyamaComment[]
 
   @@index([createdAt])
+}
+
+// いいね（postId+userId ユニークで二重いいね防止）
+model YomoyamaLike {
+  id        String       @id @default(cuid())
+  post      YomoyamaPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime     @default(now())
+
+  @@unique([postId, userId])
+  @@index([userId, createdAt])
+}
+
+// コメント。投稿と同じAI門番を通過したものだけ保存。管理者はソフト削除（監査可能）。
+model YomoyamaComment {
+  id          String       @id @default(cuid())
+  post        YomoyamaPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId      String
+  author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId    String
+  body        String
+  createdAt   DateTime     @default(now())
+  deletedAt   DateTime? // 管理者削除の記録。表示は「削除されました」
+  deletedById String? // 削除した管理者のUserId（監査用・関係は張らない）
+
+  @@index([postId, createdAt])
+  @@index([authorId, createdAt])
 }
 
 // 良問バンク（Phase 5）: ユーザーが四択問題を作り、みんなで解いて育てる。
