@@ -20,6 +20,12 @@ Phase 0（基盤）+ Phase 1 の縦切りが実装済み。**実 ANTHROPIC_API_K
 
 画面は15+: `/`(ホーム) / `/report`(週報・自動保存) / `/skills`(スキルマップ＋レーダー＋成長ログ) / `/resume`(経歴書・印刷=PDF) / `/condition`(営業・管理者向け) / `/mentor`(AIメンター) / `/plan`(資格学習プラン) / `/quiz`(良問バンク=四択・腕試し) / `/roleplay`(役割シミュレーター) / `/yomoyama`(現場のよもやま掲示板) / `/discover`(発見) / `/u/[handle]`(公開プロフィール) / `/admin`(管理者ダッシュボード) / `/welcome`(招待制LP) / `/mypage`(きせかえ＋共有設定)。
 
+**Phase 7 ゲーム性の土台（2026-07-18, commit 77302e5）:**
+- **TOPヒーロー**: 「がんばりは、ぜんぶ経験値になる。」＋つながりパイプライン＋PLAYER_FILEカード（Lv/EXPバー/進化予告/今週のかつどう）。
+- **EXP導出** `src/lib/exp.ts`: 新テーブルなし・既存データの集計から毎回導出（過去の頑張りも遡ってEXP化）。重み変更はEXP_WEIGHTSだけ。レベル=平方根カーブ、進化段階はレベルから決定的（保存不要）。
+- **PixelAvatar** `src/components/pixel-avatar.tsx`: 段階別スプライトをCSS gridで描画（画像不要・パレット変数準拠）。
+- 将来のローグライク（潜れる深さ=Lv）・レアペット・作業環境コレクションはこの上に乗せる。
+
 **Phase 5-6 追加機能（2026-07-17）:**
 - **管理者ダッシュボード /admin**（admin限定・非管理者404）: 全ユーザー分析(サマリ6枚+ユーザー表)＋BAN(停止/復帰)＋招待発行/失効を集約。マイページからは撤去。
 - **良問バンク /quiz**: ユーザーが四択を作り皆で解いて育てる問題集。採点はサーバー(submitQuizAnswer)でローカル完結＝**AIトークン消費ゼロ**、正解はクライアントに渡さない。評価(0-10)は`rateQuiz`がトランザクションで**全員分を集計**(QuizQuestion.ratingSum/Count)＝1問の良問スコアは総意で決まる。QuizQuestion/QuizRating(@@unique questionId+userId)/QuizAttempt。
