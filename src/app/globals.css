@@ -237,10 +237,35 @@ body {
     background: var(--surface);
     font-size: 13.5px;
     width: 100%;
+    caret-color: var(--pink-hot);
+    /* フォーカス時にstickyヘッダーの下へ隠れないように */
+    scroll-margin-top: 96px;
+  }
+  /* タッチ端末は16px固定: iOSは16px未満の入力欄にフォーカスすると画面を自動ズームする。
+     それを無効化する唯一まっとうな方法がこれ（user-scalable=noはアクセシビリティ的にNG） */
+  @media (hover: none) and (pointer: coarse) {
+    .field8 {
+      font-size: 16px;
+    }
+  }
+  textarea.field8 {
+    resize: vertical;
+    max-height: 50vh;
   }
   .field8:focus {
     outline: 3px solid var(--sky8);
     outline-offset: 1px;
+  }
+  /* 8bit風のフォーカス点滅（カクカクさせるためstepsで2値切替） */
+  @media (prefers-reduced-motion: no-preference) {
+    .field8:focus {
+      animation: focus8 1.1s steps(2, jump-none) infinite;
+    }
+    @keyframes focus8 {
+      50% {
+        outline-color: var(--lemon);
+      }
+    }
   }
   .field8::placeholder {
     color: var(--ink-soft);

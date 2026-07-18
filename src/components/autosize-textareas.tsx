@@ -1,0 +1,34 @@
+"use client";
+
+import { useEffect } from "react";
+
+// 全 textarea.field8 を「書くほど伸びる」ようにするグローバルリスナー。
+// 個々のフォームを触らずに一括適用するため、documentでinput/focusinを委譲監視する。
+// （CSSのfield-sizing:contentはiOS Safari未対応のためJSで統一）
+
+const MAX = () => Math.round(window.innerHeight * 0.5); // max-height: 50vh と揃える
+
+function resize(t: HTMLTextAreaElement) {
+  t.style.height = "auto";
+  t.style.height = `${Math.min(t.scrollHeight + 2, MAX())}px`;
+}
+
+export function AutosizeTextareas() {
+  useEffect(() => {
+    const onEvent = (e: Event) => {
+      const t = e.target;
+      if (t instanceof HTMLTextAreaElement && t.classList.contains("field8")) {
+        resize(t);
+      }
+    };
+    // focusin: 自動保存の下書き等、初期値が入った状態で開いたときにも合わせる
+    document.addEventListener("input", onEvent);
+    document.addEventListener("focusin", onEvent);
+    return () => {
+      document.removeEventListener("input", onEvent);
+      document.removeEventListener("focusin", onEvent);
+    };
+  }, []);
+
+  return null;
+}

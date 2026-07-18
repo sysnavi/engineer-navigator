@@ -145,6 +145,9 @@ export default async function MyPage() {
                   defaultValue={user.handle ?? ""}
                   placeholder="tsuyoshi_dev"
                   className="field8"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                 />
               </div>
               <p className="mt-1 text-[11px] text-inksoft">
