@@ -3,8 +3,11 @@
 import { useRef, useState, useTransition } from "react";
 import { saveReportDraft, submitReport } from "@/app/actions";
 import { MicButton } from "@/components/mic-button";
+import { SendingOverlay } from "@/components/sending-overlay";
 
 // 週報フォーム（クライアント）。入力が止まったら自動で下書き保存する。
+// 提出はAI解析を同期実行するため数十秒かかる。その間 SendingOverlay で
+// 「提出完了→フィードバック待ち」を出す（送信状態を自前のstateで完全制御）。
 
 const CONDITIONS = [
   { value: 4, label: "☀️ 好調" },
@@ -103,6 +106,7 @@ export function ReportForm(props: { report: ReportData | null; submitted: boolea
   const formRef = useRef<HTMLFormElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [submitting, setSubmitting] = useState(false);
   const [, startTransition] = useTransition();
 
   function scheduleAutosave() {
@@ -122,15 +126,29 @@ export function ReportForm(props: { report: ReportData | null; submitted: boolea
     }, AUTOSAVE_DELAY_MS);
   }
 
+  // 提出は自前で制御（ネイティブ必須チェックは reportValidity で担保）。
+  // これにより解析中(数十秒)ずっとオーバーレイを確実に出せる。
+  function handleSubmit() {
+    const form = formRef.current;
+    if (!form || !form.reportValidity()) return;
+    if (timer.current) clearTimeout(timer.current);
+    setSubmitting(true);
+    startTransition(async () => {
+      try {
+        await submitReport(new FormData(form));
+      } finally {
+        setSubmitting(false);
+      }
+    });
+  }
+
   return (
-    <form
-      ref={formRef}
-      className="space-y-6"
-      onInput={scheduleAutosave}
-      onSubmit={() => {
-        if (timer.current) clearTimeout(timer.current);
-      }}
-    >
+    <form ref={formRef} className="space-y-6" onInput={scheduleAutosave}>
+      <SendingOverlay
+        show={submitting}
+        label="提出完了！"
+        sub="AIがフィードバックを準備中…ちょっと待ってね"
+      />
       <div className="space-y-2">
         <p className="text-[13px] font-extrabold">
           1. 今週のコンディション <span className="text-pinkhot">*</span>
@@ -188,7 +206,12 @@ export function ReportForm(props: { report: ReportData | null; submitted: boolea
       />
 
       <div className="flex flex-wrap items-center gap-4">
-        <button formAction={submitReport} className="btn8 btn8-start">
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={submitting}
+          className="btn8 btn8-start"
+        >
           ▶ {props.submitted ? "さいていしゅつ" : "ていしゅつ"}
         </button>
         <button formAction={saveReportDraft} className="btn8">
