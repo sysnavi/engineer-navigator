@@ -132,7 +132,7 @@ export function MentorChat(props: { sessionId: string; initial: Msg[] }) {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onSend(e);
           }}
           rows={2}
-          placeholder="メンターに質問する。🎤で音声入力も（⌘/Ctrl+Enterで送信）"
+          placeholder="メンターに質問する…"
           className="field8"
           disabled={streaming}
         />

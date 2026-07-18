@@ -75,7 +75,7 @@ export default async function MentorPage() {
               name="firstMessage"
               rows={2}
               required
-              placeholder="例: IAMロールとIAMユーザーの違いが、現場だとどう使い分けられるのか知りたい"
+              placeholder="例: IAMロールとユーザーの使い分けを知りたい"
               className="field8"
             />
           </div>

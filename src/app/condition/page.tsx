@@ -166,10 +166,10 @@ export default async function ConditionPage() {
                   >
                     <textarea
                       name="note"
-                      rows={1}
+                      rows={2}
                       required
-                      placeholder="対応記録（面談メモ）— 例: 7/15 1on1実施。案件の環境不安定が主因…"
-                      className="field8 !text-[12.5px]"
+                      placeholder="対応メモ 例: 7/15 1on1実施"
+                      className="field8"
                     />
                     <button className="btn8 px-4 py-2 text-[12px]">
                       ✓ クローズ

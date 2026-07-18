@@ -140,7 +140,7 @@ export function InterviewChat() {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(e);
           }}
           rows={2}
-          placeholder="話し言葉でOK。🎤で音声入力も（⌘/Ctrl+Enterで送信）"
+          placeholder="話し言葉でOK。答えを入力…"
           className="field8"
           disabled={streaming || summarizing}
         />

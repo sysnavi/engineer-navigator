@@ -139,7 +139,7 @@ export function RoleplayChat(props: {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onSend(e);
           }}
           rows={2}
-          placeholder="この場面での対応を入力。🎤で音声入力も（⌘/Ctrl+Enterで送信）"
+          placeholder="この場面での対応を入力…"
           className="field8"
           disabled={streaming}
         />

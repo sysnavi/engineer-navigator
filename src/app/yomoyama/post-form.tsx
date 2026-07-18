@@ -42,7 +42,7 @@ export function PostForm() {
           rows={3}
           maxLength={1000}
           disabled={pending}
-          placeholder="現場であった悲喜こもごもを一言。（本名・会社名・案件名・著名人はNG。AIがチェックします）"
+          placeholder="現場のできごとを一言…"
           className="field8"
         />
         <MicButton

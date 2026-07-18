@@ -166,7 +166,7 @@ export function ReportForm(props: { report: ReportData | null; submitted: boolea
       <Field
         name="newText"
         label="4. 新しく触れた技術・初めてやったこと"
-        placeholder="初めてDockerのマルチステージビルドを書いた、など。経歴書に反映されます"
+        placeholder="例: 初めてDockerのマルチステージビルドを書いた"
         defaultValue={r?.newText}
       />
       <Field
@@ -183,7 +183,7 @@ export function ReportForm(props: { report: ReportData | null; submitted: boolea
       <Field
         name="shareText"
         label="7. AIメンターへの共有・相談"
-        placeholder="メンターに聞きたいこと・共有しておきたいこと（次の相談でメンターがこの内容を踏まえます）"
+        placeholder="メンターに聞きたいこと・共有したいこと"
         defaultValue={r?.shareText}
       />
 

@@ -8,9 +8,22 @@ import { useEffect } from "react";
 
 const MAX = () => Math.round(window.innerHeight * 0.5); // max-height: 50vh と揃える
 
+// rows属性ぶんの最低高さ（空欄をフォーカスしても縮めない・placeholderが見切れない）
+function minHeight(t: HTMLTextAreaElement, style: CSSStyleDeclaration): number {
+  const lh =
+    parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.5 || 20;
+  const extra =
+    parseFloat(style.paddingTop) +
+    parseFloat(style.paddingBottom) +
+    parseFloat(style.borderTopWidth) * 2;
+  return (t.rows || 2) * lh + extra;
+}
+
 function resize(t: HTMLTextAreaElement) {
+  const style = getComputedStyle(t);
+  const min = minHeight(t, style);
   t.style.height = "auto";
-  t.style.height = `${Math.min(t.scrollHeight + 2, MAX())}px`;
+  t.style.height = `${Math.min(Math.max(t.scrollHeight + 2, min), MAX())}px`;
 }
 
 export function AutosizeTextareas() {
