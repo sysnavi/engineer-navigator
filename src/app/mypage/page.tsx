@@ -13,6 +13,7 @@ import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { ReportToggle } from "./report-toggle";
 import { InheritPanel } from "./inherit-panel";
 import { DOMAINS } from "@/lib/domains";
+import { ReplayTutorialButton } from "@/components/replay-tutorial";
 import { formatWeek } from "@/lib/week";
 import {
   getPlayerStats,
@@ -110,6 +111,7 @@ export default async function MyPage() {
                 管理ダッシュボード
               </Link>
             )}
+            <ReplayTutorialButton />
             <form action={logout}>
               <button className="btn8 w-full px-3 py-1.5 text-[11px]">
                 ログアウト

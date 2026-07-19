@@ -272,6 +272,17 @@ export async function giveConsent() {
   revalidatePath("/mypage");
 }
 
+/** 初回チュートリアル完了（以後は自動表示しない・Issue #5） */
+export async function completeTutorial() {
+  const user = await getCurrentUser();
+  if (user.tutorialCompletedAt) return;
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { tutorialCompletedAt: new Date() },
+  });
+  revalidatePath("/", "layout");
+}
+
 // ---------------------------------------------------------------------------
 // 開発用ユーザー切替（DEV_LOGIN_ENABLED のときのみ・本番はSSOに置換）
 // ---------------------------------------------------------------------------

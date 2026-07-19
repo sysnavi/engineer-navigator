@@ -31,6 +31,8 @@ model User {
   targetDomains String[] @default([])
   // 初回オンボーディングの同意（AI解析・閲覧範囲・評価不使用）取得日時。null=未同意
   consentedAt DateTime?
+  // 初回チュートリアル（アプリの歩き方）完了日時。null=未完了→初回自動表示(Issue #5)
+  tutorialCompletedAt DateTime?
   // 公開共有（個人サービス）: 成長の道筋を他ユーザーが見て学べるように。デフォルト非公開。
   handle    String?  @unique // 公開URL用のハンドル（/u/<handle>）。ペンネーム可
   bio       String? // 公開プロフィールの自己紹介
