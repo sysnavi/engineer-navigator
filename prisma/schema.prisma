@@ -63,6 +63,40 @@ model User {
   yomoyamaComments YomoyamaComment[]
   visits           UserVisit[]
   avatarGenerations AvatarGeneration[]
+  dungeonRuns      DungeonRun[]
+  ownedGadgets     OwnedGadget[]
+}
+
+// ローグライクダンジョン（Issue #3）: フルオート潜行の確定済みログ。
+// コンテンツ（モンスター/ガジェット/罠）はDBに持たず src/lib/dungeon/content.ts の
+// TSマスタをID文字列で参照する（追加=配列に足すだけ・マイグレーション不要）。
+// slot が挑戦回数を構造で強制する: "d:<日付>"=1日1回 / "b:<週開始日>"=週報ボーナス週1回。
+// 「◯時間で回復」等のタイマーは意図的に持たない（依存させない設計・Issue #3の議論）。
+model DungeonRun {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  slot      String // "d:2026-07-19" | "b:2026-07-13"（週報ボーナス）
+  createdAt DateTime @default(now())
+  baseDepth Int // 出発時の基礎深度（Lv/世代/形態から導出した値のスナップショット）
+  depth     Int // 最終到達階
+  // 確定済みの5ステップ（出発/イベント×3/結果）。乱数はサーバーで解決済みで、
+  // クライアントはこれを紙芝居再生するだけ（リプレイも同じ見た目になる）
+  steps     Json
+
+  @@unique([userId, slot])
+  @@index([userId, createdAt])
+}
+
+// 戦利品ガジェットの所持（コレクション・1種1個）。gadgetId はTSマスタ参照
+model OwnedGadget {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  gadgetId   String
+  obtainedAt DateTime @default(now())
+
+  @@unique([userId, gadgetId])
 }
 
 // アバター継承（転生）: 完了した世代の記録。1行 = 家系図の1段（先祖）。

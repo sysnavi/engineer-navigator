@@ -288,6 +288,20 @@ export default async function Home() {
           </Window>
         </Link>
 
+        <Link href="/dungeon" className="group">
+          <Window
+            title="DUNGEON"
+            titleEm=".log"
+            className="transition-transform group-hover:-translate-y-0.5"
+          >
+            <PixelLabel>AUTO EXPLORE</PixelLabel>
+            <p className="mt-1 text-[15px] font-extrabold">ダンジョン</p>
+            <p className="mt-1 text-[13px] text-inksoft">
+              育てたアバターがフルオートで探索。ギークな戦利品を持ち帰ろう
+            </p>
+          </Window>
+        </Link>
+
         <Link href="/resume" className="group">
           <Window
             title="経歴書"

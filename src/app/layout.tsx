@@ -43,6 +43,7 @@ const NAV = [
   { href: "/quiz", label: "腕試し" },
   { href: "/roleplay", label: "役割演習" },
   { href: "/yomoyama", label: "よもやま" },
+  { href: "/dungeon", label: "ダンジョン" },
   { href: "/resume", label: "経歴書" },
   { href: "/discover", label: "発見" },
   { href: "/condition", label: "コンディション", roles: ["SALES", "ADMIN"] },
