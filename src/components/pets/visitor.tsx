@@ -35,6 +35,7 @@ export function Visitor(props: {
   const [petId, setPetId] = useState<string | null>(null);
   const [petName, setPetName] = useState("");
   const [named, setNamed] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -42,6 +43,8 @@ export function Visitor(props: {
   if (!species) return null;
   const tree = TALK_TREES[species.personality];
   const happy = species.sprites.happy ?? species.sprites.normal;
+  // 判定が確定した＝この子との今日の出会いは終わっている（DBもPENDINGではない）
+  const resolved = phase === "befriended" || phase === "fled";
 
   const pickChoice = (node: TalkNode, idx: number) => {
     const c = node.choices[idx];
@@ -115,12 +118,21 @@ export function Visitor(props: {
   };
 
   const close = () => {
-    setPhase("idle");
     setReply(null);
     setError(null);
-    // 判定済み（仲間/逃走）なら再取得してフローティングを消す・TODAY等を更新
+    // 会話が済んだ子は二度と現れない。サーバー側の再取得（router.refresh）を
+    // 待つ間もフローティングに戻さないよう、resolved なら以降は何も描かない。
+    // ここを phase="idle" に戻すと、仲間になったのに左下に居座って見える。
+    if (resolved) {
+      setDismissed(true);
+    } else {
+      setPhase("idle");
+    }
     router.refresh();
   };
+
+  // 判定が済んだあとは、この来訪者のUIは役目を終えている
+  if (dismissed) return null;
 
   // ===== 待機（画面隅でとことこ） =====
   if (phase === "idle") {
