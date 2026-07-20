@@ -98,9 +98,14 @@ export default async function AdminPage() {
             全ユーザーの活動・利用量の把握と、招待・アカウント管理。
           </p>
         </div>
-        <Link href="/mypage" className="btn8 text-[12px]">
-          ← マイページ
-        </Link>
+        <div className="flex shrink-0 flex-col gap-1.5">
+          <Link href="/admin/content" className="btn8 btn8-ok px-3 py-1.5 text-center text-[12px]">
+            コンテンツ一覧
+          </Link>
+          <Link href="/mypage" className="btn8 px-3 py-1.5 text-center text-[12px]">
+            ← マイページ
+          </Link>
+        </div>
       </div>
 
       {/* サマリ */}
