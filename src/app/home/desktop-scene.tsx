@@ -13,6 +13,8 @@ import {
   allowedZones,
   clampToZones,
   DESK_GEOM,
+  GADGET_SIZE,
+  PET_SIZE,
   ZONES,
   type DeskTier,
 } from "@/lib/home/scene";
@@ -139,14 +141,18 @@ export function DesktopScene(props: {
 
   const sp = props.visitor ? speciesById(props.visitor.speciesId) : null;
   const deskStyle = DESK_STYLES[props.desk.tier];
-  const deskGrow = { 0: 8, 1: 4, 2: 2, 3: 0 }[props.desk.tier]; // 進化で天板が広がる
-  const dg = {
-    left: DESK_GEOM.left + deskGrow,
-    right: DESK_GEOM.right + deskGrow,
-  };
-  // 3/4ビューの前後関係: y（奥行き）が大きいほど手前に描く
+  // 進化で天板が広がる（台形の前後の辺を同時に広げる）
+  const deskGrow = { 0: -6, 1: -3, 2: 0, 3: 3 }[props.desk.tier];
+  const topW = DESK_GEOM.topWidth + deskGrow;
+  const botW = DESK_GEOM.bottomWidth + deskGrow;
+  // 台形コンテナ（clip-pathの%はこのコンテナ基準）
+  const boxLeft = DESK_GEOM.centerX - topW / 2;
+  const inset = ((topW - botW) / 2 / topW) * 100; // 前の辺の左右の絞り（コンテナ%）
+  const trapezoid = `polygon(0% 0%, 100% 0%, ${100 - inset}% 100%, ${inset}% 100%)`;
+  const frontLeft = DESK_GEOM.centerX - botW / 2;
+  // 見下ろしビューの前後関係: y（奥行き）が大きいほど手前に描く
   const depthZ = (y: number) => 10 + Math.round(y * 10);
-  const depthScale = (y: number) => 0.85 + (y / 100) * 0.3;
+  const depthScale = (y: number) => 0.88 + (y / 100) * 0.24;
 
   return (
     <div
@@ -154,79 +160,98 @@ export function DesktopScene(props: {
       className="relative aspect-[16/9] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8"
       style={{ touchAction: "none" }}
     >
-      {/* 3/4見下ろし: 上部の細い壁 + 大きな床（きせかえ） */}
+      {/* 見下ろしビュー: 上部の壁 + 大きな床（きせかえ） */}
       <div
         className="absolute inset-x-0 top-0 border-b-[3px] border-line8"
-        style={{ height: "28%", background: props.wallpaperCss }}
+        style={{ height: "32%", background: props.wallpaperCss }}
       />
       <div
         className="absolute inset-x-0 bottom-0"
-        style={{ height: "72%", background: props.floorCss }}
+        style={{ height: "68%", background: props.floorCss }}
       />
       {/* 幅木（壁と床の境目の影） */}
       <div
         className="absolute inset-x-0"
-        style={{ top: "28%", height: "2.5%", background: "rgba(0,0,0,0.14)" }}
+        style={{ top: "32%", height: "2.5%", background: "rgba(0,0,0,0.14)" }}
       />
 
-      {/* デスクの接地影（右上からの光 → 左下へ落ちる） */}
+      {/* デスクの接地影 */}
       <div
-        className="absolute"
+        className="absolute rounded-[50%]"
         style={{
-          left: `${dg.left - 2}%`,
-          right: `${dg.right + 1}%`,
-          top: `${DESK_GEOM.legBottom - 2}%`,
-          height: "4%",
+          left: `${frontLeft - 3}%`,
+          width: `${botW + 6}%`,
+          top: `${DESK_GEOM.legBottom - 3}%`,
+          height: "5%",
           background: "rgba(0,0,0,0.13)",
-          transform: `skewX(-${DESK_GEOM.skewDeg * 2}deg)`,
           zIndex: 3,
         }}
       />
-      {/* デスク（右斜め上から見下ろし: 天板は奥の辺が左へ流れる斜投影。決定的進化） */}
+      {/* デスク（正面見下ろしパース: 左右対称の台形天板・奥の辺が広い。決定的進化）
+          clip-pathはborderを切ってしまうため、輪郭レイヤー+木目レイヤーの2枚重ね */}
+      {/* 奥脚2本（短い=奥行き。台形の広い奥角から） */}
+      {[boxLeft + 0.6, DESK_GEOM.centerX + topW / 2 - 3].map((x) => (
+        <div
+          key={`rear-${x}`}
+          className="absolute border-2 border-line8"
+          style={{
+            left: `${x}%`,
+            top: `${DESK_GEOM.plateBottom - 2}%`,
+            width: "2.4%",
+            height: `${DESK_GEOM.rearLegBottom - DESK_GEOM.plateBottom + 2}%`,
+            background: deskStyle.leg,
+            zIndex: 4,
+          }}
+        />
+      ))}
       <div
-        className={`absolute rounded-md border-[2.5px] border-line8 ${deskStyle.extra ?? ""}`}
+        className={`absolute ${deskStyle.extra ?? ""}`}
         style={{
-          left: `${dg.left}%`,
-          right: `${dg.right}%`,
-          top: `${DESK_GEOM.plateTop - 2}%`,
-          height: `${DESK_GEOM.plateBottom - DESK_GEOM.plateTop + 2}%`,
-          background: deskStyle.plate,
-          transform: `skewX(${DESK_GEOM.skewDeg}deg)`,
-          transformOrigin: "bottom center",
+          left: `${boxLeft}%`,
+          width: `${topW}%`,
+          top: `${DESK_GEOM.plateTop - 1.5}%`,
+          height: `${DESK_GEOM.plateBottom - DESK_GEOM.plateTop + 1.5}%`,
           zIndex: 5,
         }}
         title={`${props.desk.name} — ${props.desk.hint}`}
       >
-        {/* 天板の右側面（濃色の帯で厚みを見せる） */}
-        <i
-          className="absolute inset-y-0 right-0 w-[7px] rounded-r-[4px]"
-          style={{ background: deskStyle.leg, opacity: 0.85 }}
+        <div
+          className="absolute inset-0"
+          style={{ clipPath: trapezoid, background: "var(--line)" }}
+        />
+        <div
+          className="absolute"
+          style={{
+            inset: "3px 5px 0 5px",
+            clipPath: trapezoid,
+            background: deskStyle.plate,
+          }}
         />
       </div>
-      {/* 天板の前縁（厚み）: skew の origin が bottom なので前縁とズレなく接続する */}
+      {/* 天板の前縁（厚み）: 台形の手前の辺の幅にそろえる */}
       <div
         className="absolute border-x-[2.5px] border-b-[2.5px] border-line8"
         style={{
-          left: `${dg.left}%`,
-          right: `${dg.right}%`,
+          left: `${frontLeft}%`,
+          width: `${botW}%`,
           top: `${DESK_GEOM.plateBottom}%`,
           height: `${DESK_GEOM.edgeBottom - DESK_GEOM.plateBottom}%`,
           background: deskStyle.leg,
           zIndex: 5,
         }}
       />
-      {/* 脚（前面の2本だけ見える） */}
-      {[dg.left + 2.5, 100 - dg.right - 5].map((x) => (
+      {/* 前脚2本（長い=手前。前縁の内側の角から） */}
+      {[frontLeft + 1.5, DESK_GEOM.centerX + botW / 2 - 4].map((x) => (
         <div
-          key={x}
+          key={`front-${x}`}
           className="absolute border-2 border-line8"
           style={{
             left: `${x}%`,
             top: `${DESK_GEOM.edgeBottom}%`,
-            width: "2.5%",
+            width: "2.6%",
             height: `${DESK_GEOM.legBottom - DESK_GEOM.edgeBottom}%`,
             background: deskStyle.leg,
-            zIndex: 4,
+            zIndex: 5,
           }}
         />
       ))}
@@ -244,7 +269,8 @@ export function DesktopScene(props: {
           />
         ))}
 
-      {/* ガジェット（自由配置・yソートで前後関係、奥行きで少し縮む） */}
+      {/* ガジェット（自由配置・yソートで前後関係、奥行きで少し縮む）
+          サイズはカテゴリ別のシーン幅%（モニタは大きくマウスは小さく = 縮尺の核） */}
       {items.map((g) => (
         <button
           key={g.id}
@@ -258,6 +284,7 @@ export function DesktopScene(props: {
           style={{
             left: `${g.x}%`,
             top: `${g.y}%`,
+            width: `${GADGET_SIZE[g.category]}%`,
             transform: `translate(-50%, -50%) scale(${depthScale(g.y)})`,
             zIndex: depthZ(g.y),
             touchAction: "none",
@@ -266,10 +293,12 @@ export function DesktopScene(props: {
           <Image
             src={`/dungeon/cat-${g.category}.png`}
             alt={g.name}
-            width={38}
-            height={38}
+            width={96}
+            height={96}
             draggable={false}
             style={{
+              width: "100%",
+              height: "auto",
               imageRendering: "pixelated",
               filter: `drop-shadow(0 2px 0 ${RARITY_LABELS[g.rarity].color})`,
             }}
@@ -284,22 +313,22 @@ export function DesktopScene(props: {
           onClick={onPetVisitor}
           title={`${props.visitor.name}がデスクのよこで遊んでいる${props.visitor.pettedToday ? "（きょうはなでなで済み）" : "（クリックでなでる）"}`}
           className="absolute -translate-x-1/2 -translate-y-full"
-          style={{ left: "24%", top: "84%", zIndex: depthZ(84) }}
+          style={{ left: "22%", top: "84%", width: `${PET_SIZE}%`, zIndex: depthZ(84) }}
         >
-          <span className="pet-wander inline-block" style={{ animationDuration: "6.5s" }}>
+          <span className="pet-wander inline-block w-full" style={{ animationDuration: "6.5s" }}>
             {visitorHeart && (
               <span className="pet-heart absolute -top-4 left-1/2 font-pixel text-[13px] text-pinkhot">
                 ♥
               </span>
             )}
-            <span className="alien-patapata inline-block" style={{ animationDuration: "1.6s" }}>
+            <span className="alien-patapata inline-block w-full" style={{ animationDuration: "1.6s" }}>
               <Image
                 src={(visitorHeart && sp.sprites.happy) || sp.sprites.normal}
                 alt={props.visitor.name}
-                width={44}
-                height={44}
+                width={96}
+                height={96}
                 draggable={false}
-                style={{ imageRendering: "pixelated" }}
+                style={{ width: "100%", height: "auto", imageRendering: "pixelated" }}
                 unoptimized
               />
             </span>

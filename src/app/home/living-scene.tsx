@@ -7,6 +7,7 @@
 import { useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import { petPet } from "./actions";
+import { PET_SIZE } from "@/lib/home/scene";
 import { speciesById } from "@/lib/pets/species";
 
 export type RoomPet = {
@@ -66,12 +67,12 @@ export function LivingScene(props: {
 
   return (
     <div className="relative aspect-[16/8] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8 sm:aspect-[16/6]">
-      {/* 上部の細い壁（まど付き） */}
+      {/* 上部の壁（キャラ2匹ぶんの大きなまど） */}
       <div
         className="absolute inset-x-0 top-0 border-b-[3px] border-line8"
-        style={{ height: "30%", background: props.wallpaperCss }}
+        style={{ height: "34%", background: props.wallpaperCss }}
       >
-        <div className="absolute left-1/2 top-[14%] grid h-[70%] w-[88px] -translate-x-1/2 grid-cols-2 overflow-hidden rounded-md border-[2.5px] border-line8 bg-sky8/60">
+        <div className="absolute left-1/2 top-[12%] grid h-[74%] w-[19%] min-w-[96px] -translate-x-1/2 grid-cols-2 overflow-hidden rounded-md border-[2.5px] border-line8 bg-sky8/60">
           <i className="border-b-2 border-r-2 border-line8/60" />
           <i className="border-b-2 border-line8/60" />
           <i className="border-r-2 border-line8/60" />
@@ -81,19 +82,18 @@ export function LivingScene(props: {
       {/* 大きな床 + 幅木の影 */}
       <div
         className="absolute inset-x-0 bottom-0"
-        style={{ height: "70%", background: props.floorCss }}
+        style={{ height: "66%", background: props.floorCss }}
       />
       <div
         className="absolute inset-x-0"
-        style={{ top: "30%", height: "3%", background: "rgba(0,0,0,0.14)" }}
+        style={{ top: "34%", height: "3%", background: "rgba(0,0,0,0.14)" }}
       />
-      {/* ラグ（キャラと同じ極太アウトライン + デスクと同じ右斜め上からの斜投影） */}
+      {/* ラグ（キャラ2匹が乗れる広さ・キャラと同じ極太アウトライン） */}
       <div
-        className="pointer-events-none absolute left-1/2 top-[68%] h-[24%] w-[46%] -translate-x-1/2 -translate-y-1/2 rounded-xl border-[2.5px] border-line8"
+        className="pointer-events-none absolute left-1/2 top-[70%] h-[30%] w-[46%] -translate-x-1/2 -translate-y-1/2 rounded-[18px] border-[2.5px] border-line8"
         style={{
           background:
             "radial-gradient(circle at 3px 3px, rgba(255,255,255,0.5) 1.5px, transparent 1.5px) 0 0 / 10px 10px, rgba(255,255,255,0.45)",
-          transform: "translate(-50%, -50%) skewX(12deg)",
         }}
       />
 
@@ -118,12 +118,13 @@ export function LivingScene(props: {
             className="absolute -translate-x-1/2 -translate-y-full"
             style={{
               left: `${pos.x}%`,
-              top: `${30 + pos.y * 0.7}%`,
+              top: `${34 + pos.y * 0.66}%`,
+              width: `${PET_SIZE}%`,
               zIndex: 10 + Math.round(pos.y * 10),
             }}
           >
             <span
-              className="pet-wander relative flex flex-col items-center"
+              className="pet-wander relative flex w-full flex-col items-center"
               style={{
                 animationDuration: `${5 + (i % 4) * 1.4}s`,
                 animationDelay: `${(i % 5) * -1.3}s`,
@@ -134,13 +135,13 @@ export function LivingScene(props: {
                   ♥
                 </span>
               )}
-              <span className={showHappy ? "" : "alien-patapata"} style={{ animationDuration: "0.9s" }}>
+              <span className={`w-full ${showHappy ? "" : "alien-patapata"}`} style={{ animationDuration: "0.9s" }}>
                 <Image
                   src={showHappy ? happy : sp.sprites.normal}
                   alt={p.name}
-                  width={52}
-                  height={52}
-                  style={{ imageRendering: "pixelated" }}
+                  width={96}
+                  height={96}
+                  style={{ width: "100%", height: "auto", imageRendering: "pixelated" }}
                   unoptimized
                 />
               </span>

@@ -509,7 +509,8 @@ body {
       transform: translateY(-18px);
     }
   }
-  /* 伝説のバトルステーション（デスク最終進化）のRGBグロー */
+  /* 伝説のバトルステーション（デスク最終進化）のRGBグロー。
+     天板は clip-path の台形なので、形に沿う drop-shadow フィルタで光らせる */
   @media (prefers-reduced-motion: no-preference) {
     .desk-rgb {
       animation: desk-rgb 3.2s steps(6, jump-none) infinite;
@@ -518,13 +519,13 @@ body {
   @keyframes desk-rgb {
     0%,
     100% {
-      box-shadow: 0 0 10px 2px #ff5daa;
+      filter: drop-shadow(0 0 7px #ff5daa);
     }
     33% {
-      box-shadow: 0 0 10px 2px #5dade2;
+      filter: drop-shadow(0 0 7px #5dade2);
     }
     66% {
-      box-shadow: 0 0 10px 2px #7dff8a;
+      filter: drop-shadow(0 0 7px #7dff8a);
     }
   }
 }
