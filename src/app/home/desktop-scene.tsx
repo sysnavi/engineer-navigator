@@ -145,11 +145,12 @@ export function DesktopScene(props: {
   const deskGrow = { 0: -6, 1: -3, 2: 0, 3: 3 }[props.desk.tier];
   const topW = DESK_GEOM.topWidth + deskGrow;
   const botW = DESK_GEOM.bottomWidth + deskGrow;
-  // 台形コンテナ（clip-pathの%はこのコンテナ基準）
-  const boxLeft = DESK_GEOM.centerX - topW / 2;
-  const inset = ((topW - botW) / 2 / topW) * 100; // 前の辺の左右の絞り（コンテナ%）
-  const trapezoid = `polygon(0% 0%, 100% 0%, ${100 - inset}% 100%, ${inset}% 100%)`;
-  const frontLeft = DESK_GEOM.centerX - botW / 2;
+  // 台形コンテナ（clip-pathの%はこのコンテナ基準）。通常の遠近法:
+  // 手前の辺（コンテナ幅=botW）が広く、奥の辺は左右を絞って狭くする
+  const boxLeft = DESK_GEOM.centerX - botW / 2;
+  const inset = ((botW - topW) / 2 / botW) * 100; // 奥の辺の左右の絞り（コンテナ%）
+  const trapezoid = `polygon(${inset}% 0%, ${100 - inset}% 0%, 100% 100%, 0% 100%)`;
+  const frontLeft = boxLeft;
   // 見下ろしビューの前後関係: y（奥行き）が大きいほど手前に描く
   const depthZ = (y: number) => 10 + Math.round(y * 10);
   const depthScale = (y: number) => 0.88 + (y / 100) * 0.24;
@@ -187,10 +188,10 @@ export function DesktopScene(props: {
           zIndex: 3,
         }}
       />
-      {/* デスク（正面見下ろしパース: 左右対称の台形天板・奥の辺が広い。決定的進化）
+      {/* デスク（正面見下ろしパース: 台形天板・奥の辺が狭い通常の遠近法。決定的進化）
           clip-pathはborderを切ってしまうため、輪郭レイヤー+木目レイヤーの2枚重ね */}
-      {/* 奥脚2本（短い=奥行き。台形の広い奥角から） */}
-      {[boxLeft + 0.6, DESK_GEOM.centerX + topW / 2 - 3].map((x) => (
+      {/* 奥脚2本（短い=奥行き。狭い奥角の内側から、前脚のあいだに見える） */}
+      {[DESK_GEOM.centerX - topW / 2 + 0.4, DESK_GEOM.centerX + topW / 2 - 2.8].map((x) => (
         <div
           key={`rear-${x}`}
           className="absolute border-2 border-line8"
@@ -208,7 +209,7 @@ export function DesktopScene(props: {
         className={`absolute ${deskStyle.extra ?? ""}`}
         style={{
           left: `${boxLeft}%`,
-          width: `${topW}%`,
+          width: `${botW}%`,
           top: `${DESK_GEOM.plateTop - 1.5}%`,
           height: `${DESK_GEOM.plateBottom - DESK_GEOM.plateTop + 1.5}%`,
           zIndex: 5,
