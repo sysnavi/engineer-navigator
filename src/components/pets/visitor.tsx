@@ -179,10 +179,12 @@ export function Visitor(props: {
           {(phase === "first" || phase === "second") && (
             <>
               <div className="space-y-1 rounded-lg border-2 border-dashed border-peri bg-surface px-3 py-2 text-[13px] leading-relaxed">
-                {phase === "first" && <p>{species.intro}</p>}
-                {(reply ? [reply] : node.lines).map((l) => (
-                  <p key={l}>{l.replaceAll("{name}", species.name)}</p>
-                ))}
+                {/* 1ターン目は種族固有の第一声（性格ツリーの汎用導入とは重複させない） */}
+                {(reply ? [reply] : phase === "first" ? [species.intro] : node.lines).map(
+                  (l) => (
+                    <p key={l}>{l.replaceAll("{name}", species.name)}</p>
+                  )
+                )}
               </div>
               {!reply && (
                 <div className="mt-3 grid gap-2">
