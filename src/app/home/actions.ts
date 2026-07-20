@@ -9,10 +9,14 @@ import { getCurrentUser } from "@/lib/auth";
 import { judgeEncounter } from "@/lib/pets/encounter";
 import { speciesById, TALK_TREES } from "@/lib/pets/species";
 import { GADGETS } from "@/lib/dungeon/content";
+import {
+  clampToZones,
+  defaultPosition,
+  FLOORS,
+  WALLPAPERS,
+} from "@/lib/home/scene";
 import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
 import { completeJson } from "@/lib/ai/client";
-
-const HOME_SLOTS = 12; // 壁棚0-5 / 床6-11
 
 /** 定型ツリーの会話を判定する。choices=各ターンで選んだ選択肢のindex */
 export async function judgeTalk(encounterId: string, choices: number[]) {
@@ -120,28 +124,79 @@ export async function petPet(petId: string): Promise<{ affection: number }> {
   return { affection: updated.affection };
 }
 
-/** ガジェットをマイホームのスロットへ配置（slot=null で片付け） */
-export async function placeGadget(gadgetId: string, slot: number | null) {
-  const user = await getCurrentUser();
-  if (slot !== null && (!Number.isInteger(slot) || slot < 0 || slot >= HOME_SLOTS)) {
-    throw new Error("そのスロットはありません");
-  }
-  const owned = await prisma.ownedGadget.findUnique({
-    where: { userId_gadgetId: { userId: user.id, gadgetId } },
+// ---------------------------------------------------------------------------
+// DESKTOP.sav 自由配置（Issue #12 松）
+// ---------------------------------------------------------------------------
+
+/** 所持確認つきでガジェット定義を引く */
+async function ownedGadgetDef(userId: string, gadgetId: string) {
+  const def = GADGETS.find((g) => g.id === gadgetId);
+  const owned = def
+    ? await prisma.ownedGadget.findUnique({
+        where: { userId_gadgetId: { userId, gadgetId } },
+      })
+    : null;
+  if (!def || !owned) throw new Error("持っていないガジェットは飾れません");
+  return def;
+}
+
+/** 次の最前面 z を採番 */
+async function nextZ(userId: string): Promise<number> {
+  const top = await prisma.ownedGadget.aggregate({
+    where: { userId },
+    _max: { deskZ: true },
   });
-  if (!owned || !GADGETS.some((g) => g.id === gadgetId)) {
-    throw new Error("持っていないガジェットは飾れません");
-  }
-  if (slot !== null) {
-    const occupied = await prisma.ownedGadget.findFirst({
-      where: { userId: user.id, homeSlot: slot, NOT: { gadgetId } },
-      select: { gadgetId: true },
-    });
-    if (occupied) throw new Error("そのスロットにはもう別のガジェットが置いてあります");
-  }
+  return (top._max.deskZ ?? 0) + 1;
+}
+
+/** ドラッグ配置の保存。座標はサーバー側でゾーンにクランプ（authoritative）。
+ *  動かしたものは最前面へ（z = max+1）。 */
+export async function moveGadget(gadgetId: string, x: number, y: number) {
+  const user = await getCurrentUser();
+  const def = await ownedGadgetDef(user.id, gadgetId);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error("不正な座標です");
+  const pos = clampToZones(def.category, x, y);
   await prisma.ownedGadget.update({
     where: { userId_gadgetId: { userId: user.id, gadgetId } },
-    data: { homeSlot: slot },
+    data: { deskX: pos.x, deskY: pos.y, deskZ: await nextZ(user.id) },
+  });
+  revalidatePath("/home");
+}
+
+/** 収納から出して飾る（カテゴリごとの定位置 + 所持順の小ズレに置く） */
+export async function placeGadgetAt(gadgetId: string) {
+  const user = await getCurrentUser();
+  const def = await ownedGadgetDef(user.id, gadgetId);
+  const placedCount = await prisma.ownedGadget.count({
+    where: { userId: user.id, deskX: { not: null } },
+  });
+  const pos = defaultPosition(def.category, placedCount);
+  await prisma.ownedGadget.update({
+    where: { userId_gadgetId: { userId: user.id, gadgetId } },
+    data: { deskX: pos.x, deskY: pos.y, deskZ: await nextZ(user.id) },
+  });
+  revalidatePath("/home");
+}
+
+/** 収納BOXへしまう */
+export async function stowGadget(gadgetId: string) {
+  const user = await getCurrentUser();
+  await ownedGadgetDef(user.id, gadgetId);
+  await prisma.ownedGadget.update({
+    where: { userId_gadgetId: { userId: user.id, gadgetId } },
+    data: { deskX: null, deskY: null },
+  });
+  revalidatePath("/home");
+}
+
+/** 部屋のきせかえ（壁紙 / 床） */
+export async function setRoomTheme(kind: "wallpaper" | "floor", id: string) {
+  const user = await getCurrentUser();
+  const list = kind === "wallpaper" ? WALLPAPERS : FLOORS;
+  if (!list.some((t) => t.id === id)) throw new Error("そのきせかえはありません");
+  await prisma.user.update({
+    where: { id: user.id },
+    data: kind === "wallpaper" ? { homeWallpaper: id } : { homeFloor: id },
   });
   revalidatePath("/home");
 }

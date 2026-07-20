@@ -1,4 +1,6 @@
-// マイホーム（Issue #2）: 迎えたペットが暮らし、ダンジョン戦利品を飾る部屋。
+// マイホーム（Issue #2 → #12 松で見た目充実化）:
+// DESKTOP.sav = ガジェットで組む作業環境（自由配置・デスク進化）
+// LIVING.sav  = ペットが暮らすリビング（デスクへの遊びに行きイベント付き）
 // 来訪→会話→ペット化の入口は全ページ共通のフローティング（layout側）。
 
 import { getCurrentUser } from "@/lib/auth";
@@ -8,18 +10,21 @@ import Image from "next/image";
 import { revalidatePath } from "next/cache";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { speciesById } from "@/lib/pets/species";
-import { Room, type PlacedGadget, type RoomPet } from "./room";
-import { placeGadget, namePet } from "./actions";
+import {
+  deskTier,
+  deskVisitorIndex,
+  themeCss,
+  WALLPAPERS,
+  FLOORS,
+} from "@/lib/home/scene";
+import { DesktopScene, type DeskGadget, type DeskVisitor } from "./desktop-scene";
+import { LivingScene, type RoomPet } from "./living-scene";
+import { namePet, placeGadgetAt, setRoomTheme } from "./actions";
 
 function today(): Date {
   const d = new Date();
   return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
 }
-
-const SLOT_LABELS = [
-  ...Array.from({ length: 6 }, (_, i) => ({ value: i, label: `棚 ${i + 1}` })),
-  ...Array.from({ length: 6 }, (_, i) => ({ value: 6 + i, label: `床 ${i + 1}` })),
-];
 
 export default async function HomePage() {
   const user = await getCurrentUser();
@@ -29,49 +34,185 @@ export default async function HomePage() {
     prisma.encounter.count({ where: { userId: user.id, status: "FLED" } }),
   ]);
 
-  const roomPets: RoomPet[] = pets.map((p) => ({
-    id: p.id,
-    speciesId: p.speciesId,
-    name: p.name,
-    affection: p.affection,
-    pettedToday: !!p.lastPettedAt && p.lastPettedAt.getTime() >= today().getTime(),
-  }));
-  const placed: PlacedGadget[] = owned
-    .filter((o) => o.homeSlot !== null)
-    .map((o) => {
-      const def = GADGETS.find((g) => g.id === o.gadgetId);
-      return def ? { ...def, homeSlot: o.homeSlot! } : null;
-    })
-    .filter((g): g is PlacedGadget => g !== null);
-  const unplaced = owned
-    .filter((o) => o.homeSlot === null)
+  const ownedDefs = owned
     .map((o) => GADGETS.find((g) => g.id === o.gadgetId))
     .filter((g): g is (typeof GADGETS)[number] => !!g);
-  const freeSlots = SLOT_LABELS.filter(
-    (s) => !placed.some((g) => g.homeSlot === s.value)
+  const desk = deskTier(ownedDefs);
+
+  const placed: DeskGadget[] = owned
+    .filter((o) => o.deskX !== null && o.deskY !== null)
+    .map((o) => {
+      const def = GADGETS.find((g) => g.id === o.gadgetId);
+      return def ? { ...def, x: o.deskX!, y: o.deskY!, z: o.deskZ } : null;
+    })
+    .filter((g): g is DeskGadget => g !== null);
+  const stored = owned
+    .filter((o) => o.deskX === null || o.deskY === null)
+    .map((o) => GADGETS.find((g) => g.id === o.gadgetId))
+    .filter((g): g is (typeof GADGETS)[number] => !!g);
+
+  // きょうデスクに遊びに来ている子（決定的抽選）。リビングには居ない
+  const visitIdx = deskVisitorIndex(
+    today().toISOString().slice(0, 10),
+    user.id,
+    pets.length
   );
+  const visitorPet = visitIdx === null ? null : pets[visitIdx];
+  const visitor: DeskVisitor | null = visitorPet
+    ? {
+        id: visitorPet.id,
+        speciesId: visitorPet.speciesId,
+        name: visitorPet.name,
+        pettedToday:
+          !!visitorPet.lastPettedAt &&
+          visitorPet.lastPettedAt.getTime() >= today().getTime(),
+      }
+    : null;
+
+  const roomPets: RoomPet[] = pets
+    .filter((p) => p.id !== visitorPet?.id)
+    .map((p) => ({
+      id: p.id,
+      speciesId: p.speciesId,
+      name: p.name,
+      affection: p.affection,
+      pettedToday: !!p.lastPettedAt && p.lastPettedAt.getTime() >= today().getTime(),
+    }));
+
+  const wallpaperCss = themeCss(WALLPAPERS, user.homeWallpaper, "cream");
+  const floorCss = themeCss(FLOORS, user.homeFloor, "wood");
 
   return (
     <div className="space-y-7">
       <div>
-        <PixelLabel>MY HOME — ペットと戦利品の部屋</PixelLabel>
+        <PixelLabel>MY HOME — ペットと戦利品の家</PixelLabel>
         <PixelTitle as="h1" className="text-3xl text-royal">
           マイホーム
         </PixelTitle>
         <p className="mt-1 text-[13px] text-inksoft">
-          仲間になった子がここで暮らします。クリックでなでなで（1日1回）。ダンジョンの戦利品も飾れます。
+          デスクにガジェットを飾って自分の作業環境を組み、リビングでは仲間がのんびり暮らします。
         </p>
       </div>
 
-      <Window title="MY_HOME" titleEm=".sav" bodyClass="p-4">
-        <Room pets={roomPets} placed={placed} />
+      {/* ===== デスクの作業環境（自由配置） ===== */}
+      <Window title="DESKTOP" titleEm=".sav" bodyClass="p-4">
+        <div className="mb-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <PixelLabel>WORKSTATION — ドラッグで模様替え</PixelLabel>
+          <span className="font-pixel text-[10.5px] tracking-wide text-royal2">
+            🖥 {desk.name}
+            <span className="text-inksoft">（{desk.hint}）</span>
+          </span>
+        </div>
+        <DesktopScene
+          gadgets={placed}
+          desk={desk}
+          wallpaperCss={wallpaperCss}
+          floorCss={floorCss}
+          visitor={visitor}
+        />
+        {stored.length > 0 && (
+          <div className="mt-3">
+            <PixelLabel className="!text-inksoft">収納BOX — クリックで飾る</PixelLabel>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {stored.map((g) => (
+                <form
+                  key={g.id}
+                  action={async () => {
+                    "use server";
+                    await placeGadgetAt(g.id);
+                  }}
+                >
+                  <button
+                    className="flex items-center gap-1.5 rounded-lg border-2 border-line8 bg-win px-2.5 py-1 text-[11.5px] font-bold shadow-hard-sm"
+                    title={`${g.name} — ${g.flavor}`}
+                  >
+                    <Image
+                      src={`/dungeon/cat-${g.category}.png`}
+                      alt=""
+                      width={16}
+                      height={16}
+                      style={{ imageRendering: "pixelated" }}
+                      unoptimized
+                    />
+                    {g.name}
+                    <span
+                      className="font-pixel text-[9px]"
+                      style={{ color: RARITY_LABELS[g.rarity].color }}
+                    >
+                      {RARITY_LABELS[g.rarity].label}
+                    </span>
+                    <span className="font-pixel text-[9px] text-inksoft">
+                      {GADGET_CATEGORIES[g.category]}
+                    </span>
+                  </button>
+                </form>
+              ))}
+            </div>
+          </div>
+        )}
+      </Window>
+
+      {/* ===== リビング（ペットの生活圏） ===== */}
+      <Window title="LIVING" titleEm=".sav" bodyClass="p-4">
+        <PixelLabel className="mb-2.5">LIVING ROOM — なかまの居場所</PixelLabel>
+        <LivingScene
+          pets={roomPets}
+          wallpaperCss={wallpaperCss}
+          floorCss={floorCss}
+          awayName={visitor?.name ?? null}
+        />
         <p className="mt-2.5 text-[11.5px] text-inksoft">
           なかま {pets.length} 匹
           {fledCount > 0 && ` ／ これまで逃げられた回数 ${fledCount} 回（また会えるさ）`}
-          ｜ 来訪者は1日1回抽選・しばらく会えないと必ず来てくれる
+          ｜ クリックでなでなで（1日1回）｜ ときどきデスクに遊びに行きます
         </p>
       </Window>
 
+      {/* ===== きせかえ（壁紙・床は2部屋共通） ===== */}
+      <Window title="ROOM" titleEm=".cfg">
+        <PixelLabel>もようがえ — 壁紙と床をえらぶ</PixelLabel>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          {(
+            [
+              { kind: "wallpaper" as const, label: "壁紙", list: WALLPAPERS, current: user.homeWallpaper },
+              { kind: "floor" as const, label: "床", list: FLOORS, current: user.homeFloor },
+            ]
+          ).map((group) => (
+            <div key={group.kind}>
+              <p className="mb-1.5 text-[12px] font-extrabold">{group.label}</p>
+              <div className="flex flex-wrap gap-2">
+                {group.list.map((t) => (
+                  <form
+                    key={t.id}
+                    action={async () => {
+                      "use server";
+                      await setRoomTheme(group.kind, t.id);
+                    }}
+                  >
+                    <button
+                      aria-pressed={group.current === t.id}
+                      className={`flex items-center gap-2 rounded-lg border-2 px-2.5 py-1.5 text-[11.5px] font-bold shadow-hard-sm ${
+                        group.current === t.id
+                          ? "border-line8 bg-royal text-white"
+                          : "border-line8 bg-surface"
+                      }`}
+                    >
+                      <i
+                        className="h-5 w-5 rounded border-2 border-line8"
+                        style={{ background: t.css }}
+                      />
+                      {t.name}
+                      {group.current === t.id && " ★"}
+                    </button>
+                  </form>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Window>
+
+      {/* ===== ペットの名前 ===== */}
       {pets.length > 0 && (
         <Window title="PETS" titleEm=".cfg">
           <PixelLabel>なかまのなまえ — いつでも変えられます</PixelLabel>
@@ -110,74 +251,6 @@ export default async function HomePage() {
               );
             })}
           </div>
-        </Window>
-      )}
-
-      {(unplaced.length > 0 || placed.length > 0) && (
-        <Window title="DECORATE" titleEm=".cfg">
-          <PixelLabel>もようがえ — 戦利品を飾る</PixelLabel>
-          {unplaced.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {unplaced.map((g) => (
-                <form
-                  key={g.id}
-                  action={async (formData: FormData) => {
-                    "use server";
-                    const slot = Number(formData.get("slot"));
-                    await placeGadget(g.id, Number.isInteger(slot) ? slot : null);
-                  }}
-                  className="flex flex-wrap items-center gap-2.5 rounded-lg border-2 border-dashed border-peri bg-surface px-3 py-2"
-                >
-                  <b className="text-[12.5px]">{g.name}</b>
-                  <span
-                    className="font-pixel text-[10px] tracking-wide"
-                    style={{ color: RARITY_LABELS[g.rarity].color }}
-                  >
-                    {g.rarity}
-                  </span>
-                  <span className="text-[11px] text-inksoft">
-                    {GADGET_CATEGORIES[g.category]}
-                  </span>
-                  <span className="ml-auto flex items-center gap-2">
-                    <select name="slot" className="field8 !w-auto !py-1 text-[12px]" defaultValue={freeSlots[0]?.value}>
-                      {freeSlots.map((s) => (
-                        <option key={s.value} value={s.value}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
-                    <button className="btn8 btn8-start px-3 py-1.5 text-[11.5px]">▶ 飾る</button>
-                  </span>
-                </form>
-              ))}
-            </div>
-          )}
-          {placed.length > 0 && (
-            <div className="mt-4">
-              <PixelLabel className="mb-2 !text-inksoft">飾ってあるもの</PixelLabel>
-              <div className="flex flex-wrap gap-2">
-                {placed.map((g) => (
-                  <form
-                    key={g.id}
-                    action={async () => {
-                      "use server";
-                      await placeGadget(g.id, null);
-                    }}
-                  >
-                    <button
-                      className="chip8 flex items-center gap-1.5 rounded-lg border-2 border-line8 bg-win px-2.5 py-1 text-[11.5px] font-bold shadow-hard-sm"
-                      title="クリックで片付ける"
-                    >
-                      {g.name}
-                      <span className="font-pixel text-[9.5px] text-inksoft">
-                        {SLOT_LABELS.find((s) => s.value === g.homeSlot)?.label} ×
-                      </span>
-                    </button>
-                  </form>
-                ))}
-              </div>
-            </div>
-          )}
         </Window>
       )}
     </div>

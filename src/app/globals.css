@@ -470,6 +470,63 @@ body {
       transform: translateY(0);
     }
   }
+
+  /* ---------- マイホーム（Issue #12 松） ---------- */
+  /* ペットのそぞろ歩き（LIVING.sav）。周期・ディレイは要素側で匹ごとにずらす */
+  @media (prefers-reduced-motion: no-preference) {
+    .pet-wander {
+      animation-name: pet-wander;
+      animation-timing-function: steps(6, jump-none);
+      animation-iteration-count: infinite;
+    }
+  }
+  @keyframes pet-wander {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    25% {
+      transform: translateX(26px);
+    }
+    50% {
+      transform: translateX(52px);
+    }
+    75% {
+      transform: translateX(20px);
+    }
+  }
+  /* なでなでのハート（ふわっと昇って消える） */
+  .pet-heart {
+    animation: pet-heart 1.5s steps(4, jump-none) forwards;
+  }
+  @keyframes pet-heart {
+    0% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-18px);
+    }
+  }
+  /* 伝説のバトルステーション（デスク最終進化）のRGBグロー */
+  @media (prefers-reduced-motion: no-preference) {
+    .desk-rgb {
+      animation: desk-rgb 3.2s steps(6, jump-none) infinite;
+    }
+  }
+  @keyframes desk-rgb {
+    0%,
+    100% {
+      box-shadow: 0 0 10px 2px #ff5daa;
+    }
+    33% {
+      box-shadow: 0 0 10px 2px #5dade2;
+    }
+    66% {
+      box-shadow: 0 0 10px 2px #7dff8a;
+    }
+  }
 }
 
 /* =============================================================

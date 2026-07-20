@@ -31,6 +31,9 @@ model User {
   uiShell   String?
   // モバイルドックの自由枠（Issue #10）。AppDef.id を選択順に3件。空=デフォルト構成
   dockApps  String[] @default([])
+  // マイホームのきせかえ（Issue #12 松）。値は src/lib/home/scene.ts の WALLPAPERS / FLOORS の id
+  homeWallpaper String @default("cream")
+  homeFloor     String @default("wood")
   // 目指す技術領域（キャリアの方向性）。値は src/lib/domains.ts の DomainDef.id。
   // メンター提案・ロールプレイ評価を本人の目標領域に寄せるために使う。
   targetDomains String[] @default([])
@@ -132,8 +135,12 @@ model OwnedGadget {
   userId     String
   gadgetId   String
   obtainedAt DateTime @default(now())
-  // マイホームの配置スロット（Issue #2）。null=未配置（図鑑のみ）。壁棚0-5/床6-11
+  // 旧v1の配置スロット（壁棚0-5/床6-11）。DESKTOP.sav自由配置への移行後は未使用・後戻り用に温存
   homeSlot   Int?
+  // DESKTOP.sav 自由配置（Issue #12 松）。null=しまってある。x/yはシーン内の%座標(0-100)、zは前後関係
+  deskX      Int?
+  deskY      Int?
+  deskZ      Int      @default(0)
 
   @@unique([userId, gadgetId])
   @@unique([userId, homeSlot])
