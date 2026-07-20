@@ -10,6 +10,8 @@ import { RegisterSW } from "@/components/register-sw";
 import { AutosizeTextareas } from "@/components/autosize-textareas";
 import { Tutorial } from "@/components/tutorial";
 import { Taskbar } from "@/components/shell/taskbar";
+import { Visitor } from "@/components/pets/visitor";
+import { ensureTodayEncounter, getPendingVisitor } from "@/lib/pets/encounter";
 import "./globals.css";
 
 const dotGothic = DotGothic16({
@@ -50,11 +52,19 @@ export default async function RootLayout({
   let role = "ENGINEER";
   const user = await getOptionalUser();
   const loggedIn = !!user;
+  let visitor: Awaited<ReturnType<typeof getPendingVisitor>> = null;
   if (user) {
     palette = user.palette;
     role = user.role;
     // 訪問EXP: 1日1回だけ記録（skipDuplicatesで2回目以降は何もしない・失敗しても画面は出す）
     await recordVisit(user.id);
+    // レアキャラ来訪（Issue #2）: きょうの抽選を確定→PENDINGならフローティング表示
+    try {
+      await ensureTodayEncounter(user.id);
+      visitor = await getPendingVisitor(user.id);
+    } catch (e) {
+      console.error("encounter check failed:", e);
+    }
   }
   // ナビの項目は src/lib/apps.ts（機能レジストリ）から。未ログイン（/welcome 等）では出さない
   const nav = loggedIn ? appsForRole(role) : [];
@@ -139,6 +149,13 @@ export default async function RootLayout({
             player={shellData.player}
             dungeonOk={shellData.dungeonOk}
             streak={shellData.streak}
+          />
+        )}
+        {visitor && (
+          <Visitor
+            encounterId={visitor.encounterId}
+            speciesId={visitor.species.id}
+            aiEnabled={!!process.env.ANTHROPIC_API_KEY}
           />
         )}
       </body>

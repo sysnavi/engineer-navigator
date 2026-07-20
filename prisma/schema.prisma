@@ -68,6 +68,8 @@ model User {
   avatarGenerations AvatarGeneration[]
   dungeonRuns      DungeonRun[]
   ownedGadgets     OwnedGadget[]
+  encounters       Encounter[]
+  pets             Pet[]
 }
 
 // ローグライクダンジョン（Issue #3）: フルオート潜行の確定済みログ。
@@ -98,8 +100,43 @@ model OwnedGadget {
   userId     String
   gadgetId   String
   obtainedAt DateTime @default(now())
+  // マイホームの配置スロット（Issue #2）。null=未配置（図鑑のみ）。壁棚0-5/床6-11
+  homeSlot   Int?
 
   @@unique([userId, gadgetId])
+  @@unique([userId, homeSlot])
+}
+
+// レアキャラ来訪の記録（Issue #2）。1日1回サーバーで抽選しDB保存（リロードで変わらない）。
+// ハズレの日も NONE で記録する（ピティ=しばらく会えていない判定に使う）。
+// 種族はDBに持たず src/lib/pets/species.ts のTSマスタをID参照（ダンジョンと同方式）。
+model Encounter {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  date      DateTime @db.Date
+  speciesId String? // NONE の日は null
+  // NONE=来なかった / PENDING=来てる（未対応） / BEFRIENDED=仲間に /
+  // FLED=逃げられた / EXPIRED=話しかけずに日が変わった（逃した）
+  status    String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId, status])
+}
+
+// ペット（仲間になったキャラ）。なつき度は「なでなで」（1日1回/匹）で育つ
+model Pet {
+  id           String    @id @default(cuid())
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  speciesId    String // TSマスタ参照
+  name         String // 本人がつけた名前（初期値は種族名）
+  affection    Int       @default(0)
+  lastPettedAt DateTime? @db.Date
+  befriendedAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 // アバター継承（転生）: 完了した世代の記録。1行 = 家系図の1段（先祖）。

@@ -34,6 +34,7 @@ export const APPS: AppDef[] = [
   { id: "dungeon", href: "/dungeon", name: "ダンジョン", ext: ".log", group: "asobu", desc: "育てたアバターがフルオートで探索", dock: true },
   { id: "yomoyama", href: "/yomoyama", name: "よもやま", ext: ".log", group: "asobu", desc: "現場の話をハンドル名で共有" },
   { id: "discover", href: "/discover", name: "発見", ext: ".net", group: "asobu", desc: "みんなの成長の道筋から学ぶ" },
+  { id: "home", href: "/home", name: "マイホーム", ext: ".sav", group: "jibun", desc: "ペットが暮らし、戦利品を飾る部屋" },
   { id: "mypage", href: "/mypage", name: "マイページ", ext: ".sys", group: "jibun", desc: "きせかえ・継承・公開設定" },
   { id: "condition", href: "/condition", name: "コンディション", ext: ".mon", group: "jibun", desc: "エンジニアの週次コンディション見守り", roles: ["SALES", "ADMIN"] },
   { id: "admin", href: "/admin", name: "管理", ext: ".sys", group: "jibun", desc: "全ユーザー分析・招待・アカウント管理", roles: ["ADMIN"] },

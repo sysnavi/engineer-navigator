@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { loadPublicProfile } from "@/lib/public-profile";
+import { speciesById } from "@/lib/pets/species";
 import { Window, PixelTitle, PixelLabel, LevelBlocks } from "@/components/retro";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -24,7 +25,7 @@ export default async function PublicProfilePage({
   const profile = await loadPublicProfile(handle);
   if (!profile) notFound();
 
-  const { user, byCategory, histories, experiences, roleplayCount, reports, generation } =
+  const { user, byCategory, histories, experiences, roleplayCount, reports, generation, pets } =
     profile;
 
   return (
@@ -171,6 +172,30 @@ export default async function PublicProfilePage({
               </li>
             ))}
           </ol>
+        </Window>
+      )}
+
+      {pets.length > 0 && (
+        <Window title="なかま" titleEm=".sav">
+          <div className="flex flex-wrap gap-4">
+            {pets.map((p) => {
+              const sp = speciesById(p.speciesId);
+              if (!sp) return null;
+              return (
+                <div key={p.id} className="flex flex-col items-center gap-1">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={sp.sprites.normal}
+                    alt={p.name}
+                    width={44}
+                    height={44}
+                    style={{ imageRendering: "pixelated" }}
+                  />
+                  <span className="font-pixel text-[10px] tracking-wide">{p.name}</span>
+                </div>
+              );
+            })}
+          </div>
         </Window>
       )}
 

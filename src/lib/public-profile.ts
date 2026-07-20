@@ -14,7 +14,7 @@ export async function loadPublicProfile(handle: string) {
   });
   if (!user || !user.isPublic) return null;
 
-  const [skills, histories, experiences, roleplays, reports, pastGenerations] = await Promise.all([
+  const [skills, histories, experiences, roleplays, reports, pastGenerations, pets] = await Promise.all([
     prisma.engineerSkill.findMany({
       where: { userId: user.id },
       include: { skill: true },
@@ -50,6 +50,12 @@ export async function loadPublicProfile(handle: string) {
     }),
     // アバター継承（転生）の世代数。ゲーム実績のみでコンディションとは無関係
     prisma.avatarGeneration.count({ where: { userId: user.id } }),
+    // なかま（ペット）。名前となつき度のみ＝ゲーム実績でコンディション無関係
+    prisma.pet.findMany({
+      where: { userId: user.id },
+      orderBy: { befriendedAt: "asc" },
+      select: { id: true, speciesId: true, name: true, affection: true },
+    }),
   ]);
 
   const byCategory = new Map<string, typeof skills>();
@@ -71,6 +77,7 @@ export async function loadPublicProfile(handle: string) {
     reports,
     topSkills: skills.slice(0, 5),
     generation: pastGenerations + 1,
+    pets,
   };
 }
 

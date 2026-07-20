@@ -6,10 +6,11 @@ import { prisma } from "@/lib/db";
 import { mondayOf } from "@/lib/week";
 import { getPlayerStats } from "@/lib/exp";
 import { getDungeonState } from "@/lib/dungeon/run";
+import { getPendingVisitor } from "@/lib/pets/encounter";
 
 export async function TodaySys(props: { userId: string }) {
   const weekStart = mondayOf(new Date());
-  const [report, pendingSuggestions, stats, dungeon] = await Promise.all([
+  const [report, pendingSuggestions, stats, dungeon, visitor] = await Promise.all([
     prisma.weeklyReport.findUnique({
       where: { userId_weekStart: { userId: props.userId, weekStart } },
       select: { status: true },
@@ -19,6 +20,7 @@ export async function TodaySys(props: { userId: string }) {
     }),
     getPlayerStats(props.userId),
     getDungeonState(props.userId),
+    getPendingVisitor(props.userId),
   ]);
   const reportDone = report?.status === "SUBMITTED";
 
@@ -40,6 +42,9 @@ export async function TodaySys(props: { userId: string }) {
       ? { icon: "⛏", text: "ダンジョン — 潜行OK", cta: { href: "/dungeon", label: "▶ 潜る" } }
       : { icon: "💤", text: "アバターは休養中 — また明日" }
   );
+  if (visitor) {
+    rows.push({ icon: "👾", text: "だれか遊びに来てる…！（画面のすみを見て）" });
+  }
   if (stats.currentStreak >= 2) {
     rows.push({ icon: "🔥", text: `${stats.currentStreak}日連続訪問中 — この調子！` });
   }

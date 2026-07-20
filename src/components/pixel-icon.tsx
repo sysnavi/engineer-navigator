@@ -130,6 +130,18 @@ const MAPS: Record<string, string[]> = {
     "..kwwkkwwk..",
     "..kkkkkkkk..",
   ],
+  home: [
+    ".....kk.....",
+    "....kppk....",
+    "...kppppk...",
+    "..kppppppk..",
+    ".kkkkkkkkkk.",
+    "..kwwwwwwk..",
+    "..kwpkkpwk..",
+    "..kwppppwk..",
+    "..kwwppwwk..",
+    "..kkkkkkkk..",
+  ],
   condition: [
     "..kk..kk....",
     ".kppkkppk...",
