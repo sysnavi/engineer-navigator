@@ -177,6 +177,20 @@ export async function rescanConditions() {
 
 const HANDLE_RE = /^[a-z0-9_-]{3,20}$/;
 
+// 表示名（User.name）の変更。招待/OAuthどちらの経路でも実名は取得しないため、
+// 表示名は本人が自由に設定するもの（Issue #11: 管理者ブートストラップのシード名が固定表示され続けるバグの是正）。
+export async function updateDisplayName(formData: FormData) {
+  const user = await getCurrentUser();
+  const raw = formData.get("name");
+  const name = typeof raw === "string" ? raw.trim() : "";
+  if (name.length < 1 || name.length > 40) {
+    throw new Error("表示名は1〜40文字で入力してください");
+  }
+  await prisma.user.update({ where: { id: user.id }, data: { name } });
+  revalidatePath("/mypage");
+  revalidatePath("/");
+}
+
 export async function updateShareSettings(formData: FormData) {
   const user = await getCurrentUser();
   const rawHandle = formData.get("handle");

@@ -6,6 +6,7 @@ import {
   setPalette,
   setUiShell,
   setDevUser,
+  updateDisplayName,
   updateShareSettings,
   updateTargetDomains,
   logout,
@@ -111,7 +112,22 @@ export default async function MyPage({
             {user.name.charAt(0)}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-extrabold">{user.name}</p>
+            <form
+              action={updateDisplayName}
+              className="flex items-center gap-1.5"
+            >
+              <input
+                name="name"
+                defaultValue={user.name}
+                maxLength={40}
+                required
+                aria-label="表示名"
+                className="field8 min-w-0 flex-1 py-1 text-[15px] font-extrabold"
+              />
+              <button className="btn8 shrink-0 px-2.5 py-1 text-[11px]">
+                保存
+              </button>
+            </form>
             <p className="text-[12.5px] text-inksoft">
               {user.email ? `${user.email} ・ ` : ""}
               {ROLE_LABELS[user.role] ?? user.role}
