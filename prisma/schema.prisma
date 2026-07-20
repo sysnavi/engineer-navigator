@@ -71,6 +71,7 @@ model User {
   encounters       Encounter[]
   pets             Pet[]
   authIdentities   AuthIdentity[]
+  inquiries        Inquiry[]
   authSessions     AuthSession[]
 }
 
@@ -688,4 +689,24 @@ model KnowledgeChunk {
 
   @@index([kind])
   @@index([source])
+}
+
+// 問い合わせ（Issue #9）。PII非保持方針に合わせ、**ログイン済みユーザーの分だけ**保存する。
+// 返信もサイト内（マイページ）で受け取るので、返信先メールを持つ必要がない。
+// 未ログインの訪問者からの声はDBに残さず notify()（Slack）へ流して破棄する。
+model Inquiry {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  category   String // "bug" | "request" | "other"（src/lib/inquiry.ts）
+  body       String
+  status     String   @default("OPEN") // OPEN | REPLIED | CLOSED
+  adminReply String?
+  repliedAt  DateTime?
+  // ユーザーが返信を読んだ日時。未読バッジの判定に使う
+  readAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
 }

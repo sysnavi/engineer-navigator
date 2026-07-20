@@ -38,7 +38,7 @@ export default async function AdminPage() {
   const dayAgo = new Date(new Date().getTime() - 24 * 60 * 60_000);
   const weekAgo = new Date(new Date().getTime() - 7 * 24 * 60 * 60_000);
 
-  const [users, usage24h, activeWeek, invites] = await Promise.all([
+  const [users, usage24h, activeWeek, invites, openInquiries] = await Promise.all([
     prisma.user.findMany({
       orderBy: [{ suspendedAt: "desc" }, { createdAt: "asc" }],
       select: {
@@ -72,6 +72,7 @@ export default async function AdminPage() {
       orderBy: { createdAt: "desc" },
       include: { user: { select: { name: true, handle: true } } },
     }),
+    prisma.inquiry.count({ where: { status: "OPEN" } }),
   ]);
 
   const usageMap = new Map(usage24h.map((u) => [u.userId, u._count._all]));
@@ -99,6 +100,12 @@ export default async function AdminPage() {
           </p>
         </div>
         <div className="flex shrink-0 flex-col gap-1.5">
+          <Link
+            href="/admin/inquiries"
+            className={`btn8 px-3 py-1.5 text-center text-[12px] ${openInquiries > 0 ? "btn8-start" : ""}`}
+          >
+            問い合わせ{openInquiries > 0 ? `（${openInquiries}）` : ""}
+          </Link>
           <Link href="/admin/content" className="btn8 btn8-ok px-3 py-1.5 text-center text-[12px]">
             コンテンツ一覧
           </Link>

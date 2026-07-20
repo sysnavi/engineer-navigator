@@ -24,7 +24,11 @@ export default function Error({
           <p className="mt-3 text-[13px] text-inksoft">
             一時的な問題かもしれません。もう一度お試しください。
             <br />
-            繰り返す場合は、少し時間をおくか運営にご連絡ください。
+            繰り返す場合は、少し時間をおくか
+            <a href="/contact" className="font-bold text-royal2 underline hover:text-pinkhot">
+              運営にご連絡ください
+            </a>
+            。
           </p>
           {error.digest && (
             <p className="mt-2 font-pixel text-[10px] tracking-wide text-inksoft">

@@ -17,6 +17,7 @@ import { ReportToggle } from "./report-toggle";
 import { InheritPanel } from "./inherit-panel";
 import { DOMAINS } from "@/lib/domains";
 import { ReplayTutorialButton } from "@/components/replay-tutorial";
+import { InquiryThread } from "@/components/inquiry-thread";
 import {
   enabledProviders,
   PROVIDER_LABELS,
@@ -59,7 +60,7 @@ export default async function MyPage({
   const { linked, oauth_error } = await searchParams;
   const devLogin = process.env.DEV_LOGIN_ENABLED === "true";
   const isAdmin = user.role === "ADMIN";
-  const [devUsers, submittedReports, player, lineage, identities] =
+  const [devUsers, submittedReports, player, lineage, identities, inquiries] =
     await Promise.all([
       devLogin
         ? prisma.user.findMany({ orderBy: { role: "asc" } })
@@ -76,7 +77,24 @@ export default async function MyPage({
         where: { userId: user.id },
         select: { provider: true, createdAt: true },
       }),
+      prisma.inquiry.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      }),
     ]);
+  // 運営とのやりとり（Issue #9）。返信はメールでなくマイページに届く
+  const inquiryItems = inquiries.map((q) => ({
+    id: q.id,
+    category: q.category,
+    body: q.body,
+    status: q.status,
+    adminReply: q.adminReply,
+    createdAt: q.createdAt.toISOString().slice(0, 10),
+    repliedAt: q.repliedAt ? q.repliedAt.toISOString().slice(0, 10) : null,
+    unread: !!q.adminReply && !q.readAt,
+  }));
+  const unreadReplies = inquiryItems.filter((q) => q.unread).length;
   const linkableProviders = enabledProviders().filter(
     (p) => !identities.some((i) => i.provider === p)
   );
@@ -154,6 +172,22 @@ export default async function MyPage({
               </button>
             </form>
           </div>
+        </div>
+      </Window>
+
+      {/* 運営とのやりとり（Issue #9）: 返信はメールでなくここに届く */}
+      <Window title="SUPPORT" titleEm=".log" barClass={unreadReplies > 0 ? "!bg-pinkhot" : ""}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <PixelLabel className={unreadReplies > 0 ? "!text-pinkhot" : ""}>
+            運営とのやりとり
+            {unreadReplies > 0 && ` — あたらしい返信が ${unreadReplies} 件`}
+          </PixelLabel>
+          <Link href="/contact" className="btn8 px-3 py-1.5 text-[11.5px]">
+            ＋ 問い合わせる
+          </Link>
+        </div>
+        <div className="mt-3">
+          <InquiryThread items={inquiryItems} />
         </div>
       </Window>
 
