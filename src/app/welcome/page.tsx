@@ -26,7 +26,9 @@ export default async function WelcomePage({
           エンジニアの成長OS
         </PixelTitle>
         <p className="mt-2 text-[13px] text-inksoft">
-          週報から、スキル・経歴・コンディションをデータ化する（テスト公開中）
+          週報もクイズもよもやまも、ここでの頑張りが全部つながって育つ。
+          <br />
+          遊びと学びのいいとこどりを目指した、エンジニアの成長サービス（テスト公開中）
         </p>
       </div>
 
