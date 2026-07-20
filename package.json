@@ -10,7 +10,8 @@
     "postinstall": "prisma generate",
     "db:deploy": "prisma migrate deploy",
     "ingest:knowledge": "tsx scripts/ingest-knowledge.ts",
-    "check:content": "tsx scripts/check-content.ts"
+    "check:content": "tsx scripts/check-content.ts",
+    "seed:launch": "tsx prisma/seed-launch.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",
