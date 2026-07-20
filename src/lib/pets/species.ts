@@ -27,8 +27,12 @@ export type PetSpecies = {
 };
 
 // 開発者支給の手描きPNG（駄菓子・おばけ・レトロゲームの来訪者たち）。
-// happy/sleep 差分は未支給なので normal で代用される（差分が来たらここに足すだけ）。
-const pet = (id: string) => ({ normal: `/pets/${id}/normal.png` });
+// happy は normal から scripts/gen-expressions.py で生成（目を細め口角を上げる差分）。
+// sleep 差分は未整備なので normal で代用される。
+const pet = (id: string) => ({
+  normal: `/pets/${id}/normal.png`,
+  happy: `/pets/${id}/happy.png`,
+});
 
 export const PET_SPECIES: PetSpecies[] = [
   {
