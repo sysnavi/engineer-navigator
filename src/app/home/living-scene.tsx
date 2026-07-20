@@ -97,11 +97,11 @@ export function LivingScene(props: {
         }}
       />
 
-      {pets.length === 0 && (
+      {/* ペットを1匹も飼っていないときだけ、部屋の中央に案内を出す。
+          飼っている子が全員おでかけ中のときは「空のリビング」を見せて、右下の小ラベルに任せる */}
+      {pets.length === 0 && !props.awayName && (
         <p className="absolute inset-x-0 top-[55%] px-4 text-center text-[12.5px] text-inksoft">
-          {props.awayName
-            ? `${props.awayName}はデスクに遊びに行っています`
-            : "まだ誰も住んでいません。ときどき画面のすみに遊びに来る子に話しかけてみよう。"}
+          まだ誰も住んでいません。ときどき画面のすみに遊びに来る子に話しかけてみよう。
         </p>
       )}
       {pets.map((p, i) => {
@@ -152,7 +152,7 @@ export function LivingScene(props: {
           </button>
         );
       })}
-      {pets.length > 0 && props.awayName && (
+      {props.awayName && (
         <p className="absolute bottom-1 right-2 z-[1200] font-pixel text-[9.5px] tracking-wide text-inksoft">
           {props.awayName}はデスクへおでかけ中
         </p>
