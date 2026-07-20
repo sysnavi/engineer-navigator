@@ -12,6 +12,7 @@ import { extractDraft } from "@/lib/ai/interview";
 import { generatePlanItems } from "@/lib/ai/studyplan";
 import { generateOpeningLine, generateFeedback } from "@/lib/ai/roleplay";
 import { isPaletteId } from "@/lib/palettes";
+import { isUiShell } from "@/lib/shell";
 import { isDomainId } from "@/lib/domains";
 import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
 import { performRebirth } from "@/lib/exp";
@@ -587,6 +588,17 @@ export async function endRoleplay(sessionId: string) {
 // ---------------------------------------------------------------------------
 // きせかえ（カラーパレット）
 // ---------------------------------------------------------------------------
+
+/** UIシェル（デスクトップ/クラシック）の切替。旧UIへの「ロールバック」はこの設定で行う */
+export async function setUiShell(shell: string) {
+  const user = await getCurrentUser();
+  if (!isUiShell(shell)) throw new Error("不正なUIモードです");
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { uiShell: shell },
+  });
+  revalidatePath("/", "layout");
+}
 
 export async function setPalette(palette: string) {
   const user = await getCurrentUser();

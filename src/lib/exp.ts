@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/db";
 import { mondayOf } from "@/lib/week";
 import {
@@ -171,8 +172,9 @@ export type PlayerStats = {
   activityCounts: Record<string, number>;
 };
 
-/** プレイヤーのEXP/レベル/今週の獲得内訳を既存データから導出する */
-export async function getPlayerStats(userId: string): Promise<PlayerStats> {
+/** プレイヤーのEXP/レベル/今週の獲得内訳を既存データから導出する。
+ *  React cache でリクエスト内メモ化（layoutとページの二重呼び出しをDB1回に） */
+export const getPlayerStats = cache(async (userId: string): Promise<PlayerStats> => {
   const weekStart = mondayOf(new Date());
 
   const [
@@ -386,7 +388,7 @@ export async function getPlayerStats(userId: string): Promise<PlayerStats> {
     expBySource,
     activityCounts,
   };
-}
+});
 
 export type RebirthResult = {
   endedGen: number; // 卵を産んで終えた世代

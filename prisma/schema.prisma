@@ -26,6 +26,9 @@ model User {
   role      Role     @default(ENGINEER)
   // UIカラーパレット（きせかえ）。値は src/lib/palettes.ts の PaletteId
   palette   String   @default("sky")
+  // UIシェル（デスクトップOS風 or クラシック表示）。null=環境デフォルト(UI_SHELL_DEFAULT)に従う。
+  // 旧UIはロールバック先ではなく「クラシックモード」として共存させる（src/lib/shell.ts）
+  uiShell   String?
   // 目指す技術領域（キャリアの方向性）。値は src/lib/domains.ts の DomainDef.id。
   // メンター提案・ロールプレイ評価を本人の目標領域に寄せるために使う。
   targetDomains String[] @default([])

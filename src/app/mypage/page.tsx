@@ -4,11 +4,13 @@ import { prisma } from "@/lib/db";
 import { PALETTES } from "@/lib/palettes";
 import {
   setPalette,
+  setUiShell,
   setDevUser,
   updateShareSettings,
   updateTargetDomains,
   logout,
 } from "@/app/actions";
+import { resolveShell } from "@/lib/shell";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { ReportToggle } from "./report-toggle";
 import { InheritPanel } from "./inherit-panel";
@@ -349,6 +351,48 @@ export default async function MyPage() {
             </div>
           </div>
         )}
+      </Window>
+
+      {/* UIモード: デスクトップ/クラシックの切替（旧UIは削除せず選べるモードとして共存） */}
+      <Window title="SHELL" titleEm=".cfg">
+        <PixelLabel>UIモード — 画面の骨格を選ぶ</PixelLabel>
+        <p className="mt-2 text-[12.5px] text-inksoft">
+          「デスクトップ」はレトロOS風（アイコン＋下部スタートメニュー）、「クラシック」は従来の上部ナビ表示です。いつでも戻せます。
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {(
+            [
+              { id: "desktop", name: "デスクトップ", desc: "アイコンとスタートメニューのOS風" },
+              { id: "classic", name: "クラシック", desc: "従来の上部ナビとタイル表示" },
+            ] as const
+          ).map((m) => {
+            const active = resolveShell(user) === m.id;
+            return (
+              <form
+                key={m.id}
+                action={async () => {
+                  "use server";
+                  await setUiShell(m.id);
+                }}
+              >
+                <button
+                  className={`flex w-full flex-col items-start gap-1 rounded-lg border-[2.5px] border-line8 p-3 text-left font-pixel text-[13px] tracking-wide shadow-hard-sm transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                    active ? "bg-royal text-white" : "bg-surface text-ink"
+                  }`}
+                  aria-pressed={active}
+                >
+                  {m.name}
+                  {active && " ★"}
+                  <span
+                    className={`font-sans text-[11px] ${active ? "text-peri" : "text-inksoft"}`}
+                  >
+                    {m.desc}
+                  </span>
+                </button>
+              </form>
+            );
+          })}
+        </div>
       </Window>
 
       <Window title="PALETTE" titleEm=".cfg">

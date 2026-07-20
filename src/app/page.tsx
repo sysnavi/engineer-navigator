@@ -3,8 +3,12 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { mondayOf, formatWeek } from "@/lib/week";
 import { getPlayerStats } from "@/lib/exp";
+import { resolveShell } from "@/lib/shell";
+import { appsForRole, APP_GROUPS, type AppGroup } from "@/lib/apps";
 import { PixelTitle, PixelLabel, Window } from "@/components/retro";
-import { PixelAvatar } from "@/components/pixel-avatar";
+import { PixelIcon } from "@/components/pixel-icon";
+import { PlayerCard } from "@/components/player-card";
+import { TodaySys } from "@/components/shell/today-sys";
 
 // ヒーロー内「つながりパイプライン」のチップ
 function Chip(props: {
@@ -54,8 +58,58 @@ export default async function Home() {
     ]);
 
   const reportDone = report?.status === "SUBMITTED";
-  const filledBlocks = Math.round(player.levelProgress * 10);
 
+  // ===== デスクトップシェル: ホーム＝デスクトップ（ゾーン＋アイコン＋TODAY.sys） =====
+  if (resolveShell(user) === "desktop") {
+    const apps = appsForRole(user.role);
+    return (
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="space-y-5 lg:order-2">
+          <TodaySys userId={user.id} />
+          <PlayerCard displayName={user.handle ?? user.name} player={player} />
+        </div>
+        <div className="space-y-5 lg:order-1">
+          {(Object.keys(APP_GROUPS) as AppGroup[]).map((gid) => {
+            const groupApps = apps.filter((a) => a.group === gid);
+            if (groupApps.length === 0) return null;
+            return (
+              <section
+                key={gid}
+                className="rounded-xl border-2 border-dashed border-royal2/50 px-3 pb-3 pt-2"
+              >
+                <b className="font-pixel text-[11px] font-normal tracking-[0.14em] text-royal2">
+                  {APP_GROUPS[gid]}/
+                </b>
+                <div className="mt-1.5 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {groupApps.map((a) => (
+                    <Link
+                      key={a.id}
+                      href={a.href}
+                      title={a.desc}
+                      className="flex flex-col items-center gap-1.5 rounded-lg border-2 border-transparent px-1.5 py-2.5 text-center hover:border-peri hover:bg-white/60"
+                    >
+                      <span className="drop-shadow-[2px_2px_0_rgba(18,35,95,0.2)]">
+                        <PixelIcon id={a.id} px={3} />
+                      </span>
+                      <span className="text-[11.5px] font-bold leading-tight">
+                        {a.name}
+                      </span>
+                      <i className="font-pixel text-[9px] not-italic tracking-wide text-inksoft">
+                        {a.id.toUpperCase()}
+                        {a.ext}
+                      </i>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ===== クラシックシェル: 従来のヒーロー＋タイル =====
   return (
     <div className="space-y-7">
       {/* ヒーロー: 「がんばりは、ぜんぶ経験値になる。」＋プレイヤーカード */}
@@ -92,91 +146,12 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* プレイヤーカード */}
-          <div className="w-full overflow-hidden rounded-lg border-[2.5px] border-line8 bg-win text-ink shadow-[3px_3px_0_rgba(0,0,0,0.4)] sm:w-[320px]">
-            <div className="flex items-center justify-between bg-ink px-3 py-1.5 font-pixel text-[10.5px] tracking-[0.12em] text-white">
-              <span>PLAYER_FILE.sav</span>
-              <span aria-hidden="true">▮▮▮</span>
-            </div>
-            <div className="flex items-center gap-3.5 px-3.5 py-3">
-              <div className="grid h-[84px] w-[84px] shrink-0 place-items-center rounded-lg border-[2.5px] border-line8 bg-surface">
-                <PixelAvatar
-                  sprite={player.stage.sprite}
-                  px={7}
-                  accent={player.genes?.dominant.color}
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-pixel text-[14px] tracking-wide">
-                  {user.handle ?? user.name}
-                  {player.generation >= 2 && (
-                    <span className="ml-1.5 text-[10.5px] text-royal2">
-                      第{player.generation}世代
-                    </span>
-                  )}
-                </p>
-                <p className="font-pixel text-[11px] tracking-[0.1em] text-pinkhot">
-                  Lv {player.level} — {player.stage.name}
-                  {player.currentStreak >= 2 && (
-                    <span className="ml-1.5 text-[#f59f00]">
-                      🔥{player.currentStreak}日連続
-                    </span>
-                  )}
-                </p>
-                {player.genes && (
-                  <p
-                    className="truncate font-pixel text-[10px] tracking-[0.08em]"
-                    style={{ color: player.genes.dominant.color }}
-                  >
-                    ◆ {player.genes.title}
-                  </p>
-                )}
-                <div className="mt-1.5 flex gap-[3px]" aria-label={`次のレベルまで ${player.expToNextLevel} EXP`}>
-                  {Array.from({ length: 10 }, (_, i) => (
-                    <i
-                      key={i}
-                      className={`h-3 w-4 rounded-[3px] border-2 border-line8 ${
-                        i < filledBlocks
-                          ? i === filledBlocks - 1
-                            ? "bg-pinkhot"
-                            : "bg-lemon"
-                          : "bg-win"
-                      }`}
-                    />
-                  ))}
-                </div>
-                <p className="mt-1 text-[11px] text-inksoft">
-                  つぎのLvまで {player.expToNextLevel} EXP
-                  {player.nextStage &&
-                    ` ／ Lv${player.nextStage.minLevel}で「${player.nextStage.name}」に進化`}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5 border-t-2 border-dashed border-peri px-3.5 py-2.5">
-              <span className="w-full font-pixel text-[10px] tracking-[0.1em] text-inksoft">
-                今週のかつどう
-              </span>
-              {player.weekActivities.length === 0 ? (
-                <span className="text-[11.5px] text-inksoft">
-                  まだ活動なし。週報から始めよう（+50 EXP）
-                </span>
-              ) : (
-                <>
-                  {player.weekActivities.map((a) => (
-                    <span
-                      key={a.label}
-                      className="rounded-md border-2 border-line8 bg-surface px-1.5 py-0.5 font-pixel text-[10.5px]"
-                    >
-                      {a.label} <span className="text-[var(--good)]">+{a.exp}</span>
-                    </span>
-                  ))}
-                  <span className="ml-auto font-pixel text-[11px] text-pinkhot">
-                    計 +{player.weekExp} EXP
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
+          {/* プレイヤーカード（共通部品: デスクトップホームでも使用） */}
+          <PlayerCard
+            displayName={user.handle ?? user.name}
+            player={player}
+            className="sm:w-[320px]"
+          />
         </div>
       </section>
 
