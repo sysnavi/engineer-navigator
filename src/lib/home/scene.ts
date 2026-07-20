@@ -10,11 +10,22 @@ import type { Gadget, GadgetCategory } from "@/lib/dungeon/content";
 
 export type ZoneId = "wall" | "desk" | "floor";
 
-/** 各ゾーンの y 範囲（%）。壁=掛ける / デスク=天板の上 / 床=足元 */
+/** 各ゾーンの y 範囲（%）。3/4見下ろしビュー: 上部の細い壁 + 大きな床、y=奥行き。
+ *  デスクは床の上に「天板の上面が見える」形で描かれ、deskゾーン=天板の上 */
 export const ZONES: Record<ZoneId, { y: [number, number]; label: string }> = {
-  wall: { y: [8, 30], label: "壁" },
-  desk: { y: [36, 54], label: "デスクの上" },
-  floor: { y: [66, 88], label: "床" },
+  wall: { y: [6, 24], label: "壁" },
+  desk: { y: [36, 55], label: "デスクの上" },
+  floor: { y: [62, 90], label: "床" },
+};
+
+/** デスクの描画ジオメトリ（%）。desktop-scene が3/4ビューで描く際の基準 */
+export const DESK_GEOM = {
+  left: 14,
+  right: 14,
+  plateTop: 31, // 天板の上面ここから
+  plateBottom: 58, // 天板の上面ここまで（= 前縁の始まり）
+  edgeBottom: 64, // 前縁（厚み）ここまで
+  legBottom: 73, // 脚ここまで
 };
 
 /** 壁に掛けられるカテゴリ（チェアが壁に貼り付く事故だけは構造で防ぐ）。
@@ -48,14 +59,14 @@ export function clampToZones(
 
 /** 「▶ 飾る」の初期配置。カテゴリごとの定位置 + 所持順の小さなズレ */
 const DEFAULT_POS: Record<GadgetCategory, { x: number; y: number }> = {
-  dp: { x: 50, y: 40 }, // ディスプレイはデスク中央奥
-  kb: { x: 50, y: 52 }, // キーボードは手前
-  pt: { x: 66, y: 52 }, // マウスはその右
-  au: { x: 24, y: 44 }, // オーディオは左
-  dk: { x: 76, y: 78 }, // チェア系は床
-  pc: { x: 22, y: 80 }, // PC・サーバは床の左
-  tl: { x: 80, y: 42 }, // 工具はデスク右
-  rt: { x: 36, y: 20 }, // レトロは壁に飾りたい
+  dp: { x: 50, y: 39 }, // ディスプレイはデスク中央奥
+  kb: { x: 46, y: 50 }, // キーボードは手前
+  pt: { x: 63, y: 51 }, // マウスはその右
+  au: { x: 26, y: 42 }, // オーディオは左
+  dk: { x: 76, y: 74 }, // チェア系は床
+  pc: { x: 20, y: 78 }, // PC・サーバは床の左
+  tl: { x: 78, y: 40 }, // 工具はデスク右
+  rt: { x: 36, y: 15 }, // レトロは壁に飾りたい
 };
 
 export function defaultPosition(

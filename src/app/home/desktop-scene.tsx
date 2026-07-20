@@ -12,6 +12,7 @@ import { RARITY_LABELS } from "@/lib/dungeon/content";
 import {
   allowedZones,
   clampToZones,
+  DESK_GEOM,
   ZONES,
   type DeskTier,
 } from "@/lib/home/scene";
@@ -138,7 +139,14 @@ export function DesktopScene(props: {
 
   const sp = props.visitor ? speciesById(props.visitor.speciesId) : null;
   const deskStyle = DESK_STYLES[props.desk.tier];
-  const deskInset = { 0: 22, 1: 14, 2: 12, 3: 8 }[props.desk.tier]; // 進化で広くなる
+  const deskGrow = { 0: 8, 1: 4, 2: 2, 3: 0 }[props.desk.tier]; // 進化で天板が広がる
+  const dg = {
+    left: DESK_GEOM.left + deskGrow,
+    right: DESK_GEOM.right + deskGrow,
+  };
+  // 3/4ビューの前後関係: y（奥行き）が大きいほど手前に描く
+  const depthZ = (y: number) => 10 + Math.round(y * 10);
+  const depthScale = (y: number) => 0.85 + (y / 100) * 0.3;
 
   return (
     <div
@@ -146,33 +154,59 @@ export function DesktopScene(props: {
       className="relative aspect-[16/9] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8"
       style={{ touchAction: "none" }}
     >
-      {/* 壁と床（きせかえ） */}
+      {/* 3/4見下ろし: 上部の細い壁 + 大きな床（きせかえ） */}
       <div
-        className="absolute inset-x-0 top-0"
-        style={{ height: "62%", background: props.wallpaperCss }}
+        className="absolute inset-x-0 top-0 border-b-[3px] border-line8"
+        style={{ height: "28%", background: props.wallpaperCss }}
       />
       <div
-        className="absolute inset-x-0 bottom-0 border-t-[2.5px] border-line8/40"
-        style={{ height: "38%", background: props.floorCss }}
+        className="absolute inset-x-0 bottom-0"
+        style={{ height: "72%", background: props.floorCss }}
+      />
+      {/* 幅木（壁と床の境目の影） */}
+      <div
+        className="absolute inset-x-0"
+        style={{ top: "28%", height: "2.5%", background: "rgba(0,0,0,0.14)" }}
       />
 
-      {/* デスク（決定的進化） */}
+      {/* デスク（3/4ビュー: 天板の上面が見える。決定的進化） */}
       <div
-        className={`absolute rounded-sm border-2 border-line8 ${deskStyle.extra ?? ""}`}
+        className={`absolute rounded-md border-[2.5px] border-line8 ${deskStyle.extra ?? ""}`}
         style={{
-          left: `${deskInset}%`,
-          right: `${deskInset}%`,
-          top: "56%",
-          height: "5%",
+          left: `${dg.left}%`,
+          right: `${dg.right}%`,
+          top: `${DESK_GEOM.plateTop - 2}%`,
+          height: `${DESK_GEOM.plateBottom - DESK_GEOM.plateTop + 2}%`,
           background: deskStyle.plate,
+          zIndex: 5,
         }}
         title={`${props.desk.name} — ${props.desk.hint}`}
       />
-      {[deskInset + 3, 97 - deskInset - 3].map((x) => (
+      {/* 天板の前縁（厚み）: ひとまわり濃い色で立体感 */}
+      <div
+        className="absolute border-x-[2.5px] border-b-[2.5px] border-line8"
+        style={{
+          left: `${dg.left}%`,
+          right: `${dg.right}%`,
+          top: `${DESK_GEOM.plateBottom}%`,
+          height: `${DESK_GEOM.edgeBottom - DESK_GEOM.plateBottom}%`,
+          background: deskStyle.leg,
+          zIndex: 5,
+        }}
+      />
+      {/* 脚（前面の2本だけ見える） */}
+      {[dg.left + 2.5, 100 - dg.right - 5].map((x) => (
         <div
           key={x}
           className="absolute border-2 border-line8"
-          style={{ left: `${x}%`, top: "61%", width: "2.5%", height: "13%", background: deskStyle.leg }}
+          style={{
+            left: `${x}%`,
+            top: `${DESK_GEOM.edgeBottom}%`,
+            width: "2.5%",
+            height: `${DESK_GEOM.legBottom - DESK_GEOM.edgeBottom}%`,
+            background: deskStyle.leg,
+            zIndex: 4,
+          }}
         />
       ))}
 
@@ -189,7 +223,7 @@ export function DesktopScene(props: {
           />
         ))}
 
-      {/* ガジェット（自由配置・zIndexで前後関係） */}
+      {/* ガジェット（自由配置・yソートで前後関係、奥行きで少し縮む） */}
       {items.map((g) => (
         <button
           key={g.id}
@@ -197,10 +231,16 @@ export function DesktopScene(props: {
           onPointerMove={(e) => onMove(e, g.id)}
           onPointerUp={(e) => onUp(e, g.id)}
           title={`${g.name}（${RARITY_LABELS[g.rarity].label}） — ${g.flavor}｜ドラッグで移動・右下のBOXでしまう`}
-          className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab rounded-md p-0.5 ${
+          className={`absolute cursor-grab rounded-md p-0.5 ${
             dragging === g.id ? "cursor-grabbing bg-white/40 ring-2 ring-pinkhot" : ""
           }`}
-          style={{ left: `${g.x}%`, top: `${g.y}%`, zIndex: 10 + g.z, touchAction: "none" }}
+          style={{
+            left: `${g.x}%`,
+            top: `${g.y}%`,
+            transform: `translate(-50%, -50%) scale(${depthScale(g.y)})`,
+            zIndex: depthZ(g.y),
+            touchAction: "none",
+          }}
         >
           <Image
             src={`/dungeon/cat-${g.category}.png`}
@@ -217,13 +257,13 @@ export function DesktopScene(props: {
         </button>
       ))}
 
-      {/* きょうの来客: デスクのうえでくつろぐペット */}
+      {/* きょうの来客: デスクのうえでくつろぐペット（天板の上=手前縁に座る） */}
       {props.visitor && sp && (
         <button
           onClick={onPetVisitor}
           title={`${props.visitor.name}がデスクのうえでくつろいでいる${props.visitor.pettedToday ? "（きょうはなでなで済み）" : "（クリックでなでる）"}`}
-          className="absolute z-[220] -translate-x-1/2 -translate-y-full"
-          style={{ left: "32%", top: "57.5%" }}
+          className="absolute -translate-x-1/2 -translate-y-full"
+          style={{ left: "30%", top: `${DESK_GEOM.plateBottom + 1}%`, zIndex: depthZ(DESK_GEOM.plateBottom) }}
         >
           {visitorHeart && (
             <span className="pet-heart absolute -top-4 left-1/2 font-pixel text-[13px] text-pinkhot">
@@ -247,7 +287,7 @@ export function DesktopScene(props: {
       {/* 収納BOX（ここへドロップでしまう） */}
       <div
         ref={boxRef}
-        className={`absolute bottom-1.5 right-1.5 z-[300] grid h-[52px] w-[68px] place-items-center rounded-md border-2 border-dashed ${
+        className={`absolute bottom-1.5 right-1.5 z-[1200] grid h-[52px] w-[68px] place-items-center rounded-md border-2 border-dashed ${
           overBox ? "border-pinkhot bg-pinkhot/20" : "border-line8/70 bg-white/40"
         }`}
       >
