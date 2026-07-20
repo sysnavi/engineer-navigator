@@ -20,18 +20,17 @@ export type AppDef = {
   desc: string; // ホームタイル/ツールチップ用
   label?: string; // タイル上の英字ラベル（NEW QUEST等はページ側で動的に）
   roles?: string[]; // 表示権限（未指定=全員）
-  dock?: boolean; // モバイルドックに載せるか（スタート/マイページ以外から2つまで）
 };
 
 export const APPS: AppDef[] = [
-  { id: "report", href: "/report", name: "週報", ext: ".exe", group: "kiroku", desc: "今週の週報。5分で書けます", dock: true },
+  { id: "report", href: "/report", name: "週報", ext: ".exe", group: "kiroku", desc: "今週の週報。5分で書けます" },
   { id: "skills", href: "/skills", name: "スキルマップ", ext: ".sav", group: "kiroku", desc: "承認ベースで育つスキルと成長ログ" },
   { id: "resume", href: "/resume", name: "経歴書", ext: ".doc", group: "kiroku", desc: "週報から自動組版。PDF出力" },
   { id: "mentor", href: "/mentor", name: "AIメンター", ext: ".exe", group: "manabu", desc: "資格・技術を現場目線で24時間相談" },
   { id: "plan", href: "/plan", name: "学習プラン", ext: ".sav", group: "manabu", desc: "試験日から逆算した週次カリキュラム" },
   { id: "quiz", href: "/quiz", name: "腕試し", ext: ".dat", group: "manabu", desc: "良問バンクの四択でスキルチェック" },
   { id: "roleplay", href: "/roleplay", name: "役割演習", ext: ".sim", group: "manabu", desc: "リーダーの難題をAIとロールプレイ" },
-  { id: "dungeon", href: "/dungeon", name: "ダンジョン", ext: ".log", group: "asobu", desc: "育てたアバターがフルオートで探索", dock: true },
+  { id: "dungeon", href: "/dungeon", name: "ダンジョン", ext: ".log", group: "asobu", desc: "育てたアバターがフルオートで探索" },
   { id: "yomoyama", href: "/yomoyama", name: "よもやま", ext: ".log", group: "asobu", desc: "現場の話をハンドル名で共有" },
   { id: "discover", href: "/discover", name: "発見", ext: ".net", group: "asobu", desc: "みんなの成長の道筋から学ぶ" },
   { id: "home", href: "/home", name: "マイホーム", ext: ".sav", group: "jibun", desc: "ペットが暮らし、戦利品を飾る部屋" },
@@ -42,4 +41,22 @@ export const APPS: AppDef[] = [
 
 export function appsForRole(role: string): AppDef[] {
   return APPS.filter((a) => !a.roles || a.roles.includes(role));
+}
+
+// モバイルドックの自由枠（Issue #10）。▶スタートは固定で、残り3枠をユーザーが選べる。
+export const DOCK_SLOTS = 3;
+export const DOCK_DEFAULT = ["report", "dungeon", "mypage"];
+
+/** ユーザー設定からドックの3枠を選択順に解決する。
+ *  不正ID・権限外（ロール変更で候補から消えた等）は黙って除き、
+ *  足りない分はデフォルト構成で補完する（常にちょうど3件返る）。 */
+export function resolveDock(role: string, dockApps: string[]): AppDef[] {
+  const byId = new Map(appsForRole(role).map((a) => [a.id, a]));
+  const picked: AppDef[] = [];
+  for (const id of [...dockApps, ...DOCK_DEFAULT]) {
+    if (picked.length === DOCK_SLOTS) break;
+    const app = byId.get(id);
+    if (app && !picked.includes(app)) picked.push(app);
+  }
+  return picked;
 }

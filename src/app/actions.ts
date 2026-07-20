@@ -13,6 +13,7 @@ import { generatePlanItems } from "@/lib/ai/studyplan";
 import { generateOpeningLine, generateFeedback } from "@/lib/ai/roleplay";
 import { isPaletteId } from "@/lib/palettes";
 import { isUiShell } from "@/lib/shell";
+import { appsForRole, DOCK_SLOTS } from "@/lib/apps";
 import { isDomainId } from "@/lib/domains";
 import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
 import { performRebirth } from "@/lib/exp";
@@ -606,6 +607,21 @@ export async function endRoleplay(sessionId: string) {
 // ---------------------------------------------------------------------------
 // きせかえ（カラーパレット）
 // ---------------------------------------------------------------------------
+
+/** モバイルドックの3枠を保存（Issue #10）。選択順がそのまま並び順になる */
+export async function setDockApps(ids: string[]) {
+  const user = await getCurrentUser();
+  const allowed = new Set(appsForRole(user.role).map((a) => a.id));
+  const unique = [...new Set(ids)];
+  if (unique.length !== DOCK_SLOTS || !unique.every((id) => allowed.has(id))) {
+    throw new Error(`ドックに置く機能を${DOCK_SLOTS}つ選んでください`);
+  }
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { dockApps: unique },
+  });
+  revalidatePath("/", "layout");
+}
 
 /** UIシェル（デスクトップ/クラシック）の切替。旧UIへの「ロールバック」はこの設定で行う */
 export async function setUiShell(shell: string) {

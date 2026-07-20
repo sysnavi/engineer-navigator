@@ -12,8 +12,10 @@ import {
   logout,
 } from "@/app/actions";
 import { resolveShell } from "@/lib/shell";
+import { appsForRole, resolveDock } from "@/lib/apps";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { ReportToggle } from "./report-toggle";
+import { DockEditor } from "./dock-editor";
 import { InheritPanel } from "./inherit-panel";
 import { DOMAINS } from "@/lib/domains";
 import { ReplayTutorialButton } from "@/components/replay-tutorial";
@@ -504,6 +506,18 @@ export default async function MyPage({
             );
           })}
         </div>
+      </Window>
+
+      {/* モバイルドックのカスタマイズ（Issue #10）。デスクトップUIのスマホ表示にのみ効く */}
+      <Window title="DOCK" titleEm=".cfg">
+        <PixelLabel>モバイルドック — 下部メニューの3枠を選ぶ</PixelLabel>
+        <p className="mt-2 text-[12.5px] text-inksoft">
+          スマホ表示（デスクトップUI）の下部ドックに置く機能を3つ選びます。選んだ順に並び、3つ目は▶スタートの右側に置かれます。
+        </p>
+        <DockEditor
+          apps={appsForRole(user.role)}
+          initial={resolveDock(user.role, user.dockApps).map((a) => a.id)}
+        />
       </Window>
 
       <Window title="PALETTE" titleEm=".cfg">

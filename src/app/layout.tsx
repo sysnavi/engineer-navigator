@@ -5,7 +5,7 @@ import { getOptionalUser } from "@/lib/auth";
 import { recordVisit, getPlayerStats } from "@/lib/exp";
 import { getDungeonState } from "@/lib/dungeon/run";
 import { resolveShell } from "@/lib/shell";
-import { appsForRole } from "@/lib/apps";
+import { appsForRole, resolveDock } from "@/lib/apps";
 import { RegisterSW } from "@/components/register-sw";
 import { AutosizeTextareas } from "@/components/autosize-textareas";
 import { Tutorial } from "@/components/tutorial";
@@ -146,6 +146,7 @@ export default async function RootLayout({
         {shell === "desktop" && shellData && (
           <Taskbar
             apps={nav}
+            dock={resolveDock(role, user?.dockApps ?? [])}
             player={shellData.player}
             dungeonOk={shellData.dungeonOk}
             streak={shellData.streak}

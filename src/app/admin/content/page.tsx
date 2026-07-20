@@ -23,7 +23,7 @@ import {
 } from "@/lib/dungeon/content";
 import { GENES } from "@/lib/genes";
 import { EXP_WEIGHTS, STAGES } from "@/lib/exp";
-import { APPS, APP_GROUPS } from "@/lib/apps";
+import { APPS, APP_GROUPS, DOCK_DEFAULT } from "@/lib/apps";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { PixelIcon } from "@/components/pixel-icon";
 
@@ -323,7 +323,7 @@ export default async function ContentCatalogPage() {
                         {a.roles.join("/")}
                       </span>
                     )}
-                    {a.dock && <span className="font-pixel text-[9px] text-inksoft">dock</span>}
+                    {DOCK_DEFAULT.includes(a.id) && <span className="font-pixel text-[9px] text-inksoft">dock初期</span>}
                   </div>
                 ))}
               </div>

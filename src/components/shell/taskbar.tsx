@@ -2,7 +2,7 @@
 
 // デスクトップシェルの下部バー（松UI・Issue #6想定の刷新）。
 // PC: タスクバー（▶スタート + 現在地チップ + トレイ）
-// モバイル: ドック（週報/ダンジョン/▶スタート/マイページ）+ 全画面ドロワー
+// モバイル: ドック（ユーザーが選んだ3枠 + ▶スタート固定・Issue #10）+ 全画面ドロワー
 // スタートメニュー/ドロワーの中身は APPS レジストリから生成（単一ソース）。
 
 import { useEffect, useState } from "react";
@@ -24,6 +24,7 @@ export type ShellPlayer = {
 
 export function Taskbar(props: {
   apps: AppDef[];
+  dock: AppDef[]; // 解決済みの3枠（layout.tsx で resolveDock 済み）
   player: ShellPlayer;
   dungeonOk: boolean;
   streak: number;
@@ -34,8 +35,6 @@ export function Taskbar(props: {
   const current = props.apps.find(
     (a) => pathname === a.href || pathname.startsWith(a.href + "/")
   );
-  const dockApps = props.apps.filter((a) => a.dock);
-  const mypage = props.apps.find((a) => a.id === "mypage");
 
   useEffect(() => {
     const tick = () => {
@@ -144,24 +143,27 @@ export function Taskbar(props: {
           ▶ <span className="text-[10px] sm:text-[12px]">スタート</span>
         </button>
 
-        {/* モバイル: ドック（週報/ダンジョン/スタート/マイページ） */}
+        {/* モバイル: ドック（選択1・2枠目 / ▶スタート / 3枠目） */}
         <div className="order-1 flex flex-1 items-center justify-around sm:hidden">
-          {dockApps.map((a) => (
+          {props.dock.slice(0, 2).map((a) => (
             <Link key={a.id} href={a.href} className="flex flex-col items-center gap-0.5 rounded-lg px-2 py-0.5 text-[10px] font-bold text-white active:bg-royal2">
               <PixelIcon id={a.id} px={2} />
               {a.name}
             </Link>
           ))}
         </div>
-        {mypage && (
-          <Link
-            href={mypage.href}
-            className="order-3 flex flex-col items-center gap-0.5 rounded-lg px-2 py-0.5 text-[10px] font-bold text-white active:bg-royal2 sm:hidden"
-          >
-            <PixelIcon id="mypage" px={2} />
-            マイページ
-          </Link>
-        )}
+        <div className="order-3 flex items-center justify-around sm:hidden">
+          {props.dock.slice(2).map((a) => (
+            <Link
+              key={a.id}
+              href={a.href}
+              className="flex flex-col items-center gap-0.5 rounded-lg px-2 py-0.5 text-[10px] font-bold text-white active:bg-royal2"
+            >
+              <PixelIcon id={a.id} px={2} />
+              {a.name}
+            </Link>
+          ))}
+        </div>
 
         {/* PC: ブランド + 現在地チップ + トレイ */}
         <div className="hidden flex-1 items-center gap-3 sm:flex">

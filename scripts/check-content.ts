@@ -21,7 +21,7 @@ import {
 } from "../src/lib/dungeon/content";
 import { GENES } from "../src/lib/genes";
 import { EXP_WEIGHTS } from "../src/lib/exp";
-import { APPS } from "../src/lib/apps";
+import { APPS, DOCK_DEFAULT, DOCK_SLOTS } from "../src/lib/apps";
 
 const ROOT = join(__dirname, "..");
 const PUBLIC = join(ROOT, "public");
@@ -135,9 +135,14 @@ for (const g of GENES) {
 // ---------------------------------------------------------------------------
 console.log(`機能: ${APPS.length}件`);
 for (const id of dupes(APPS, (a) => a.id)) err(`機能IDが重複: ${id}`);
-const appPages = APPS.filter((a) => !a.roles);
-if (appPages.filter((a) => a.dock).length > 2) {
-  warn("モバイルドックに載せる機能(dock:true)が3件以上（レイアウトが窮屈になる）");
+// ドックのデフォルト構成（Issue #10）: 件数が枠数と一致し、全IDが実在すること
+if (DOCK_DEFAULT.length !== DOCK_SLOTS) {
+  err(`DOCK_DEFAULT が ${DOCK_DEFAULT.length}件（DOCK_SLOTS=${DOCK_SLOTS} と不一致）`);
+}
+for (const id of DOCK_DEFAULT) {
+  const app = APPS.find((a) => a.id === id);
+  if (!app) err(`DOCK_DEFAULT に存在しない機能ID: ${id}`);
+  else if (app.roles) err(`DOCK_DEFAULT に権限付き機能: ${id}（全員のデフォルトにできない）`);
 }
 
 // ---------------------------------------------------------------------------
