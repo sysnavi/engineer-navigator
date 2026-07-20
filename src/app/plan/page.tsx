@@ -37,12 +37,16 @@ export default async function PlanListPage() {
               <label className="mb-1.5 block text-[12px] font-extrabold">
                 資格 <span className="text-pinkhot">*</span>
               </label>
+              {/* 狭い端末(375px)で末尾が切れないよう短く。例示は下の注記で補う */}
               <input
                 name="certification"
                 required
-                placeholder="例: AWS SAA / JSTQB FL / 基本情報"
+                placeholder="例: AWS SAA"
                 className="field8"
               />
+              <p className="mt-1 text-[11px] text-inksoft">
+                例: AWS SAA / JSTQB FL / 基本情報 など
+              </p>
             </div>
             <div>
               <label className="mb-1.5 block text-[12px] font-extrabold">

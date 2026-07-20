@@ -126,7 +126,7 @@ export function ContactForm(props: { loggedIn: boolean }) {
             onChange={(e) => setReplyTo(e.target.value)}
             maxLength={120}
             className="field8"
-            placeholder="返信が必要な場合のみ。メールやSNSのIDなど"
+            placeholder="メール / SNSのID など"
             autoCapitalize="none"
             spellCheck={false}
           />

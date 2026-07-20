@@ -33,11 +33,12 @@ export default async function QuizNewPage() {
             <input
               name="topic"
               required
-              placeholder="例: AWS IAM / TCP/IP / SQL / Git"
+              placeholder="例: AWS IAM"
               className="field8"
             />
             <p className="mt-1 text-[11px] text-inksoft">
-              同じお題でまとめて出題されます。既存のお題名に揃えると集まりやすいです。
+              例: AWS IAM / TCP/IP / SQL / Git など。
+              同じお題でまとめて出題されるので、既存のお題名に揃えると集まりやすいです。
             </p>
           </div>
 

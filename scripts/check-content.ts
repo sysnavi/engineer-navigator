@@ -146,6 +146,48 @@ for (const id of DOCK_DEFAULT) {
 }
 
 // ---------------------------------------------------------------------------
+// 入力欄のplaceholder（狭い端末で切れないか）
+// ---------------------------------------------------------------------------
+// iPhone SE(375px)が最小想定。タッチ端末の入力欄はiOSの自動ズーム対策で16px固定
+// （globals.css参照）なので、長すぎるplaceholderをフォント縮小で逃がすことはできない。
+// 1行入力(input)と rows={1} のtextareaは、溢れた分がそのまま見えなくなる。
+// 全角1文字=16px換算で、狭い枠(実測で約230px)に収まる文字数を上限とする。
+import { readdirSync, readFileSync, statSync } from "node:fs";
+
+const NARROW_FIELD_PX = 230; // iPhone SEでボタン同居の入力欄の実測内寸
+function textWidth(s: string): number {
+  // 全角=16px / 半角=8px のざっくり換算（実測とは数%ずれるが検知には十分）
+  return [...s].reduce((w, ch) => w + (ch.charCodeAt(0) < 0x100 ? 8 : 16), 0);
+}
+function walk(dir: string): string[] {
+  return readdirSync(dir).flatMap((f) => {
+    const p = join(dir, f);
+    return statSync(p).isDirectory() ? walk(p) : p.endsWith(".tsx") ? [p] : [];
+  });
+}
+const SINGLE_LINE_HINT = /rows=\{1\}|<input/;
+let phChecked = 0;
+for (const file of walk(join(ROOT, "src"))) {
+  const src = readFileSync(file, "utf8");
+  for (const m of src.matchAll(/placeholder="([^"]+)"/g)) {
+    const ph = m[1];
+    phChecked++;
+    // 直前200文字に単行入力の手がかりがあるものだけを対象にする
+    const before = src.slice(Math.max(0, m.index! - 200), m.index!);
+    if (!SINGLE_LINE_HINT.test(before)) continue;
+    const w = textWidth(ph);
+    if (w > NARROW_FIELD_PX) {
+      warn(
+        `placeholderが狭い端末で切れる可能性: ${file.replace(ROOT + "/", "")} ` +
+          `(約${w}px > ${NARROW_FIELD_PX}px)「${ph}」` +
+          ` … 短くして補足は注記に逃がすこと（フォント縮小はiOS自動ズームが復活するので不可）`
+      );
+    }
+  }
+}
+console.log(`placeholder: ${phChecked}件`);
+
+// ---------------------------------------------------------------------------
 // 結果
 // ---------------------------------------------------------------------------
 console.log("");

@@ -33,13 +33,17 @@ export function CommentForm(props: { postId: string }) {
   return (
     <form onSubmit={submit} className="mt-2 space-y-1.5">
       <div className="flex items-end gap-1.5">
+        {/* placeholderは狭い端末(iPhone SE=375px)でも1行に収まる長さにすること。
+            タッチ端末の入力欄はiOSの自動ズーム対策で16px固定なので、
+            入りきらないときにフォントを縮めて逃げてはいけない（ズームが復活する）。
+            補足情報は下の注記に置く */}
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={1}
           maxLength={500}
           disabled={pending}
-          placeholder="コメントする…（AIチェックあり）"
+          placeholder="コメントする…"
           className="field8"
         />
         <button
@@ -50,6 +54,8 @@ export function CommentForm(props: { postId: string }) {
           {pending ? "確認中…" : "返信"}
         </button>
       </div>
+      {/* placeholderから外した補足。狭い端末でも折り返して読める */}
+      <p className="text-[10.5px] text-inksoft">投稿前にAIがチェックします</p>
       {error && (
         <div className="rounded border-2 border-pinkhot bg-quotebg px-2 py-1 text-[11.5px] text-ink">
           {error}
