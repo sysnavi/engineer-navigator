@@ -55,7 +55,7 @@ export default async function PlanListPage() {
             ▶ プランを作成
           </SubmitButton>
           <p className="text-[11.5px] text-inksoft">
-            試験日までを逆算し、あなたのスキルと社内教材を踏まえて週次の計画を生成します。
+            試験日までを逆算し、あなたのスキルと登録済みの教材を踏まえて週次の計画を生成します。
           </p>
         </form>
       </Window>

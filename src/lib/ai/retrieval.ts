@@ -100,7 +100,7 @@ export async function searchLearningChunks(
  */
 export function formatContextBlock(
   chunks: RetrievedChunk[],
-  label = "参考資料（社内学習コンテンツから検索）"
+  label = "参考資料（登録済み学習コンテンツから検索）"
 ): string {
   if (chunks.length === 0) return "";
   const body = chunks

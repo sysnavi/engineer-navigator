@@ -139,7 +139,7 @@ export function detectSignals(series: WeekPoint[]): Detected[] {
     out.push({
       level: "WARN",
       trigger: "相談フラグ",
-      reason: "週報で「営業に直接相談したい」にチェックがありました。",
+      reason: "週報で「直接相談したい」にチェックがありました。",
     });
   }
 
@@ -178,12 +178,12 @@ export async function runConditionRules(userId: string): Promise<number> {
   return created;
 }
 
-/** 「営業に直接相談したい」— 提出時に解析を待たず即時発火 */
+/** 「直接相談したい」（相談フラグ）— 提出時に解析を待たず即時発火 */
 export async function createConsultationAlert(userId: string): Promise<void> {
   await createIfNew(userId, {
     level: "WARN",
     trigger: "相談フラグ",
-    reason: "週報で「営業に直接相談したい」にチェックがありました。",
+    reason: "週報で「直接相談したい」にチェックがありました。",
   });
 }
 

@@ -107,7 +107,7 @@ export default async function ConditionPage() {
 
       <p className="rounded-lg border-2 border-dashed border-royal2 bg-quotebg px-4 py-2.5 text-[12px] text-inksoft">
         🔒 このページは<b>管理者のみ</b>閲覧できます。
-        コンディションデータは早期フォローのためのもので、<b>人事評価には使用しません</b>。
+        コンディションデータは早期フォローのためのもので、<b>評価や所属先への共有には使用しません</b>。
         解析が行われることは週報画面で本人に明示しています。
       </p>
 

@@ -27,8 +27,8 @@ function ConsentGate() {
           実績（設問3・4）は経歴書に反映されます。
         </li>
         <li className="rounded-lg border-2 border-line8 bg-surface p-3 shadow-hard-sm">
-          <b>3. 人事評価には使いません</b> —
-          コンディションのスコアやアラートが評価に使われることはありません。早期フォローのためだけに使います。
+          <b>3. 評価には使いません</b> —
+          コンディションのスコアやアラートが、あなたの所属先・案件先に共有されたり、評価に使われたりすることはありません。運営からの早期フォローのためだけに使います。
         </li>
       </ol>
       <form action={giveConsent} className="mt-5">

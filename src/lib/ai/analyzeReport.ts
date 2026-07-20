@@ -31,11 +31,11 @@ type AnalysisResult = {
   skills: ExtractedSkill[];
   conditionScore: number; // 0-100（100=良好）
   conditionReasons: string[];
-  consultationSignals: string[]; // 会社が対応すべきシグナル
+  consultationSignals: string[]; // 運営がフォローすべきシグナル
   feedback: string; // 本人向け「今週の成長ポイント」（2-3文）
 };
 
-const SYSTEM_PROMPT = `あなたはSES企業のエンジニア育成を支援するアナリストです。
+const SYSTEM_PROMPT = `あなたはSESエンジニアの成長を支援するアナリストです。
 エンジニアの週報を解析し、指定されたJSONのみを出力してください（説明文は不要）。
 
 ## スキル抽出のルール
@@ -60,9 +60,9 @@ const SYSTEM_PROMPT = `あなたはSES企業のエンジニア育成を支援す
   "feedback": string
 }
 
-## 社内ノウハウの優先
-参考として社内の判定基準・対応ノウハウが与えられた場合は、一般論よりそれを優先して判断すること。
-reason には、その基準に照らした根拠（例: 「社内基準ではLv4の条件である本番リリース経験に該当」）を書く。`;
+## 登録ノウハウの優先
+参考として判定基準・対応ノウハウが与えられた場合は、一般論よりそれを優先して判断すること。
+reason には、その基準に照らした根拠（例: 「判定基準のLv4条件である本番リリース経験に該当」）を書く。`;
 
 /** 顧客名などの固有名詞をマスキングする前処理（守りのAI武装） */
 function maskSensitive(text: string, aliases: { real?: string | null }[]): string {
@@ -108,12 +108,12 @@ ${maskSensitive(report.struggleText ?? "", [])}
 【来週やること】
 ${maskSensitive(report.nextText ?? "", [])}
 
-【会社への共有・相談】
+【AIメンターへの共有・相談】
 ${maskSensitive(report.shareText ?? "", [])}`;
 
-    // 社内ノウハウRAG: 判定は一般論ではなく会社の基準で行う。
-    // - スキル判定基準: 何をやったか（実績）から社内Lv定義に照らす
-    // - コンディション対応ノウハウ: 詰まり/トーンの読み取りを社内事例に照らす
+    // 登録ノウハウRAG: 判定は一般論ではなく登録された基準で行う。
+    // - スキル判定基準: 何をやったか（実績）から登録Lv定義に照らす
+    // - コンディション対応ノウハウ: 詰まり/トーンの読み取りを登録事例に照らす
     // どちらも該当なし・キー未設定なら空文字（従来どおり動く）。
     const [skillKnow, condKnow] = await Promise.all([
       searchKnowledge({
@@ -128,10 +128,10 @@ ${maskSensitive(report.shareText ?? "", [])}`;
       }),
     ]);
     const knowledgeBlock =
-      formatContextBlock(skillKnow, "社内のスキル判定基準（この基準で判定すること）") +
+      formatContextBlock(skillKnow, "登録されたスキル判定基準（この基準で判定すること）") +
       formatContextBlock(
         condKnow,
-        "社内のコンディション対応ノウハウ（トーン解析・シグナル判断の参考）"
+        "登録されたコンディション対応ノウハウ（トーン解析・シグナル判断の参考）"
       );
 
     const { data, usage } = await completeJson<AnalysisResult>({
