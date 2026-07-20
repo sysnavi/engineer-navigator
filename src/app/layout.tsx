@@ -9,6 +9,7 @@ import { appsForRole, resolveDock } from "@/lib/apps";
 import { RegisterSW } from "@/components/register-sw";
 import { AutosizeTextareas } from "@/components/autosize-textareas";
 import { Tutorial } from "@/components/tutorial";
+import { TipsToast } from "@/components/tips-toast";
 import { Taskbar } from "@/components/shell/taskbar";
 import { Visitor } from "@/components/pets/visitor";
 import { ensureTodayEncounter, getPendingVisitor } from "@/lib/pets/encounter";
@@ -104,6 +105,8 @@ export default async function RootLayout({
         <RegisterSW />
         <AutosizeTextareas />
         {loggedIn && <Tutorial defaultOpen={!user?.tutorialCompletedAt} />}
+        {/* TIPS: 1日1回・チュートリアル完了者のみ（初日はチュートリアルと被せない） */}
+        {loggedIn && user?.tutorialCompletedAt && <TipsToast />}
         {shell === "classic" && (
           <header className="no-print sticky top-0 z-10 border-b-[2.5px] border-line8 bg-royal shadow-hard-sm">
             <div className="mx-auto flex max-w-4xl flex-col gap-1.5 px-4 py-2.5 sm:flex-row sm:items-center sm:gap-2">
