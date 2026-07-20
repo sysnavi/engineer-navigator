@@ -2,7 +2,7 @@
 
 // デスクトップシェルの下部バー（松UI・Issue #6想定の刷新）。
 // PC: タスクバー（▶スタート + 現在地チップ + トレイ）
-// モバイル: ドック（ユーザーが選んだ3枠 + ▶スタート固定・Issue #10）+ 全画面ドロワー
+// モバイル: ドック（▶スタート固定が左端 + ユーザーが選んだ3枠・Issue #10）+ 全画面ドロワー
 // スタートメニュー/ドロワーの中身は APPS レジストリから生成（単一ソース）。
 
 import { useEffect, useState } from "react";
@@ -138,27 +138,15 @@ export function Taskbar(props: {
         <button
           onClick={() => setMenuOpen((v) => !v)}
           aria-expanded={menuOpen}
-          className="order-2 flex flex-col items-center gap-0.5 rounded-lg border-[2.5px] border-line8 bg-pinkhot px-3 py-1 font-pixel text-[12px] tracking-wide text-white shadow-[2px_2px_0_rgba(0,0,0,0.4)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none sm:order-none sm:flex-row sm:gap-1.5 sm:px-4 sm:py-1.5"
+          className="flex flex-col items-center gap-0.5 rounded-lg border-[2.5px] border-line8 bg-pinkhot px-3 py-1 font-pixel text-[12px] tracking-wide text-white shadow-[2px_2px_0_rgba(0,0,0,0.4)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none sm:flex-row sm:gap-1.5 sm:px-4 sm:py-1.5"
         >
           ▶ <span className="text-[10px] sm:text-[12px]">スタート</span>
         </button>
 
-        {/* モバイル: ドック（選択1・2枠目 / ▶スタート / 3枠目） */}
-        <div className="order-1 flex flex-1 items-center justify-around sm:hidden">
-          {props.dock.slice(0, 2).map((a) => (
+        {/* モバイル: ドック（▶スタートの右に選択順で3枠） */}
+        <div className="flex flex-1 items-center justify-around sm:hidden">
+          {props.dock.map((a) => (
             <Link key={a.id} href={a.href} className="flex flex-col items-center gap-0.5 rounded-lg px-2 py-0.5 text-[10px] font-bold text-white active:bg-royal2">
-              <PixelIcon id={a.id} px={2} />
-              {a.name}
-            </Link>
-          ))}
-        </div>
-        <div className="order-3 flex items-center justify-around sm:hidden">
-          {props.dock.slice(2).map((a) => (
-            <Link
-              key={a.id}
-              href={a.href}
-              className="flex flex-col items-center gap-0.5 rounded-lg px-2 py-0.5 text-[10px] font-bold text-white active:bg-royal2"
-            >
               <PixelIcon id={a.id} px={2} />
               {a.name}
             </Link>

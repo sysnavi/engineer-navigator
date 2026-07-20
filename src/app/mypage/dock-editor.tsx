@@ -1,8 +1,7 @@
 "use client";
 
 // モバイルドックのカスタマイズ（Issue #10）。
-// 候補から3つ選ぶと、選択順（バッジの 1・2・3）どおりにドックへ並ぶ。
-// 3枠目は▶スタートの右側に置かれる（taskbar.tsx のレイアウトと対応）。
+// 候補から3つ選ぶと、左端固定の▶スタートの右に選択順（バッジの 1・2・3）で並ぶ。
 
 import { useState, useTransition } from "react";
 import { setDockApps } from "@/app/actions";

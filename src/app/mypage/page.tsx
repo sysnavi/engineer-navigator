@@ -512,7 +512,7 @@ export default async function MyPage({
       <Window title="DOCK" titleEm=".cfg">
         <PixelLabel>モバイルドック — 下部メニューの3枠を選ぶ</PixelLabel>
         <p className="mt-2 text-[12.5px] text-inksoft">
-          スマホ表示（デスクトップUI）の下部ドックに置く機能を3つ選びます。選んだ順に並び、3つ目は▶スタートの右側に置かれます。
+          スマホ表示（デスクトップUI）の下部ドックに置く機能を3つ選びます。左端の▶スタートは固定で、その右に選んだ順で並びます。
         </p>
         <DockEditor
           apps={appsForRole(user.role)}
