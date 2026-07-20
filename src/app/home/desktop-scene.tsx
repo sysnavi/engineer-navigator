@@ -169,7 +169,20 @@ export function DesktopScene(props: {
         style={{ top: "28%", height: "2.5%", background: "rgba(0,0,0,0.14)" }}
       />
 
-      {/* デスク（3/4ビュー: 天板の上面が見える。決定的進化） */}
+      {/* デスクの接地影（右上からの光 → 左下へ落ちる） */}
+      <div
+        className="absolute"
+        style={{
+          left: `${dg.left - 2}%`,
+          right: `${dg.right + 1}%`,
+          top: `${DESK_GEOM.legBottom - 2}%`,
+          height: "4%",
+          background: "rgba(0,0,0,0.13)",
+          transform: `skewX(-${DESK_GEOM.skewDeg * 2}deg)`,
+          zIndex: 3,
+        }}
+      />
+      {/* デスク（右斜め上から見下ろし: 天板は奥の辺が左へ流れる斜投影。決定的進化） */}
       <div
         className={`absolute rounded-md border-[2.5px] border-line8 ${deskStyle.extra ?? ""}`}
         style={{
@@ -178,11 +191,19 @@ export function DesktopScene(props: {
           top: `${DESK_GEOM.plateTop - 2}%`,
           height: `${DESK_GEOM.plateBottom - DESK_GEOM.plateTop + 2}%`,
           background: deskStyle.plate,
+          transform: `skewX(${DESK_GEOM.skewDeg}deg)`,
+          transformOrigin: "bottom center",
           zIndex: 5,
         }}
         title={`${props.desk.name} — ${props.desk.hint}`}
-      />
-      {/* 天板の前縁（厚み）: ひとまわり濃い色で立体感 */}
+      >
+        {/* 天板の右側面（濃色の帯で厚みを見せる） */}
+        <i
+          className="absolute inset-y-0 right-0 w-[7px] rounded-r-[4px]"
+          style={{ background: deskStyle.leg, opacity: 0.85 }}
+        />
+      </div>
+      {/* 天板の前縁（厚み）: skew の origin が bottom なので前縁とズレなく接続する */}
       <div
         className="absolute border-x-[2.5px] border-b-[2.5px] border-line8"
         style={{
@@ -257,29 +278,31 @@ export function DesktopScene(props: {
         </button>
       ))}
 
-      {/* きょうの来客: デスクのうえでくつろぐペット（天板の上=手前縁に座る） */}
+      {/* きょうの来客: デスクのよこ（床）で遊ぶペット */}
       {props.visitor && sp && (
         <button
           onClick={onPetVisitor}
-          title={`${props.visitor.name}がデスクのうえでくつろいでいる${props.visitor.pettedToday ? "（きょうはなでなで済み）" : "（クリックでなでる）"}`}
+          title={`${props.visitor.name}がデスクのよこで遊んでいる${props.visitor.pettedToday ? "（きょうはなでなで済み）" : "（クリックでなでる）"}`}
           className="absolute -translate-x-1/2 -translate-y-full"
-          style={{ left: "30%", top: `${DESK_GEOM.plateBottom + 1}%`, zIndex: depthZ(DESK_GEOM.plateBottom) }}
+          style={{ left: "24%", top: "84%", zIndex: depthZ(84) }}
         >
-          {visitorHeart && (
-            <span className="pet-heart absolute -top-4 left-1/2 font-pixel text-[13px] text-pinkhot">
-              ♥
+          <span className="pet-wander inline-block" style={{ animationDuration: "6.5s" }}>
+            {visitorHeart && (
+              <span className="pet-heart absolute -top-4 left-1/2 font-pixel text-[13px] text-pinkhot">
+                ♥
+              </span>
+            )}
+            <span className="alien-patapata inline-block" style={{ animationDuration: "1.6s" }}>
+              <Image
+                src={(visitorHeart && sp.sprites.happy) || sp.sprites.normal}
+                alt={props.visitor.name}
+                width={44}
+                height={44}
+                draggable={false}
+                style={{ imageRendering: "pixelated" }}
+                unoptimized
+              />
             </span>
-          )}
-          <span className="alien-patapata inline-block" style={{ animationDuration: "1.6s" }}>
-            <Image
-              src={(visitorHeart && sp.sprites.happy) || sp.sprites.normal}
-              alt={props.visitor.name}
-              width={44}
-              height={44}
-              draggable={false}
-              style={{ imageRendering: "pixelated" }}
-              unoptimized
-            />
           </span>
         </button>
       )}

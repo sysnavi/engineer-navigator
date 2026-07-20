@@ -18,14 +18,17 @@ export const ZONES: Record<ZoneId, { y: [number, number]; label: string }> = {
   floor: { y: [62, 90], label: "床" },
 };
 
-/** デスクの描画ジオメトリ（%）。desktop-scene が3/4ビューで描く際の基準 */
+/** デスクの描画ジオメトリ（%）。desktop-scene が3/4ビューで描く際の基準。
+ *  skewDeg は「右斜め上から見下ろし」の斜投影（奥の辺が左へ流れる）。
+ *  スプライトは正面向きのまま（ビルボード）で、家具の面だけ斜めに描く */
 export const DESK_GEOM = {
-  left: 14,
-  right: 14,
+  left: 16,
+  right: 12,
   plateTop: 31, // 天板の上面ここから
   plateBottom: 58, // 天板の上面ここまで（= 前縁の始まり）
   edgeBottom: 64, // 前縁（厚み）ここまで
   legBottom: 73, // 脚ここまで
+  skewDeg: 12,
 };
 
 /** 壁に掛けられるカテゴリ（チェアが壁に貼り付く事故だけは構造で防ぐ）。

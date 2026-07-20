@@ -87,12 +87,13 @@ export function LivingScene(props: {
         className="absolute inset-x-0"
         style={{ top: "30%", height: "3%", background: "rgba(0,0,0,0.14)" }}
       />
-      {/* ラグ（キャラと同じ極太アウトラインの文法で） */}
+      {/* ラグ（キャラと同じ極太アウトライン + デスクと同じ右斜め上からの斜投影） */}
       <div
-        className="pointer-events-none absolute left-1/2 top-[62%] h-[42%] w-[58%] -translate-x-1/2 -translate-y-1/2 rounded-[38%] border-[2.5px] border-line8"
+        className="pointer-events-none absolute left-1/2 top-[68%] h-[24%] w-[46%] -translate-x-1/2 -translate-y-1/2 rounded-xl border-[2.5px] border-line8"
         style={{
           background:
             "radial-gradient(circle at 3px 3px, rgba(255,255,255,0.5) 1.5px, transparent 1.5px) 0 0 / 10px 10px, rgba(255,255,255,0.45)",
+          transform: "translate(-50%, -50%) skewX(12deg)",
         }}
       />
 
