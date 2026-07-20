@@ -18,6 +18,7 @@ import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
 import { performRebirth } from "@/lib/exp";
 import { createInvite } from "@/lib/invite";
 import { SESSION_COOKIE } from "@/lib/session";
+import { deleteAuthSession } from "@/lib/auth-session";
 
 /** AiBlockedError をフォーム表示用の分かりやすい Error に変換して投げ直す */
 function throwFriendly(e: unknown): never {
@@ -348,6 +349,9 @@ export async function revokeInvite(inviteId: string) {
 
 export async function logout() {
   const store = await cookies();
+  const token = store.get(SESSION_COOKIE)?.value;
+  // OAuthセッションはサーバー側も無効化（cookieを消すだけだとトークンが生き残る）
+  if (token) await deleteAuthSession(token).catch(() => {});
   store.delete(SESSION_COOKIE);
   store.delete("dev-user");
   redirect("/welcome");

@@ -40,13 +40,18 @@ export class AiBlockedError extends Error {
  * - 24時間の呼び出し数が自動停止しきい値を超えたらアカウントを停止して拒否
  * 問題なければ利用ログ(AiUsage)を1件記録して通す。
  */
+// 新規ユーザーの慣らし期間（Issue #8: OAuth開放でのスパム対策）。
+// 登録からこの日数の間は 1日上限・自動停止しきい値を 1/3 に絞る（1分上限は共通）。
+const NEWCOMER_DAYS = 7;
+const NEWCOMER_FACTOR = 3;
+
 export async function assertAiAllowed(
   userId: string,
   kind: string
 ): Promise<void> {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
-    select: { suspendedAt: true },
+    select: { suspendedAt: true, createdAt: true },
   });
   if (user.suspendedAt) {
     throw new AiBlockedError(
@@ -56,6 +61,15 @@ export async function assertAiAllowed(
   }
 
   const now = new Date();
+  const isNewcomer =
+    now.getTime() - user.createdAt.getTime() < NEWCOMER_DAYS * 86400_000;
+  const perDay = isNewcomer
+    ? Math.ceil(AI_LIMITS.perDay / NEWCOMER_FACTOR)
+    : AI_LIMITS.perDay;
+  const autoSuspendPerDay = isNewcomer
+    ? Math.ceil(AI_LIMITS.autoSuspendPerDay / NEWCOMER_FACTOR)
+    : AI_LIMITS.autoSuspendPerDay;
+
   const minuteAgo = new Date(now.getTime() - 60_000);
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000);
 
@@ -65,12 +79,12 @@ export async function assertAiAllowed(
   ]);
 
   // 24時間の呼び出しが自動停止しきい値を超えたら、アカウントを停止する
-  if (lastDay >= AI_LIMITS.autoSuspendPerDay) {
+  if (lastDay >= autoSuspendPerDay) {
     await prisma.user.update({
       where: { id: userId },
       data: {
         suspendedAt: now,
-        suspendReason: `自動停止: 24時間で${lastDay}回のAI利用（上限${AI_LIMITS.autoSuspendPerDay}）`,
+        suspendReason: `自動停止: 24時間で${lastDay}回のAI利用（上限${autoSuspendPerDay}${isNewcomer ? "・新規アカウント慣らし中" : ""}）`,
       },
     });
     throw new AiBlockedError(
@@ -84,10 +98,12 @@ export async function assertAiAllowed(
       "短時間のリクエストが多すぎます。少し時間をおいてからお試しください。"
     );
   }
-  if (lastDay >= AI_LIMITS.perDay) {
+  if (lastDay >= perDay) {
     throw new AiBlockedError(
       "RATE_DAY",
-      "本日のAI利用上限に達しました。時間をおいて（翌日以降に）ご利用ください。"
+      isNewcomer
+        ? "本日のAI利用上限に達しました（新規アカウントは1週間、上限を控えめにしています）。"
+        : "本日のAI利用上限に達しました。時間をおいて（翌日以降に）ご利用ください。"
     );
   }
 

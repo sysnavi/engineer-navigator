@@ -3,3 +3,5 @@
 export const SESSION_COOKIE = "en_session";
 // ローカル開発用ログインの cookie 名（DEV_LOGIN_ENABLED のときのみ有効）
 export const DEV_COOKIE = "dev-user";
+// OAuthフローの state（CSRF対策）を一時保存する cookie 名
+export const OAUTH_STATE_COOKIE = "en_oauth_state";

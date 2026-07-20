@@ -1,13 +1,23 @@
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
+import { enabledProviders, PROVIDER_LABELS } from "@/lib/oauth";
 
-// 公開ランディング。招待リンクが無い訪問者はここに来る。個人情報は集めない。
+// 公開ランディング。ログイン手段は OAuth（Google/GitHub・PIIゼロ）と招待リンクの併存。
+
+const OAUTH_ERRORS: Record<string, string> = {
+  state: "確認情報が一致しませんでした。もう一度お試しください。",
+  denied: "ログインがキャンセルされました。",
+  exchange: "プロバイダとの通信に失敗しました。時間をおいてお試しください。",
+  provider: "このログイン方法は現在利用できません。",
+};
 
 export default async function WelcomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ invalid?: string }>;
+  searchParams: Promise<{ invalid?: string; oauth_error?: string }>;
 }) {
-  const { invalid } = await searchParams;
+  const { invalid, oauth_error } = await searchParams;
+  const providers = enabledProviders();
+
   return (
     <div className="mx-auto max-w-lg space-y-6 py-8">
       <div className="text-center">
@@ -30,14 +40,46 @@ export default async function WelcomePage({
           </p>
         </div>
       )}
+      {oauth_error && (
+        <div className="rounded-lg border-[2.5px] border-pinkhot bg-quotebg px-4 py-3">
+          <p className="font-pixel text-[12px] tracking-wide text-pinkhot">
+            ⚠ LOGIN ERROR
+          </p>
+          <p className="mt-1 text-[12.5px] text-ink">
+            {OAUTH_ERRORS[oauth_error] ?? OAUTH_ERRORS.exchange}
+          </p>
+        </div>
+      )}
+
+      {providers.length > 0 && (
+        <Window title="LOGIN" titleEm=".exe">
+          <p className="text-[13.5px] leading-relaxed">
+            お持ちのアカウントでログインできます。
+            <b>メールアドレスや名前は受け取りません</b>——「同じ人が戻ってきた」
+            ことの確認にだけ使います。
+          </p>
+          <div className="mt-3 flex flex-col gap-2">
+            {providers.map((p) => (
+              <a
+                key={p}
+                href={`/api/auth/${p}/start`}
+                className="btn8 btn8-start block text-center text-[13px]"
+              >
+                ▶ {PROVIDER_LABELS[p]} でログイン / はじめる
+              </a>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-inksoft">
+            はじめての方はアカウントが自動で作られます（ハンドル名は後から変更できます）。
+          </p>
+        </Window>
+      )}
 
       <Window title="ACCESS" titleEm=".txt">
         <p className="text-[13.5px] leading-relaxed">
-          このアプリは<b>招待リンク制</b>です。運営から受け取ったリンク（
-          <span className="font-pixel text-[12px] text-royal2">
-            /join/…
-          </span>
-          ）を開くと利用を開始できます。
+          <b>招待リンク</b>（
+          <span className="font-pixel text-[12px] text-royal2">/join/…</span>
+          ）をお持ちの方は、そのURLを開くだけで利用を開始できます。
         </p>
         <ul className="mt-3 space-y-1.5 text-[12.5px] text-inksoft">
           <li>・メールアドレスやパスワードは登録不要です。</li>
@@ -45,10 +87,6 @@ export default async function WelcomePage({
           <li>・本名や客先の実名は入力しないでください。</li>
         </ul>
       </Window>
-
-      <p className="text-center text-[11.5px] text-inksoft">
-        招待リンクをお持ちの方はそのURLを開いてください。
-      </p>
     </div>
   );
 }

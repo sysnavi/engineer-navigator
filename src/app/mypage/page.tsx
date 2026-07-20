@@ -16,6 +16,11 @@ import { ReportToggle } from "./report-toggle";
 import { InheritPanel } from "./inherit-panel";
 import { DOMAINS } from "@/lib/domains";
 import { ReplayTutorialButton } from "@/components/replay-tutorial";
+import {
+  enabledProviders,
+  PROVIDER_LABELS,
+  type OAuthProvider,
+} from "@/lib/oauth";
 import { formatWeek } from "@/lib/week";
 import {
   getPlayerStats,
@@ -44,23 +49,36 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN: "管理者",
 };
 
-export default async function MyPage() {
+export default async function MyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ linked?: string; oauth_error?: string }>;
+}) {
   const user = await getCurrentUser();
+  const { linked, oauth_error } = await searchParams;
   const devLogin = process.env.DEV_LOGIN_ENABLED === "true";
   const isAdmin = user.role === "ADMIN";
-  const [devUsers, submittedReports, player, lineage] = await Promise.all([
-    devLogin
-      ? prisma.user.findMany({ orderBy: { role: "asc" } })
-      : Promise.resolve([]),
-    prisma.weeklyReport.findMany({
-      where: { userId: user.id, status: "SUBMITTED" },
-      orderBy: { weekStart: "desc" },
-      take: 12,
-      select: { id: true, weekStart: true, isPublic: true },
-    }),
-    getPlayerStats(user.id),
-    getLineage(user.id),
-  ]);
+  const [devUsers, submittedReports, player, lineage, identities] =
+    await Promise.all([
+      devLogin
+        ? prisma.user.findMany({ orderBy: { role: "asc" } })
+        : Promise.resolve([]),
+      prisma.weeklyReport.findMany({
+        where: { userId: user.id, status: "SUBMITTED" },
+        orderBy: { weekStart: "desc" },
+        take: 12,
+        select: { id: true, weekStart: true, isPublic: true },
+      }),
+      getPlayerStats(user.id),
+      getLineage(user.id),
+      prisma.authIdentity.findMany({
+        where: { userId: user.id },
+        select: { provider: true, createdAt: true },
+      }),
+    ]);
+  const linkableProviders = enabledProviders().filter(
+    (p) => !identities.some((i) => i.provider === p)
+  );
 
   return (
     <div className="space-y-7">
@@ -121,6 +139,49 @@ export default async function MyPage() {
             </form>
           </div>
         </div>
+      </Window>
+
+      {/* ログイン連携（Issue #8）: OAuthの後付けリンク。PIIはハッシュのみ */}
+      <Window title="AUTH" titleEm=".cfg">
+        <PixelLabel>ログイン連携 — 端末が変わっても同じアカウントで</PixelLabel>
+        {linked && (
+          <p className="mt-2 rounded-lg border-2 border-line8 bg-quotebg px-3 py-1.5 font-pixel text-[11px] text-royal">
+            ✓ 連携しました！次からこのアカウントでログインできます
+          </p>
+        )}
+        {oauth_error === "already-linked" && (
+          <p className="mt-2 rounded-lg border-2 border-pinkhot bg-quotebg px-3 py-1.5 text-[12px] text-ink">
+            そのアカウントは既に別のユーザーに連携されています。
+          </p>
+        )}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {identities.map((i) => (
+            <span
+              key={i.provider}
+              className="rounded-md border-2 border-line8 bg-surface px-2.5 py-1 font-pixel text-[11px]"
+            >
+              ✓ {PROVIDER_LABELS[i.provider as OAuthProvider] ?? i.provider} 連携済み
+            </span>
+          ))}
+          {linkableProviders.map((p) => (
+            <a
+              key={p}
+              href={`/api/auth/${p}/start`}
+              className="btn8 px-3 py-1.5 text-[11px]"
+            >
+              ＋ {PROVIDER_LABELS[p]} を連携
+            </a>
+          ))}
+          {identities.length === 0 && linkableProviders.length === 0 && (
+            <span className="text-[12px] text-inksoft">
+              現在利用できる連携先がありません（管理者がOAuth設定を行うと表示されます）。
+            </span>
+          )}
+        </div>
+        <p className="mt-2 text-[11px] text-inksoft">
+          連携時にメールアドレスや名前は受け取りません。保存されるのは復元不能なハッシュだけです。
+          招待リンクで始めた方も、連携しておくとリンクを失くしてもログインできます。
+        </p>
       </Window>
 
       {/* アバター継承（転生）: 卵を産んで遺伝子を受け継ぐ（Issue #1） */}

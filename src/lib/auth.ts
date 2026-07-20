@@ -2,11 +2,12 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { SESSION_COOKIE, DEV_COOKIE } from "@/lib/session";
 import { userFromSessionToken } from "@/lib/invite";
+import { userFromAuthSession } from "@/lib/auth-session";
 
-// 認証は2系統:
-// 1) 招待リンクセッション（本番/公開用）: cookie "en_session" のトークンから Invite→User を解決。
-//    個人情報（メール・パスワード）は保持しない。
-// 2) 開発用ログイン（DEV_LOGIN_ENABLED のときのみ）: cookie "dev-user" のメールで特定。
+// 認証は3系統（cookieは共通で en_session）:
+// 1) OAuthセッション（Issue #8）: AuthSession.token → User。PIIはハッシュのみ。
+// 2) 招待リンクセッション: Invite.token → User。
+// 3) 開発用ログイン（DEV_LOGIN_ENABLED のときのみ）: cookie "dev-user" のメールで特定。
 //    ローカル開発の利便のため。本番では無効。
 
 const DEV_LOGIN = process.env.DEV_LOGIN_ENABLED === "true";
@@ -18,8 +19,10 @@ export async function getOptionalUser() {
 
   const token = store.get(SESSION_COOKIE)?.value;
   if (token) {
-    const user = await userFromSessionToken(token);
-    if (user) return user;
+    const oauthUser = await userFromAuthSession(token);
+    if (oauthUser) return oauthUser;
+    const inviteUser = await userFromSessionToken(token);
+    if (inviteUser) return inviteUser;
   }
 
   if (DEV_LOGIN) {

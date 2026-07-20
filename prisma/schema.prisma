@@ -70,6 +70,35 @@ model User {
   ownedGadgets     OwnedGadget[]
   encounters       Encounter[]
   pets             Pet[]
+  authIdentities   AuthIdentity[]
+  authSessions     AuthSession[]
+}
+
+// OAuthログインの身元（Issue #8・PIIゼロ設計）。
+// 保存するのは SHA-256("provider:sub") のハッシュのみ。メール・名前は受け取らず保存しない。
+// 1ユーザーに複数行OK＝Google と GitHub を同じアカウントへ後付けリンクできる。
+model AuthIdentity {
+  id           String   @id @default(cuid())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  providerHash String   @unique
+  provider     String // "google" | "github"（表示・重複リンク防止用。sub自体は保存しない）
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, provider])
+}
+
+// OAuthログインのセッション（ランダムトークン・DB照合）。
+// cookie は招待リンクと同じ en_session を使い、解決は AuthSession → Invite の順。
+model AuthSession {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
 }
 
 // ローグライクダンジョン（Issue #3）: フルオート潜行の確定済みログ。
