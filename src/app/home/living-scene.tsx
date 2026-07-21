@@ -119,7 +119,10 @@ export function LivingScene(props: {
             style={{
               left: `${pos.x}%`,
               top: `${34 + pos.y * 0.66}%`,
-              width: `${PET_SIZE}%`,
+              // %指定だけだと狭い端末で30px程度まで縮み、名前が縦に折り返して
+              // 背の高い名札になり、スプライト本体が部屋の外へ押し出される。
+              // 48pxを下限にしてスプライトの視認性とタップ領域を守る
+              width: `max(${PET_SIZE}%, 48px)`,
               zIndex: 10 + Math.round(pos.y * 10),
             }}
           >
@@ -145,7 +148,8 @@ export function LivingScene(props: {
                   unoptimized
                 />
               </span>
-              <span className="rounded border-2 border-line8 bg-win px-1 font-pixel text-[9px] tracking-wide">
+              {/* nowrap必須: 折り返すと1文字ずつ縦に積まれて名札が塔になる */}
+              <span className="whitespace-nowrap rounded border-2 border-line8 bg-win px-1 font-pixel text-[9px] tracking-wide">
                 {p.name}
               </span>
             </span>
