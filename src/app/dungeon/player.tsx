@@ -235,7 +235,8 @@ export function DungeonPlayer(props: {
           seHit();
           pop(`-${14 + i * 5}`, "text-[20px] text-white", "72%", "40%");
         }
-        hp -= lastAndWin ? 60 : 32;
+        // とどめの一撃はゲージを必ず0に（残ったまま勝つと不自然）
+        hp = lastAndWin ? 0 : hp - 32;
         setFoeHp(Math.max(0, hp));
         await sleep(320);
         setHeroCls("dg-hero-idle");
