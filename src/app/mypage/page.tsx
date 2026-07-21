@@ -125,14 +125,15 @@ export default async function MyPage({
       )}
 
       <Window title="PLAYER" titleEm=".dat">
-        <div className="flex items-center gap-4">
+        {/* flex-wrap: スマホでは右のボタン群が下段に折り返し、入力欄の幅を確保する */}
+        <div className="flex flex-wrap items-center gap-4">
           <div
             className="flex h-14 w-14 items-center justify-center rounded-lg border-[2.5px] border-line8 bg-surface font-pixel text-2xl text-royal shadow-hard-sm"
             aria-hidden="true"
           >
             {user.name.charAt(0)}
           </div>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-[200px] flex-1">
             <ActionForm
               action={updateDisplayName}
               ok="表示名を保存しました"
@@ -146,7 +147,7 @@ export default async function MyPage({
                 aria-label="表示名"
                 className="field8 min-w-0 flex-1 py-1 text-[15px] font-extrabold"
               />
-              <button className="btn8 shrink-0 px-2.5 py-1 text-[11px]">
+              <button className="btn8 btn8-start shrink-0 px-2.5 py-1 text-[11px]">
                 保存
               </button>
             </ActionForm>
@@ -160,7 +161,7 @@ export default async function MyPage({
                 : "CONSENT — 未同意（週報の初回起動時に確認します）"}
             </p>
           </div>
-          <div className="flex shrink-0 flex-col gap-1.5">
+          <div className="flex w-full flex-wrap gap-1.5 sm:w-auto sm:shrink-0 sm:flex-col">
             {isAdmin && (
               <Link
                 href="/admin"
