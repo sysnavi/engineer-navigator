@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { postYomoyama } from "./actions";
 import { MicButton } from "@/components/mic-button";
+import { notify } from "@/components/toast";
 
 // よもやまの投稿フォーム。AI門番でブロックされたら理由をその場に表示し、
 // 本人が直して再投稿できるようにする。
@@ -26,6 +27,7 @@ export function PostForm(props: { onPosted?: () => void }) {
       if (res.ok) {
         setBody("");
         props.onPosted?.();
+        notify("ok", "投稿しました");
         router.refresh();
       } else {
         setError(res.error);

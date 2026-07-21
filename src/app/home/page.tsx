@@ -19,6 +19,7 @@ import {
 } from "@/lib/home/scene";
 import { DesktopScene, type DeskGadget, type DeskVisitor } from "./desktop-scene";
 import { LivingScene, type RoomPet } from "./living-scene";
+import { ActionForm } from "@/components/toast";
 import { namePet, placeGadgetAt, setRoomTheme } from "./actions";
 
 function today(): Date {
@@ -220,8 +221,9 @@ export default async function HomePage() {
             {pets.map((p) => {
               const sp = speciesById(p.speciesId);
               return (
-                <form
+                <ActionForm
                   key={p.id}
+                  ok="なまえを保存しました"
                   action={async (formData: FormData) => {
                     "use server";
                     await namePet(p.id, String(formData.get("name") ?? ""));
@@ -247,7 +249,7 @@ export default async function HomePage() {
                     aria-label={`${p.name}のなまえ`}
                   />
                   <button className="btn8 px-3 py-1.5 text-[11.5px]">保存</button>
-                </form>
+                </ActionForm>
               );
             })}
           </div>

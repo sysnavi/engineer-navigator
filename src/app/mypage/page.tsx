@@ -33,6 +33,7 @@ import {
   REBIRTH_MIN_LEVEL,
 } from "@/lib/exp";
 import { PixelAvatar } from "@/components/pixel-avatar";
+import { ActionForm } from "@/components/toast";
 
 // 家系図の実績ハイライト用ラベル（EXPソース→日本語）
 const COUNT_LABELS: Record<string, string> = {
@@ -132,8 +133,9 @@ export default async function MyPage({
             {user.name.charAt(0)}
           </div>
           <div className="min-w-0 flex-1">
-            <form
+            <ActionForm
               action={updateDisplayName}
+              ok="表示名を保存しました"
               className="flex items-center gap-1.5"
             >
               <input
@@ -147,7 +149,7 @@ export default async function MyPage({
               <button className="btn8 shrink-0 px-2.5 py-1 text-[11px]">
                 保存
               </button>
-            </form>
+            </ActionForm>
             <p className="text-[12.5px] text-inksoft">
               {user.email ? `${user.email} ・ ` : ""}
               {ROLE_LABELS[user.role] ?? user.role}
@@ -358,7 +360,7 @@ export default async function MyPage({
         <p className="mt-2 text-[12.5px] text-inksoft">
           何を目指すか（複数可）で、メンターの提案や役割演習のアドバイスがその方向に寄ります。
         </p>
-        <form action={updateTargetDomains} className="mt-3 space-y-3">
+        <ActionForm action={updateTargetDomains} ok="目指す領域を保存しました" className="mt-3 space-y-3">
           <div className="flex flex-wrap gap-2">
             {DOMAINS.map((d) => {
               const on = user.targetDomains.includes(d.id);
@@ -380,13 +382,13 @@ export default async function MyPage({
             })}
           </div>
           <button className="btn8 btn8-start text-[12px]">▶ 保存</button>
-        </form>
+        </ActionForm>
       </Window>
 
       {/* 公開共有の設定 */}
       <Window title="SHARE" titleEm=".cfg">
         <PixelLabel>PUBLIC PROFILE — 成長を公開して学び合う</PixelLabel>
-        <form action={updateShareSettings} className="mt-3 space-y-3">
+        <ActionForm action={updateShareSettings} ok="公開プロフィールを保存しました" className="mt-3 space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-[12px] font-extrabold">
@@ -447,7 +449,7 @@ export default async function MyPage({
               </Link>
             )}
           </div>
-        </form>
+        </ActionForm>
 
         {submittedReports.length > 0 && (
           <div className="mt-5">

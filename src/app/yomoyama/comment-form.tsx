@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addComment } from "./actions";
+import { notify } from "@/components/toast";
 
 // コメント投稿フォーム。投稿と同じAI門番を通すので、ブロック時は理由をその場に表示。
 export function CommentForm(props: { postId: string }) {
@@ -22,6 +23,7 @@ export function CommentForm(props: { postId: string }) {
       const res = await addComment(props.postId, text);
       if (res.ok) {
         setBody("");
+        notify("ok", "コメントしました");
         router.refresh();
       } else {
         setError(res.error);
