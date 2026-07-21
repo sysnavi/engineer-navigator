@@ -565,3 +565,347 @@ body {
     box-shadow: none;
   }
 }
+
+/* =============================================================
+   ダンジョン探索リプレイ（Issue #3 松演出）
+   player.tsx のシーン演出。すべてクライアント演出（結果はサーバー確定済み）。
+   reduced-motion ではシェイク・歩行・パーティクルを止める（進行は止めない）
+   ============================================================= */
+.dg-scene {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(
+    var(--dg-wall-a, #22346e),
+    var(--dg-wall-b, #16224d) 62%,
+    var(--dg-floor-a, #2b3d79) 62%,
+    var(--dg-floor-b, #1c2a5c)
+  );
+  transition: background 1s;
+}
+.dg-scene::before {
+  /* 壁のレンガ */
+  content: "";
+  position: absolute;
+  inset: 0 0 38% 0;
+  opacity: 0.22;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.15) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.12) 2px, transparent 2px);
+  background-size: 56px 26px;
+}
+.dg-scene::after {
+  /* 幅木の影 */
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 62%;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.4);
+}
+.dg-torch {
+  position: absolute;
+  top: 26%;
+  width: 9px;
+  height: 15px;
+  border-radius: 2px;
+  background: #6b4a2b;
+  z-index: 1;
+}
+.dg-torch::before {
+  content: "";
+  position: absolute;
+  left: -3px;
+  top: -12px;
+  width: 15px;
+  height: 13px;
+  background: radial-gradient(circle at 50% 80%, var(--lemon) 0%, #f59f00 60%, transparent 72%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dg-torch::before {
+    animation: dg-flick 0.5s steps(2) infinite;
+  }
+}
+@keyframes dg-flick {
+  50% {
+    transform: scaleY(0.85) translateY(1px);
+    filter: hue-rotate(-12deg);
+  }
+}
+
+.dg-actor {
+  position: absolute;
+  bottom: 14%;
+  z-index: 4;
+  transition: transform 0.18s;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dg-hero-idle {
+    animation: dg-bob 0.55s steps(2) infinite;
+  }
+  .dg-hero-walk {
+    animation: dg-walkbob 0.3s steps(2) infinite;
+  }
+}
+@keyframes dg-bob {
+  50% {
+    transform: translateY(-2px);
+  }
+}
+@keyframes dg-walkbob {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+.dg-dash-r {
+  transform: translateX(110px);
+}
+.dg-dash-l {
+  transform: translateX(-110px);
+}
+.dg-hurt {
+  animation: dg-hurt 0.4s steps(2) 2;
+}
+@keyframes dg-hurt {
+  25% {
+    transform: translateX(-6px);
+    filter: brightness(2) sepia(1) hue-rotate(-50deg);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+.dg-hop {
+  animation: dg-hop 0.5s steps(3) 1;
+}
+@keyframes dg-hop {
+  40% {
+    transform: translateY(-22px);
+  }
+}
+.dg-foe-enter {
+  animation: dg-foein 0.5s steps(4) both;
+}
+@keyframes dg-foein {
+  from {
+    transform: translateX(140px);
+    opacity: 0;
+  }
+}
+.dg-foe-flash {
+  animation: dg-flashw 0.3s steps(2) 2;
+}
+@keyframes dg-flashw {
+  50% {
+    filter: brightness(6);
+  }
+}
+.dg-foe-dying {
+  animation: dg-blinkout 0.8s steps(2) both;
+}
+.dg-foe-flee {
+  animation: dg-flee 0.7s steps(4) both;
+}
+@keyframes dg-flee {
+  to {
+    transform: translateX(160px);
+    opacity: 0;
+  }
+}
+@keyframes dg-blinkout {
+  0%,
+  40% {
+    opacity: 1;
+  }
+  20%,
+  60%,
+  90% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dg-shake {
+    animation: dg-shake 0.45s steps(6);
+  }
+}
+@keyframes dg-shake {
+  20% {
+    transform: translate(-7px, 3px);
+  }
+  40% {
+    transform: translate(6px, -4px);
+  }
+  60% {
+    transform: translate(-4px, 2px);
+  }
+  80% {
+    transform: translate(3px, -2px);
+  }
+}
+.dg-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.dg-vignette-red {
+  background: radial-gradient(circle, transparent 40%, rgba(229, 72, 77, 0.55));
+}
+.dg-vignette-gold {
+  background: radial-gradient(circle, transparent 40%, rgba(255, 216, 77, 0.45));
+}
+.dg-vignette-on {
+  opacity: 1;
+}
+.dg-blackout {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  background: #05091f;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.45s;
+  display: grid;
+  place-items: center;
+}
+.dg-blackout-on {
+  opacity: 1;
+}
+.dg-pop {
+  position: absolute;
+  z-index: 7;
+  font-weight: 700;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+  animation: dg-poprise 0.9s ease-out both;
+}
+@keyframes dg-poprise {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-46px);
+    opacity: 0;
+  }
+}
+.dg-pop-zzz {
+  animation: dg-zzz 1.6s ease-out both;
+}
+@keyframes dg-zzz {
+  from {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    transform: translate(18px, -40px);
+    opacity: 0;
+  }
+}
+.dg-particle {
+  position: absolute;
+  z-index: 6;
+  width: 7px;
+  height: 7px;
+  pointer-events: none;
+  animation: dg-part 0.7s ease-out both;
+}
+@keyframes dg-part {
+  to {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 0;
+  }
+}
+.dg-obj-bounce {
+  animation: dg-chestbounce 0.5s steps(2) 2;
+}
+@keyframes dg-chestbounce {
+  50% {
+    transform: translateY(-8px);
+  }
+}
+.dg-obj-spring {
+  animation: dg-spring 0.35s steps(2) 3;
+}
+@keyframes dg-spring {
+  50% {
+    transform: translateY(-10px) rotate(8deg);
+  }
+}
+.dg-obj-glow::after {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 216, 77, 0.5), transparent 70%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dg-obj-glow::after {
+    animation: dg-flick 0.6s steps(2) infinite;
+  }
+}
+.dg-loot {
+  position: absolute;
+  z-index: 7;
+  left: 50%;
+  top: 40%;
+  animation: dg-lootup 1.6s ease-out both;
+  white-space: nowrap;
+}
+@keyframes dg-lootup {
+  from {
+    transform: translate(-50%, 24px) scale(0.4);
+    opacity: 0;
+  }
+  35% {
+    transform: translate(-50%, -8px) scale(1.06);
+    opacity: 1;
+  }
+  55% {
+    transform: translate(-50%, 0) scale(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, -6px);
+    opacity: 0;
+  }
+}
+.dg-confetti {
+  position: absolute;
+  top: -10px;
+  width: 8px;
+  height: 8px;
+  z-index: 11;
+  animation: dg-conf 1.6s linear both;
+}
+@keyframes dg-conf {
+  to {
+    transform: translateY(280px) rotate(540deg);
+    opacity: 0.2;
+  }
+}
+.dg-msg-cursor::after {
+  content: "▼";
+  margin-left: 6px;
+  color: var(--lemon);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dg-msg-cursor::after {
+    animation: dg-bob 0.8s steps(2) infinite;
+  }
+}
