@@ -48,11 +48,12 @@ export function DesktopScene(props: {
   const [items, setItems] = useState(props.gadgets);
   const [dragging, setDragging] = useState<string | null>(null);
   // サーバーアクション後の再レンダーで新しい配置を反映する（React公式の
-  // "adjusting state when props change" パターン）。ドラッグ中は手元を優先
+  // "adjusting state when props change" パターン）。ドラッグ中は手元を優先。
+  // refはrender中に読めない(react-hooks/refs)ため前回キーもstateで持つ
   const propsKey = JSON.stringify(props.gadgets);
-  const lastKey = useRef(propsKey);
-  if (lastKey.current !== propsKey && !dragging) {
-    lastKey.current = propsKey;
+  const [lastKey, setLastKey] = useState(propsKey);
+  if (lastKey !== propsKey && !dragging) {
+    setLastKey(propsKey);
     if (items !== props.gadgets) setItems(props.gadgets);
   }
   const [overBox, setOverBox] = useState(false);
@@ -158,7 +159,7 @@ export function DesktopScene(props: {
   return (
     <div
       ref={sceneRef}
-      className="relative aspect-[16/9] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8"
+      className="isolate relative aspect-[16/9] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8"
       style={{ touchAction: "none" }}
     >
       {/* 見下ろしビュー: 上部の壁 + 大きな床（きせかえ） */}

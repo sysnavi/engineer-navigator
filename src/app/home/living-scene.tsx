@@ -4,7 +4,7 @@
 // 旧 room.tsx から分離してペット専用に。ラグとまど（CSS描き）のうえで
 // ゆらゆら歩き・なでなで（1日1回）。デスクに遊びに行っている子はここには居ない。
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import Image from "next/image";
 import { petPet } from "./actions";
 import { PET_SIZE } from "@/lib/home/scene";
@@ -34,11 +34,12 @@ export function LivingScene(props: {
   const [pets, setPets] = useState(props.pets);
   const [hearts, setHearts] = useState<string | null>(null);
   const [, startTransition] = useTransition();
-  // サーバーアクション後の再レンダーで新入りペット等を反映（props→state同期）
+  // サーバーアクション後の再レンダーで新入りペット等を反映（props→state同期）。
+  // refはrender中に読めない(react-hooks/refs)ため前回キーもstateで持つ
   const propsKey = JSON.stringify(props.pets);
-  const lastKey = useRef(propsKey);
-  if (lastKey.current !== propsKey) {
-    lastKey.current = propsKey;
+  const [lastKey, setLastKey] = useState(propsKey);
+  if (lastKey !== propsKey) {
+    setLastKey(propsKey);
     if (pets !== props.pets) setPets(props.pets);
   }
 
@@ -66,7 +67,9 @@ export function LivingScene(props: {
   });
 
   return (
-    <div className="relative aspect-[16/8] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8 sm:aspect-[16/6]">
+    // isolate: ペットのz-index(奥行き〜900)がヘッダー(z-10)を突き抜けて
+    // スクロール中にナビの上へ描画されるのを防ぐ（スタッキングを部屋内に閉じる）
+    <div className="isolate relative aspect-[16/8] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8 sm:aspect-[16/6]">
       {/* 上部の壁（キャラ2匹ぶんの大きなまど） */}
       <div
         className="absolute inset-x-0 top-0 border-b-[3px] border-line8"
