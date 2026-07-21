@@ -32,9 +32,11 @@ export function QuizPlay(props: { questions: Q[] }) {
   const [rated, setRated] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
+  const [answered, setAnswered] = useState(0); // 実際に解いた数（きりあげ時の分母）
+  const [quitEarly, setQuitEarly] = useState(false);
 
   const q = questions[i];
-  const done = i >= questions.length;
+  const done = quitEarly || i >= questions.length;
 
   async function choose(idx: number) {
     if (result || busy) return;
@@ -43,6 +45,7 @@ export function QuizPlay(props: { questions: Q[] }) {
     try {
       const r = await submitQuizAnswer(q.id, idx);
       setResult(r);
+      setAnswered((a) => a + 1);
       if (r.correct) setCorrectCount((c) => c + 1);
     } catch {
       setChosen(null);
@@ -84,11 +87,19 @@ export function QuizPlay(props: { questions: Q[] }) {
         <p className="font-pixel text-[11px] tracking-wide text-inksoft">
           RESULT
         </p>
-        <p className="mt-2 font-pixel text-4xl text-royal">
-          {correctCount}
-          <span className="text-2xl text-inksoft">/{questions.length}</span>
+        {answered > 0 && (
+          <p className="mt-2 font-pixel text-4xl text-royal">
+            {correctCount}
+            <span className="text-2xl text-inksoft">/{answered}</span>
+          </p>
+        )}
+        <p className="mt-2 text-[13px]">
+          {answered === 0
+            ? "今日は解かずに撤退！また挑戦してね。"
+            : quitEarly && answered < questions.length
+              ? "ここまでで切り上げ。区切りをつけるのも上手さのうち！"
+              : "おつかれさま！腕試し完了です。"}
         </p>
-        <p className="mt-2 text-[13px]">おつかれさま！腕試し完了です。</p>
         <div className="mt-4 flex justify-center gap-2">
           <Link href="/quiz" className="btn8 text-[12px]">
             ← 良問バンクへ
@@ -103,11 +114,20 @@ export function QuizPlay(props: { questions: Q[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between font-pixel text-[11px] tracking-wide text-inksoft">
+      <div className="flex items-center justify-between gap-2 font-pixel text-[11px] tracking-wide text-inksoft">
         <span>
           Q{i + 1} / {questions.length}
         </span>
-        <span className="chip8 chip8-info">{q.topic}</span>
+        <span className="flex items-center gap-2">
+          <span className="chip8 chip8-info">{q.topic}</span>
+          <button
+            onClick={() => setQuitEarly(true)}
+            className="btn8 px-2 py-1 text-[10px]"
+            title="ここまでの結果を見て終了する"
+          >
+            ✕ きりあげる
+          </button>
+        </span>
       </div>
 
       <div className="rounded-lg border-[2.5px] border-line8 bg-surface p-4 shadow-hard-sm">
