@@ -512,6 +512,7 @@ model SkillSuggestion {
   skill          Skill?         @relation(fields: [skillId], references: [id])
   skillId        String?
   skillName      String // AIが抽出した生の名称
+  category       SkillCategory @default(OTHER) // AI抽出時のカテゴリ（承認時のマスタ作成に使う）
   suggestedLevel Int?
   reason         String // 提案理由
   evidenceQuote  String? // 週報からの引用（エビデンス）

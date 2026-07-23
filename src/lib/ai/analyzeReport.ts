@@ -147,6 +147,10 @@ ${maskSensitive(report.shareText ?? "", [])}`;
 
     // スキル提案を生成（既存マスタと名寄せ）
     const masterSkills = await prisma.skill.findMany();
+    const CATEGORIES = new Set([
+      "LANGUAGE", "FRAMEWORK", "CLOUD", "DATABASE",
+      "AI", "TOOL", "PROCESS", "SOFT",
+    ]);
     for (const s of data.skills) {
       const matched = masterSkills.find(
         (m) =>
@@ -159,6 +163,8 @@ ${maskSensitive(report.shareText ?? "", [])}`;
           kind: s.kind,
           skillId: matched?.id,
           skillName: s.name,
+          // AIの出力はそのまま信じず、enumに無い値は OTHER に落とす
+          category: CATEGORIES.has(s.category) ? s.category : "OTHER",
           suggestedLevel: s.suggestedLevel,
           reason: s.reason,
           evidenceQuote: s.evidenceQuote,

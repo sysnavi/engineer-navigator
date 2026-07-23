@@ -691,7 +691,12 @@ export async function decideSuggestion(suggestionId: string, approve: boolean) {
     const skill = await prisma.skill.upsert({
       where: { name: suggestion.skillName },
       update: {},
-      create: { name: suggestion.skillName, category: "OTHER", aliases: [] },
+      // カテゴリはAI抽出時のもの（レーダーチャートのカテゴリ軸に効く）
+      create: {
+        name: suggestion.skillName,
+        category: suggestion.category,
+        aliases: [],
+      },
     });
     skillId = skill.id;
   }
