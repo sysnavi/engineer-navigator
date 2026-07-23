@@ -305,22 +305,7 @@ export default async function Home() {
           </Window>
         </Link>
 
-        {(user.role === "SALES" || user.role === "ADMIN") && (
-          <Link href="/condition" className="group">
-            <Window
-              title="CONDITION"
-              titleEm=".mon"
-              className="transition-transform group-hover:-translate-y-0.5"
-            >
-              <PixelLabel>CONDITION</PixelLabel>
-              <p className="mt-1 text-[15px] font-extrabold">コンディション</p>
-              <p className="mt-1 text-[13px] text-inksoft">
-                エンジニアの週次コンディションとアラートを見守る（管理者向け）
-              </p>
-            </Window>
-          </Link>
-        )}
-
+        {/* コンディションカードは個人サービス化で撤去（Issue #19 方針A: 本人のみ閲覧） */}
         {user.role === "ADMIN" && (
           <Link href="/admin" className="group">
             <Window

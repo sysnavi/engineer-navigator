@@ -1,24 +1,12 @@
-import { runWeeklyScan } from "@/lib/condition";
+// 週次ジョブ（未提出リマインド + コンディション再スキャン + Slack通知）は
+// 個人サービス化に伴い廃止（Issue #19 方針A）。
+// コンディションは本人のみ閲覧で、運営・営業がアラートを受け取る運用が存在しないため。
+// 残っている cron 設定が叩いても安全なよう 410 Gone を返す。
+// 検知ロジック自体は src/lib/condition.ts に温存（将来の本人向けセルフケア機能用）。
 
-// 週次ジョブ（月曜朝実行想定）: 未提出リマインド + 連続未提出アラート + 全員再スキャン
-//
-// cron 設定例（月曜 9:00）:
-//   0 9 * * 1  curl -s -X POST -H "x-job-secret: $JOB_SECRET" https://<host>/api/jobs/weekly
-//
-// JOB_SECRET が未設定の場合は 503（誤って無認証で公開しない）
-
-export async function POST(req: Request) {
-  const secret = process.env.JOB_SECRET;
-  if (!secret) {
-    return Response.json(
-      { error: "JOB_SECRET is not configured" },
-      { status: 503 }
-    );
-  }
-  if (req.headers.get("x-job-secret") !== secret) {
-    return Response.json({ error: "unauthorized" }, { status: 401 });
-  }
-  const result = await runWeeklyScan();
-  console.log("[jobs/weekly]", result);
-  return Response.json({ ok: true, ...result });
+export async function POST() {
+  return Response.json(
+    { error: "この週次ジョブは個人サービス化に伴い廃止されました (Issue #19)" },
+    { status: 410 }
+  );
 }

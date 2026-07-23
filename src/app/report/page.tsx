@@ -7,7 +7,10 @@ import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { ReportForm } from "./report-form";
 import { InterviewChat } from "./interview";
 
-// 初回オンボーディング: 同意（AI解析・閲覧範囲・評価不使用）を取ってから週報を解錠する
+// 初回オンボーディング: 同意（AI解析・閲覧範囲・公開範囲）を取ってから週報を解錠する。
+// 文言は個人サービス前提（Issue #19 方針A）: コンディションは本人のみ・運営も見ない。
+// 旧文言からの変更は閲覧範囲を「狭める」だけ（ユーザーに有利な方向のみ）なので、
+// 既存ユーザーへの再同意は求めない。
 function ConsentGate() {
   return (
     <Window title="LICENSE" titleEm=".txt">
@@ -19,16 +22,18 @@ function ConsentGate() {
       </p>
       <ol className="mt-3 space-y-3 text-[13px]">
         <li className="rounded-lg border-2 border-line8 bg-surface p-3 shadow-hard-sm">
-          <b>1. AIが解析します</b> — 提出した週報はAIが解析し、スキルの抽出とコンディションの把握に使われます。
+          <b>1. AIが解析します</b> —
+          提出した週報はAIが解析し、スキルの抽出とふりかえりのフィードバックに使われます。
         </li>
         <li className="rounded-lg border-2 border-line8 bg-surface p-3 shadow-hard-sm">
-          <b>2. 閲覧範囲は限定されます</b> —
-          コンディション（設問1・2・5とスコア）を見られるのは<b>あなたと管理者だけ</b>です。
-          実績（設問3・4）は経歴書に反映されます。
+          <b>2. コンディションはあなただけのもの</b> —
+          気分・稼働などのコンディション回答（設問1・2・5とスコア）は
+          <b>あなた以外は誰も見られません</b>（運営も見ません）。
         </li>
         <li className="rounded-lg border-2 border-line8 bg-surface p-3 shadow-hard-sm">
-          <b>3. 評価には使いません</b> —
-          コンディションのスコアやアラートが、あなたの所属先・案件先に共有されたり、評価に使われたりすることはありません。運営からの早期フォローのためだけに使います。
+          <b>3. 共有されるのはあなたが選んだものだけ</b> —
+          公開プロフィールに載るのは、あなたが個別に公開指定した項目だけです。
+          実績（設問3・4）はあなたの経歴書に反映されます。
         </li>
       </ol>
       <form action={giveConsent} className="mt-5">

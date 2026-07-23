@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import { runConditionRules } from "@/lib/condition";
 import { completeJson, MODELS } from "./client";
 import { searchKnowledge, formatContextBlock } from "./retrieval";
 
@@ -186,11 +185,8 @@ ${maskSensitive(report.shareText ?? "", [])}`;
       },
     });
 
-    // 解析が終わったのでコンディション検知ルールを実行
-    // （相談フラグの即時アラートは submitReport 側。ここは変化検知系）
-    await runConditionRules(report.userId).catch((e) =>
-      console.error("runConditionRules failed:", e)
-    );
+    // コンディション検知ルール（他者向けアラート発火）は個人サービス化で撤去（Issue #19 方針A）。
+    // conditionAi スコア自体は本人向けフィードバックの材料として引き続き保存する。
   } catch (e) {
     await prisma.reportAnalysis.update({
       where: { id: analysis.id },
