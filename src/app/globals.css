@@ -272,6 +272,23 @@ body {
     opacity: 0.7;
   }
 
+  /* リザルト画面の登場演出（RPGのリザルト風にカクカク拡大） */
+  @media (prefers-reduced-motion: no-preference) {
+    .result8-pop {
+      animation: result8-pop 0.35s steps(4, jump-none) both;
+    }
+    @keyframes result8-pop {
+      0% {
+        transform: scale(0.6);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+  }
+
   /* pill-style radio (label wraps a sr-only input) */
   .pill8 {
     display: inline-flex;

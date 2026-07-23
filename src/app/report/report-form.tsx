@@ -1,13 +1,19 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { saveReportDraft, submitReport } from "@/app/actions";
+import {
+  saveReportDraft,
+  submitReport,
+  type SubmitReportResult,
+} from "@/app/actions";
 import { MicButton } from "@/components/mic-button";
 import { SendingOverlay } from "@/components/sending-overlay";
+import { ResultModal } from "./result-modal";
 
 // 週報フォーム（クライアント）。入力が止まったら自動で下書き保存する。
 // 提出はAI解析を同期実行するため数十秒かかる。その間 SendingOverlay で
-// 「提出完了→フィードバック待ち」を出す（送信状態を自前のstateで完全制御）。
+// 「提出完了→フィードバック待ち」を出し（送信状態を自前のstateで完全制御）、
+// 解析が終わったらリザルト画面（モーダル）でフィードバックを真ん中に見せる。
 
 const CONDITIONS = [
   { value: 4, label: "☀️ 好調" },
@@ -107,6 +113,7 @@ export function ReportForm(props: { report: ReportData | null; submitted: boolea
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<SubmitReportResult | null>(null);
   const [, startTransition] = useTransition();
 
   function scheduleAutosave() {
@@ -135,7 +142,7 @@ export function ReportForm(props: { report: ReportData | null; submitted: boolea
     setSubmitting(true);
     startTransition(async () => {
       try {
-        await submitReport(new FormData(form));
+        setResult(await submitReport(new FormData(form)));
       } finally {
         setSubmitting(false);
       }
@@ -149,6 +156,9 @@ export function ReportForm(props: { report: ReportData | null; submitted: boolea
         label="提出完了！"
         sub="AIがフィードバックを準備中…ちょっと待ってね"
       />
+      {result && (
+        <ResultModal result={result} onClose={() => setResult(null)} />
+      )}
       <div className="space-y-2">
         <p className="text-[13px] font-extrabold">
           1. 今週のコンディション <span className="text-pinkhot">*</span>

@@ -16,7 +16,7 @@ import { isUiShell } from "@/lib/shell";
 import { appsForRole, DOCK_SLOTS } from "@/lib/apps";
 import { isDomainId } from "@/lib/domains";
 import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
-import { performRebirth } from "@/lib/exp";
+import { performRebirth, EXP_WEIGHTS } from "@/lib/exp";
 import { createInvite } from "@/lib/invite";
 import { SESSION_COOKIE } from "@/lib/session";
 import { deleteAuthSession } from "@/lib/auth-session";
@@ -68,7 +68,17 @@ export async function saveReportDraft(formData: FormData) {
   revalidatePath("/report");
 }
 
-export async function submitReport(formData: FormData) {
+// 提出後にクライアントがリザルト画面（モーダル）を出すための結果サマリ
+export type SubmitReportResult = {
+  feedbackText: string | null;
+  suggestionCount: number; // この提出で生まれたスキル提案の数
+  analysisFailed: boolean;
+  expGained: number; // 今週の初提出なら EXP_WEIGHTS.report、再提出は0
+};
+
+export async function submitReport(
+  formData: FormData
+): Promise<SubmitReportResult> {
   const user = await getCurrentUser();
   if (!user.consentedAt) {
     throw new Error("週報の利用にはオンボーディングでの同意が必要です");
@@ -79,6 +89,13 @@ export async function submitReport(formData: FormData) {
   if (!data.didText || data.conditionSelf == null || data.workloadSelf == null) {
     throw new Error("必須項目（コンディション・稼働・今週やったこと）を入力してください");
   }
+
+  // EXPは「SUBMITTEDな週報の数」から導出されるので、初提出かどうかで獲得表示を出し分ける
+  const prev = await prisma.weeklyReport.findUnique({
+    where: { userId_weekStart: { userId: user.id, weekStart } },
+    select: { status: true },
+  });
+  const firstSubmit = prev?.status !== "SUBMITTED";
 
   const report = await prisma.weeklyReport.upsert({
     where: { userId_weekStart: { userId: user.id, weekStart } },
@@ -102,8 +119,25 @@ export async function submitReport(formData: FormData) {
     console.error("analyzeReport skipped/failed:", e);
   }
 
+  const [analysis, suggestionCount] = await Promise.all([
+    prisma.reportAnalysis.findUnique({
+      where: { reportId: report.id },
+      select: { status: true, feedbackText: true },
+    }),
+    prisma.skillSuggestion.count({
+      where: { sourceReportId: report.id, status: "PENDING" },
+    }),
+  ]);
+
   revalidatePath("/report");
   revalidatePath("/skills");
+
+  return {
+    feedbackText: analysis?.status === "DONE" ? analysis.feedbackText : null,
+    suggestionCount,
+    analysisFailed: analysis?.status !== "DONE",
+    expGained: firstSubmit ? EXP_WEIGHTS.report : 0,
+  };
 }
 
 // コンディションアラート系のアクション（startAlert/closeAlert/rescanConditions）は
