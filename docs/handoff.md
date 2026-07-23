@@ -7,7 +7,7 @@
 
 ## 方針転換（2026-07-17）: 個人サービスとしてリリースする
 
-シスナビ社内ツールではなく、まず**個人向けサービス**として出す。適用済み: 週報の営業相談チェック削除・設問7を「AIメンターへの共有・相談」に・経歴書はPDF直接ダウンロード(/api/resume/pdf, pdfmake+IPAexゴシック同梱)・**週報インタビューモード**(/report?mode=interview: AIが1問ずつ聞いて7設問ドラフトに変換、部分更新で既存記入を消さない)。未決: /condition(営業・管理者向け)の扱い、同意ゲート文言、認証。詳細はメモリ personal-service-pivot。
+シスナビ社内ツールではなく、まず**個人向けサービス**として出す。適用済み: 週報の営業相談チェック削除・設問7を「AIメンターへの共有・相談」に・経歴書はPDF直接ダウンロード(/api/resume/pdf, pdfmake+IPAexゴシック同梱)・**週報インタビューモード**(/report?mode=interview: AIが1問ずつ聞いて7設問ドラフトに変換、部分更新で既存記入を消さない)。認証はOAuth(ハッシュのみ)で解決済み。**/conditionと同意文言はIssue #19 方針Aで解決（2026-07-23, 8fb58e7）**: コンディションは本人のみ閲覧（運営もSELECTしない）、/conditionダッシュボード・提出時アラート・週次ジョブ(410 Gone化)を撤去。src/lib/condition.ts は将来の本人向けセルフケア機能用に温存。
 
 ## いま動くもの
 
@@ -18,7 +18,7 @@ Phase 0（基盤）+ Phase 1 の縦切りが実装済み。**実 ANTHROPIC_API_K
    → 本人が承認/却下(/skills) → EngineerSkill反映 + SkillHistory記録
 ```
 
-画面は15+: `/`(ホーム) / `/report`(週報・自動保存) / `/skills`(スキルマップ＋レーダー＋成長ログ) / `/resume`(経歴書・印刷=PDF) / `/condition`(営業・管理者向け) / `/mentor`(AIメンター) / `/plan`(資格学習プラン) / `/quiz`(良問バンク=四択・腕試し) / `/roleplay`(役割シミュレーター) / `/yomoyama`(現場のよもやま掲示板) / `/discover`(発見) / `/u/[handle]`(公開プロフィール) / `/admin`(管理者ダッシュボード) / `/welcome`(招待制LP) / `/mypage`(きせかえ＋共有設定)。
+画面は15+: `/`(ホーム) / `/report`(週報・自動保存) / `/skills`(スキルマップ＋レーダー＋成長ログ) / `/resume`(経歴書・印刷=PDF) / `/mentor`(AIメンター) / `/plan`(資格学習プラン) / `/quiz`(良問バンク=四択・腕試し) / `/roleplay`(役割シミュレーター) / `/yomoyama`(現場のよもやま掲示板) / `/discover`(発見) / `/u/[handle]`(公開プロフィール) / `/admin`(管理者ダッシュボード) / `/welcome`(招待制LP) / `/mypage`(きせかえ＋共有設定)。
 
 **Phase 7 ゲーム性の土台（2026-07-18, commit 77302e5）:**
 - **TOPヒーロー**: 「がんばりは、ぜんぶ経験値になる。」＋つながりパイプライン＋PLAYER_FILEカード（Lv/EXPバー/進化予告/今週のかつどう）。
@@ -42,7 +42,7 @@ Phase 0（基盤）+ Phase 1 の縦切りが実装済み。**実 ANTHROPIC_API_K
 - **良問バンク /quiz**: ユーザーが四択を作り皆で解いて育てる問題集。採点はサーバー(submitQuizAnswer)でローカル完結＝**AIトークン消費ゼロ**、正解はクライアントに渡さない。評価(0-10)は`rateQuiz`がトランザクションで**全員分を集計**(QuizQuestion.ratingSum/Count)＝1問の良問スコアは総意で決まる。QuizQuestion/QuizRating(@@unique questionId+userId)/QuizAttempt。
 - **よもやま掲示板 /yomoyama**: ハンドル名で現場の話を投稿。投稿前にAI門番(src/lib/ai/moderation.ts)が①個人特定 ②会社/案件固有名 ③実在著名人 ④誹謗中傷/荒らし を検知しブロック(本文はデータ扱いでインジェクション耐性)。postYomoyamaは`assertAiAllowed`通過→門番→OKだけ保存、ブロック時は理由と修正案を返す。AIチェック失敗時は安全側でブロック。
   - **ソーシャル拡張（Issue #4, 2026-07-19）**: いいね(YomoyamaLike・postId+userId unique・楽観更新・非AIの軽量レート制限40/分)、コメント(YomoyamaComment・**投稿と同じAI門番**を通す=`addComment`)、投稿者の**コメント可否トグル**(YomoyamaPost.allowComments)、管理者の**ソフト削除**(deletedAt+deletedById・tombstone表示)。**EXPは対象外**(将来足すならファーミング対策必須)。UI: like-button.tsx / comment-form.tsx / page.tsx。
-**Phase 1〜4 完了 + 会社独自ノウハウのRAG化 完了（2026-07-14）**。8bit/Y2Kデザイン + きせかえ5種。コンディション検知は src/lib/condition.ts（急落/下降トレンド/乖離/高負荷/相談フラグ、未クローズ中は重複発火しない）。デモ: /mypage の DEBUG.sys で営業に切替→ /condition。デモ履歴はseed投入済み（engineer2@… は要注意の物語）。
+**Phase 1〜4 完了 + 会社独自ノウハウのRAG化 完了（2026-07-14）**。8bit/Y2Kデザイン + きせかえ5種。コンディション検知 src/lib/condition.ts は温存（呼び出し元はIssue #19で全撤去、将来の本人向けセルフケア用）。デモ履歴はseed投入済み（engineer2@… は要注意の物語）。
 
 ## 再開手順
 
