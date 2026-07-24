@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/db";
 import { mondayOf } from "@/lib/week";
-import { DAILY_FOOD_ID } from "@/lib/pets/foods";
+import { DAILY_FOOD_ID, DAILY_FOOD_COUNT } from "@/lib/pets/foods";
 import {
   geneById,
   genesFromExpBySource,
@@ -110,12 +110,12 @@ export async function recordVisit(userId: string): Promise<void> {
   }
 }
 
-/** ごはんのデイリー配布（ログイン1日1個）。呼び出しは recordVisit 経由のみ。 */
+/** ごはんのデイリー配布（ログインで DAILY_FOOD_COUNT 個）。呼び出しは recordVisit 経由のみ。 */
 async function grantDailyFood(userId: string): Promise<void> {
   await prisma.foodItem.upsert({
     where: { userId_foodId: { userId, foodId: DAILY_FOOD_ID } },
-    update: { count: { increment: 1 } },
-    create: { userId, foodId: DAILY_FOOD_ID, count: 1 },
+    update: { count: { increment: DAILY_FOOD_COUNT } },
+    create: { userId, foodId: DAILY_FOOD_ID, count: DAILY_FOOD_COUNT },
   });
 }
 

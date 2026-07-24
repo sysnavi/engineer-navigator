@@ -98,7 +98,7 @@ export function CareMenu(props: {
             </p>
             {owned.length === 0 ? (
               <p className="text-[11.5px] text-inksoft">
-                ごはんが ありません。毎日ログインで1個もらえます（ダンジョンでも拾えます）
+                ごはんが ありません。毎日ログインで3個もらえます（ダンジョンでも拾えます）
               </p>
             ) : (
               // ごはんが増えても縦に伸びないよう横スクロールの一列にする。

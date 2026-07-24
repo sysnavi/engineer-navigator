@@ -33,7 +33,7 @@ export const FOODS: FoodDef[] = [
     rarity: 1,
     minDepth: null,
     weight: 0,
-    desc: "きほんのごはん。毎日1個もらえるので、ごはん切れでお世話が止まらない。",
+    desc: "きほんのごはん。毎日3個もらえるので、ごはん切れでお世話が止まらない。",
   },
   {
     id: "melonpan",
@@ -67,8 +67,10 @@ export function foodById(id: string): FoodDef | undefined {
   return FOODS.find((f) => f.id === id);
 }
 
-/** デイリー配布で配るごはん（ログイン1日1個） */
+/** デイリー配布で配るごはん（ログイン時に DAILY_FOOD_COUNT 個）。
+ *  ダンジョンで潜れる回数が少ないので、日々の世話ぶんはここで供給する（Issue #23）。 */
 export const DAILY_FOOD_ID: FoodId = "onigiri";
+export const DAILY_FOOD_COUNT = 3;
 
 /** なつき度の増分。好物・準好物は2倍 */
 export function affectionGain(food: FoodDef, isFavorite: boolean): number {
