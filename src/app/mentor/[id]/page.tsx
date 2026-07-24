@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { requireFullAccount } from "@/lib/guest";
 import { prisma } from "@/lib/db";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { MentorChat } from "./chat";
@@ -11,7 +11,7 @@ export default async function MentorSessionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const user = await getCurrentUser();
+  const user = await requireFullAccount();
   const session = await prisma.mentorSession.findUnique({
     where: { id },
     include: { messages: { orderBy: { createdAt: "asc" } } },

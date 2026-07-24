@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { requireFullAccount } from "@/lib/guest";
 import { prisma } from "@/lib/db";
 import { toggleStudyItem } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
@@ -11,7 +11,7 @@ export default async function PlanDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const user = await getCurrentUser();
+  const user = await requireFullAccount();
   const plan = await prisma.studyPlan.findUnique({
     where: { id },
     include: { items: { orderBy: { order: "asc" } } },

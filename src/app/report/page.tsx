@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
+import { requireFullAccount } from "@/lib/guest";
 import { prisma } from "@/lib/db";
 import { mondayOf, formatWeek } from "@/lib/week";
 import { giveConsent } from "@/app/actions";
@@ -49,7 +49,7 @@ export default async function ReportPage({
   searchParams: Promise<{ mode?: string }>;
 }) {
   const { mode } = await searchParams;
-  const user = await getCurrentUser();
+  const user = await requireFullAccount();
   if (!user.consentedAt) {
     return (
       <div className="mx-auto max-w-2xl space-y-7">

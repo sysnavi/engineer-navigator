@@ -15,6 +15,10 @@ enum Role {
   ENGINEER
   SALES
   ADMIN
+  // 登録なしでコア体験だけ触れる一時アカウント（Issue #18）。
+  // OAuth連携で ENGINEER に昇格し、そのまま本アカウントになる（データ移行なし）。
+  // 未昇格のまま30日経つと掃除ジョブで削除される。
+  GUEST
 }
 
 model User {

@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth";
+import { requireFullAccount } from "@/lib/guest";
 import { highlightKeywords, RATE_KEYWORDS } from "@/lib/highlight";
 import {
   loadResumeData,
@@ -15,7 +15,7 @@ import {
 import { SKILL_LEVEL_MAX } from "@/lib/skill-levels";
 
 export default async function ResumePage() {
-  const user = await getCurrentUser();
+  const user = await requireFullAccount();
   const {
     skills,
     experiences,

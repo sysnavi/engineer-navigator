@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth";
+import { requireFullAccount } from "@/lib/guest";
 import { prisma } from "@/lib/db";
 import {
   Window,
@@ -126,7 +126,7 @@ function RadarChart(props: { axes: { label: string; value: number }[] }) {
 }
 
 export default async function SkillsPage() {
-  const user = await getCurrentUser();
+  const user = await requireFullAccount();
 
   const [suggestions, skills, histories] = await Promise.all([
     prisma.skillSuggestion.findMany({

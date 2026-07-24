@@ -71,8 +71,18 @@ export async function GET(
     await prisma.authIdentity.create({
       data: { userId: current.id, providerHash: hash, provider },
     });
+    // ゲストの昇格（Issue #18）: 同じUser行のまま role を上げるだけ。
+    // 別アカウントへのデータ移行が発生しないので、育てたアバター・戦利品・
+    // ダンジョン履歴はそのまま引き継がれる。
+    if (current.role === "GUEST") {
+      await prisma.user.update({
+        where: { id: current.id },
+        data: { role: "ENGINEER", name: current.handle ?? "ぼうけんしゃ" },
+      });
+    }
     userId = current.id;
-    redirectTo = "/mypage?linked=1";
+    redirectTo =
+      current.role === "GUEST" ? "/mypage?promoted=1" : "/mypage?linked=1";
   } else {
     // 新規: 匿名ユーザーを作成（メール・氏名なし。自動ハンドルは後から変更可能）
     const handle = await generateHandle();

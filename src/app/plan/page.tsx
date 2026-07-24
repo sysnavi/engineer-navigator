@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
+import { requireFullAccount } from "@/lib/guest";
 import { prisma } from "@/lib/db";
 import { createStudyPlan } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
@@ -10,7 +10,7 @@ function daysLeft(examDate: Date, now: number): number {
 }
 
 export default async function PlanListPage() {
-  const user = await getCurrentUser();
+  const user = await requireFullAccount();
   const now = new Date().getTime();
   const plans = await prisma.studyPlan.findMany({
     where: { userId: user.id },

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
+import { requireFullAccount } from "@/lib/guest";
 import { prisma } from "@/lib/db";
 import { createMentorSession } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
@@ -7,7 +7,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { ProposeTopics } from "./propose";
 
 export default async function MentorPage() {
-  const user = await getCurrentUser();
+  const user = await requireFullAccount();
   const sessions = await prisma.mentorSession.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },

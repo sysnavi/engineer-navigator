@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { notify } from "@/lib/notify";
+import { GUEST_BLOCKED_MESSAGE } from "@/lib/guest";
 
 // スパム・いたずらによる過剰なトークン消費を防ぐレート制限＆アカウント停止。
 // すべてのAI呼び出しの入口で assertAiAllowed() を通す（トークンを使う前に弾く）。
@@ -29,6 +30,7 @@ export const AI_LIMITS = {
 
 export type AiBlockCode =
   | "SUSPENDED"
+  | "GUEST"
   | "RATE_MINUTE"
   | "RATE_DAY"
   | "AUTO_SUSPENDED"
@@ -63,8 +65,13 @@ export async function assertAiAllowed(
 ): Promise<void> {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
-    select: { suspendedAt: true, createdAt: true },
+    select: { suspendedAt: true, createdAt: true, role: true },
   });
+  // ゲストはAI機能を一切使えない（Issue #18）。全AI入口がこの関数を通るので、
+  // ここで弾けば画面ごとの個別ガードの漏れを防げる。
+  if (user.role === "GUEST") {
+    throw new AiBlockedError("GUEST", GUEST_BLOCKED_MESSAGE);
+  }
   if (user.suspendedAt) {
     throw new AiBlockedError(
       "SUSPENDED",

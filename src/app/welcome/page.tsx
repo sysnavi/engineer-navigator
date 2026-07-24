@@ -13,9 +13,13 @@ const OAUTH_ERRORS: Record<string, string> = {
 export default async function WelcomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ invalid?: string; oauth_error?: string }>;
+  searchParams: Promise<{
+    invalid?: string;
+    oauth_error?: string;
+    guest?: string;
+  }>;
 }) {
-  const { invalid, oauth_error } = await searchParams;
+  const { invalid, oauth_error, guest } = await searchParams;
   const providers = enabledProviders();
 
   return (
@@ -52,6 +56,29 @@ export default async function WelcomePage({
           </p>
         </div>
       )}
+
+      {/* 登録前にコア体験を触ってもらう入口（Issue #18）。
+          GETだとプリフェッチやクローラでアカウントが量産されるためPOSTで叩く。 */}
+      <Window title="TRY" titleEm=".exe">
+        <p className="text-[13.5px] leading-relaxed">
+          登録なしで、いますぐ<b>アバターを育てて、ダンジョンに潜る</b>ところまで試せます。
+        </p>
+        <form action="/api/guest/start" method="post" className="mt-3">
+          <button className="btn8 btn8-start w-full text-center text-[13px]">
+            ▶ ためしてみる（登録なし）
+          </button>
+        </form>
+        <p className="mt-2 text-[11px] leading-relaxed text-inksoft">
+          お試し中は腕試し・ダンジョン・マイホームが使えます（週報やAIメンターは登録後）。
+          あとから連携すると、<b>育てたアバターや戦利品はそのまま引き継がれます</b>。
+          30日つかわないと消えます。
+        </p>
+        {guest === "toomany" && (
+          <p className="mt-2 text-[12px] font-bold text-pinkhot">
+            お試しの発行が続いています。しばらく時間をおいてからお試しください。
+          </p>
+        )}
+      </Window>
 
       {providers.length > 0 && (
         <Window title="LOGIN" titleEm=".exe">

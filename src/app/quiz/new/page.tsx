@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
+import { requireFullAccount } from "@/lib/guest";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { DOMAINS } from "@/lib/domains";
 import { createQuizQuestion } from "../actions";
@@ -7,7 +7,7 @@ import { createQuizQuestion } from "../actions";
 // 四択問題の作成フォーム。作成者＝本人。自作問題は自分には出題されない。
 
 export default async function QuizNewPage() {
-  await getCurrentUser();
+  await requireFullAccount();
   const labels = ["A", "B", "C", "D"];
 
   return (

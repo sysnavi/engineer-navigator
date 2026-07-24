@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { requireFullAccount } from "@/lib/guest";
 import { prisma } from "@/lib/db";
 import { endRoleplay } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
@@ -25,7 +25,7 @@ export default async function RoleplaySessionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const user = await getCurrentUser();
+  const user = await requireFullAccount();
   const session = await prisma.roleplaySession.findUnique({
     where: { id },
     include: { scenario: true, messages: { orderBy: { createdAt: "asc" } } },

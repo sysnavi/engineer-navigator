@@ -4,6 +4,11 @@
 
 export type AppGroup = "kiroku" | "manabu" | "asobu" | "jibun";
 
+// ゲストに解放するアプリ（Issue #18）。**このファイルはクライアントからも読まれる**ので、
+// prisma等サーバー専用のモジュールに依存させないこと（定数はここに置く）。
+// mypage は昇格（OAuth連携）の導線がそこにあるため必ず含める。
+export const GUEST_ALLOWED_APPS = ["quiz", "dungeon", "home", "mypage"];
+
 export const APP_GROUPS: Record<AppGroup, string> = {
   kiroku: "きろく",
   manabu: "まなぶ",
@@ -40,6 +45,11 @@ export const APPS: AppDef[] = [
 ];
 
 export function appsForRole(role: string): AppDef[] {
+  // ゲストは許可リスト方式（Issue #18）。APPSに新しいアプリが増えても、
+  // 明示的に GUEST_ALLOWED_APPS へ足さない限りゲストには出ない（安全側の既定）。
+  if (role === "GUEST") {
+    return APPS.filter((a) => GUEST_ALLOWED_APPS.includes(a.id));
+  }
   return APPS.filter((a) => !a.roles || a.roles.includes(role));
 }
 

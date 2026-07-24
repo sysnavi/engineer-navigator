@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
+import { requireFullAccount } from "@/lib/guest";
 import { prisma } from "@/lib/db";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { ScenarioShuffle } from "./scenario-shuffle";
 
 export default async function RoleplayListPage() {
-  const user = await getCurrentUser();
+  const user = await requireFullAccount();
   const [scenarios, sessions] = await Promise.all([
     prisma.roleplayScenario.findMany({
       orderBy: { createdAt: "asc" },

@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth";
+import { requireFullAccount } from "@/lib/guest";
 import { prisma } from "@/lib/db";
 import { PixelTitle, PixelLabel } from "@/components/retro";
 import { Composer } from "./composer";
@@ -19,7 +19,7 @@ function timeAgo(d: Date): string {
 }
 
 export default async function YomoyamaPage() {
-  const me = await getCurrentUser();
+  const me = await requireFullAccount();
   const isAdmin = me.role === "ADMIN";
 
   const posts = await prisma.yomoyamaPost.findMany({
