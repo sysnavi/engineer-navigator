@@ -2,18 +2,21 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { TUTORIAL_STEPS } from "@/lib/tutorial";
+import { TUTORIAL_STEPS, GUEST_TUTORIAL_STEPS } from "@/lib/tutorial";
 import { PixelAvatar } from "@/components/pixel-avatar";
 import { completeTutorial, updateMentorStance } from "@/app/actions";
 import { STANCES, type StanceId } from "@/lib/ai/stance";
 
 // 初回チュートリアル（モーダル歩き）。初回ログイン時に自動表示。
 // マイページの「もう一度」から window イベント "en:tutorial" で再表示できる。
-export function Tutorial(props: { defaultOpen: boolean }) {
+// ゲストはフル版だと行けない週報に誘導されるので、専用の短いツアーを見せる（Issue #18）。
+export function Tutorial(props: { defaultOpen: boolean; guest?: boolean }) {
   const [open, setOpen] = useState(props.defaultOpen);
   const [i, setI] = useState(0);
   // 接し方の選択（未選択なら保存しない＝既定のふつうのまま）
   const [stance, setStance] = useState<StanceId | null>(null);
+
+  const steps = props.guest ? GUEST_TUTORIAL_STEPS : TUTORIAL_STEPS;
 
   // マイページ等からの再表示要求を受ける
   useEffect(() => {
@@ -27,8 +30,11 @@ export function Tutorial(props: { defaultOpen: boolean }) {
 
   if (!open) return null;
 
-  const step = TUTORIAL_STEPS[i];
-  const last = i === TUTORIAL_STEPS.length - 1;
+  // ゲスト⇄フルでステップ数が違う。再表示（en:tutorial）や昇格直後に i が
+  // 範囲外を指しても落ちないよう丸める。
+  const idx = Math.min(i, steps.length - 1);
+  const step = steps[idx];
+  const last = idx === steps.length - 1;
 
   // 完了/スキップ: サーバーに記録して二度と自動表示しない（失敗しても閉じる）
   function finish() {
@@ -65,7 +71,7 @@ export function Tutorial(props: { defaultOpen: boolean }) {
             <PixelAvatar sprite={step.sprite} px={8} />
           </div>
           <p className="font-pixel text-[11px] tracking-[0.14em] text-royal2">
-            {i + 1} / {TUTORIAL_STEPS.length}
+            {i + 1} / {steps.length}
           </p>
           <h2 className="font-pixel text-xl tracking-wide text-royal">
             {step.title}
@@ -124,9 +130,9 @@ export function Tutorial(props: { defaultOpen: boolean }) {
             スキップ
           </button>
           <div className="flex items-center gap-2">
-            {i > 0 && (
+            {idx > 0 && (
               <button
-                onClick={() => setI((n) => n - 1)}
+                onClick={() => setI(idx - 1)}
                 className="btn8 px-3 py-1 text-[11px]"
               >
                 ← 戻る
@@ -141,7 +147,7 @@ export function Tutorial(props: { defaultOpen: boolean }) {
               </button>
             ) : (
               <button
-                onClick={() => setI((n) => n + 1)}
+                onClick={() => setI(idx + 1)}
                 className="btn8 btn8-start px-3 py-1 text-[11px]"
               >
                 次へ →

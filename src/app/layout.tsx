@@ -105,7 +105,12 @@ export default async function RootLayout({
       <body className="min-h-full">
         <RegisterSW />
         <AutosizeTextareas />
-        {loggedIn && <Tutorial defaultOpen={!user?.tutorialCompletedAt} />}
+        {loggedIn && (
+          <Tutorial
+            defaultOpen={!user?.tutorialCompletedAt}
+            guest={role === "GUEST"}
+          />
+        )}
         {/* TIPS: 1日1回・チュートリアル完了者のみ（初日はチュートリアルと被せない） */}
         {loggedIn && user?.tutorialCompletedAt && <TipsToast />}
         <Toaster />{/* 保存/送信結果（右上）。発火は notify / ActionForm */}

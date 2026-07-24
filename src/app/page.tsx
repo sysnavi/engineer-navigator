@@ -59,6 +59,73 @@ export default async function Home() {
 
   const reportDone = report?.status === "SUBMITTED";
 
+  // ===== ゲスト: 遊べるものだけのホーム（Issue #18）=====
+  // classicの直書きタイルも desktop のグリッドも全機能前提。ゲストには
+  // 許可アプリ（appsForRole由来）＋登録カードだけを見せて、行けないページに
+  // 誘導しない。マイページは登録導線なのでタイルでは出さず、カードに集約する。
+  if (user.role === "GUEST") {
+    const playable = appsForRole(user.role).filter((a) => a.id !== "mypage");
+    return (
+      <div className="space-y-6">
+        <section className="rounded-xl border-[2.5px] border-line8 bg-royal p-5 text-white shadow-hard sm:p-6">
+          <div className="flex flex-wrap items-stretch gap-5">
+            <div className="min-w-[240px] flex-1">
+              <p className="font-pixel text-[11px] tracking-[0.14em] text-peri">
+                GUEST MODE — お試し中
+              </p>
+              <PixelTitle as="h1" className="mt-1.5 text-[24px] leading-snug sm:text-3xl">
+                まずは<span className="text-lemon">育てて、潜ろう</span>。
+              </PixelTitle>
+              <p className="mt-2 max-w-[52ch] text-[12.5px] leading-relaxed text-[#dbe8ff]">
+                腕試しに答えて、アバターを育てて、ダンジョンで戦利品を持ち帰る。
+                登録すると週報・AIメンター・経歴書も使えるようになり、
+                <span className="text-lemon">育てたアバターはそのまま引き継がれます</span>。
+              </p>
+            </div>
+            <PlayerCard
+              displayName={user.handle ?? user.name}
+              player={player}
+              className="sm:w-[300px]"
+            />
+          </div>
+        </section>
+
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+          {playable.map((a) => (
+            <Link
+              key={a.id}
+              href={a.href}
+              title={a.desc}
+              className="flex flex-col items-center gap-1.5 rounded-lg border-2 border-line8 bg-surface px-1.5 py-3 text-center shadow-hard-sm transition-transform hover:-translate-y-0.5"
+            >
+              <PixelIcon id={a.id} px={3} />
+              <span className="text-[11.5px] font-bold leading-tight">{a.name}</span>
+            </Link>
+          ))}
+        </div>
+
+        <Link href="/mypage" className="group block">
+          <Window
+            title="UNLOCK"
+            titleEm=".cfg"
+            barClass="!bg-pinkhot"
+            className="transition-transform group-hover:-translate-y-0.5"
+          >
+            <PixelLabel className="!text-pinkhot">登録すると、ぜんぶ使える</PixelLabel>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-ink">
+              GoogleまたはGitHubで連携するだけ（メール・本名は受け取りません）。
+              週報からの経歴書づくり、AIメンター、スキルマップが解放されます。
+              いま育てているアバター・戦利品・腕試しの記録は消えません。
+            </p>
+            <span className="btn8 btn8-start mt-3 inline-block text-[12px]">
+              ▶ 登録して全部つかう
+            </span>
+          </Window>
+        </Link>
+      </div>
+    );
+  }
+
   // ===== デスクトップシェル: ホーム＝デスクトップ（ゾーン＋アイコン＋TODAY.sys） =====
   if (resolveShell(user) === "desktop") {
     const apps = appsForRole(user.role);
