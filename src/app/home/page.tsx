@@ -17,7 +17,7 @@ import {
   WALLPAPERS,
   FLOORS,
 } from "@/lib/home/scene";
-import { FOODS } from "@/lib/pets/foods";
+import { FOODS, MAX_FEEDS_PER_DAY } from "@/lib/pets/foods";
 import { FoodSprite } from "@/components/pets/food-sprite";
 import { DesktopScene, type DeskGadget, type DeskVisitor } from "./desktop-scene";
 import { LivingScene, type RoomPet } from "./living-scene";
@@ -63,6 +63,12 @@ export default async function HomePage() {
     pets.length
   );
   const visitorPet = visitIdx === null ? null : pets[visitIdx];
+  // きょう この子に あと何回あげられるか（lastFedAt が今日でなければ回数リセット）
+  const feedsLeftOf = (p: { lastFedAt: Date | null; fedCount: number }) => {
+    const fedToday =
+      !!p.lastFedAt && p.lastFedAt.getTime() >= today().getTime() ? p.fedCount : 0;
+    return Math.max(0, MAX_FEEDS_PER_DAY - fedToday);
+  };
   const visitor: DeskVisitor | null = visitorPet
     ? {
         id: visitorPet.id,
@@ -72,9 +78,7 @@ export default async function HomePage() {
         pettedToday:
           !!visitorPet.lastPettedAt &&
           visitorPet.lastPettedAt.getTime() >= today().getTime(),
-        fedToday:
-          !!visitorPet.lastFedAt &&
-          visitorPet.lastFedAt.getTime() >= today().getTime(),
+        feedsLeft: feedsLeftOf(visitorPet),
       }
     : null;
 
@@ -86,7 +90,7 @@ export default async function HomePage() {
       name: p.name,
       affection: p.affection,
       pettedToday: !!p.lastPettedAt && p.lastPettedAt.getTime() >= today().getTime(),
-      fedToday: !!p.lastFedAt && p.lastFedAt.getTime() >= today().getTime(),
+      feedsLeft: feedsLeftOf(p),
     }));
 
   // ごはんの在庫（0個も含めて全種返す。おせわメニュー側で持っている分だけ出す）
@@ -182,7 +186,7 @@ export default async function HomePage() {
         <p className="mt-2.5 text-[11.5px] text-inksoft">
           なかま {pets.length} 匹
           {fledCount > 0 && ` ／ これまで逃げられた回数 ${fledCount} 回（また会えるさ）`}
-          ｜ クリックで おせわメニュー（なでなで・ごはん／各1日1回）｜
+          ｜ クリックで おせわメニュー（なでなで1日1回・ごはん1日3回）｜
           ときどきデスクに遊びに行きます
         </p>
 

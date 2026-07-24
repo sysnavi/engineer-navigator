@@ -12,6 +12,7 @@ import {
   foodById,
   affectionGain,
   serveModeFor,
+  MAX_FEEDS_PER_DAY,
   type ServeMode,
 } from "@/lib/pets/foods";
 import { GADGETS } from "@/lib/dungeon/content";
@@ -152,10 +153,17 @@ export type FeedResult = {
   /** この一口で好物を初めて当てたか（ごはん図鑑に記録された） */
   discovered: boolean;
   remaining: number; // そのごはんの残り所持数
+  feedsLeft: number; // きょう この子に あと何回あげられるか
   message: string;
 };
 
-/** ごはんをあげる（1日1回/匹）。
+/** きょう すでに何回あげたか（lastFedAt が今日でなければ 0 = 日付でリセット） */
+function fedTodayCount(pet: { lastFedAt: Date | null; fedCount: number }, today: Date): number {
+  const sameDay = !!pet.lastFedAt && pet.lastFedAt.getTime() >= today.getTime();
+  return sameDay ? pet.fedCount : 0;
+}
+
+/** ごはんをあげる（1日3回/匹）。
  *  在庫の減算は「count>0 のときだけ引く」updateMany で行い、
  *  連打や多重タブでマイナス在庫にならないようにしている。 */
 export async function feedPet(
@@ -170,8 +178,9 @@ export async function feedPet(
   if (pet.userId !== user.id) throw new Error("この子はあなたのペットではありません");
 
   const today = todayUtc();
-  if (pet.lastFedAt && pet.lastFedAt.getTime() >= today.getTime()) {
-    throw new Error("この子には きょうのごはんを もうあげました");
+  const already = fedTodayCount(pet, today);
+  if (already >= MAX_FEEDS_PER_DAY) {
+    throw new Error(`この子は きょうのごはんを もう${MAX_FEEDS_PER_DAY}回 たべました`);
   }
 
   // 在庫を1つ消費（在庫が無ければ 0件更新 = 失敗）
@@ -191,6 +200,7 @@ export async function feedPet(
     data: {
       affection: { increment: gain },
       lastFedAt: today,
+      fedCount: already + 1, // 日付が変わっていれば 0+1、同日なら加算
       ...(discovered ? { favoriteFoundAt: new Date() } : {}),
     },
   });
@@ -215,6 +225,7 @@ export async function feedPet(
     serveMode: serveModeFor(pet.affection, isFavorite),
     discovered,
     remaining: stock?.count ?? 0,
+    feedsLeft: MAX_FEEDS_PER_DAY - (already + 1),
     message,
   };
 }

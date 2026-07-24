@@ -72,6 +72,9 @@ export function foodById(id: string): FoodDef | undefined {
 export const DAILY_FOOD_ID: FoodId = "onigiri";
 export const DAILY_FOOD_COUNT = 3;
 
+/** 1日にごはんをあげられる回数/匹（Issue #23 追補）。デイリー配布数と揃えてある */
+export const MAX_FEEDS_PER_DAY = 3;
+
 /** なつき度の増分。好物・準好物は2倍 */
 export function affectionGain(food: FoodDef, isFavorite: boolean): number {
   return isFavorite || food.semiFavorite ? 2 : 1;

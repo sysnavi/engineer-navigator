@@ -32,7 +32,7 @@ export type DeskVisitor = {
   name: string;
   affection: number;
   pettedToday: boolean;
-  fedToday: boolean;
+  feedsLeft: number; // きょう あと何回ごはんをあげられるか（1日3回まで）
 };
 
 const DESK_STYLES: Record<DeskTier["tier"], { plate: string; leg: string; extra?: string }> = {
@@ -69,7 +69,7 @@ export function DesktopScene(props: {
   const [menuOpen, setMenuOpen] = useState(false);
   const [bubble, setBubble] = useState<string | null>(null);
   const [stocks, setStocks] = useState(props.stocks);
-  const [fedToday, setFedToday] = useState(props.visitor?.fedToday ?? false);
+  const [feedsLeft, setFeedsLeft] = useState(props.visitor?.feedsLeft ?? 0);
   const [pettedToday, setPettedToday] = useState(props.visitor?.pettedToday ?? false);
   const [affection, setAffection] = useState(props.visitor?.affection ?? 0);
   const [feeding, setFeeding] = useState<{
@@ -184,7 +184,7 @@ export function DesktopScene(props: {
     start(async () => {
       try {
         const r = await feedPet(props.visitor!.id, foodId);
-        setFedToday(true);
+        setFeedsLeft(r.feedsLeft);
         setAffection(r.affection);
         setStocks((ss) =>
           ss.map((s) => (s.foodId === foodId ? { ...s, count: r.remaining } : s))
@@ -451,7 +451,7 @@ export function DesktopScene(props: {
           petName={props.visitor.name}
           affection={affection}
           pettedToday={pettedToday}
-          fedToday={fedToday}
+          feedsLeft={feedsLeft}
           stocks={stocks}
           busy={feeding !== null}
           onPet={onPetVisitor}

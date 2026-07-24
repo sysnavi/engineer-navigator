@@ -22,7 +22,7 @@ export function CareMenu(props: {
   petName: string;
   affection: number;
   pettedToday: boolean;
-  fedToday: boolean;
+  feedsLeft: number; // きょう あと何回あげられるか（1日3回まで）
   stocks: FoodStock[];
   busy: boolean;
   onPet: () => void;
@@ -30,6 +30,7 @@ export function CareMenu(props: {
   onFeed: (foodId: string) => void;
   onClose: () => void;
 }) {
+  const fedUp = props.feedsLeft <= 0;
   const owned = FOODS.map((f) => ({
     def: f,
     count: props.stocks.find((s) => s.foodId === f.id)?.count ?? 0,
@@ -101,7 +102,7 @@ export function CareMenu(props: {
 
           <div>
             <p className="mb-1.5 font-pixel text-[10px] tracking-[0.08em] text-royal2">
-              GOHAN — {props.fedToday ? "きょうは あげ済み" : "えらんで もりつける"}
+              GOHAN — {fedUp ? "きょうは たっぷり たべました" : `えらんで もりつける（あと${props.feedsLeft}回）`}
             </p>
             {owned.length === 0 ? (
               <p className="text-[11.5px] text-inksoft">
@@ -115,7 +116,7 @@ export function CareMenu(props: {
                   <button
                     key={def.id}
                     onClick={() => props.onFeed(def.id)}
-                    disabled={props.fedToday || props.busy}
+                    disabled={fedUp || props.busy}
                     title={`${def.name}（のこり${count}）`}
                     aria-label={`${def.name}をもりつける。のこり${count}`}
                     className="relative flex w-[68px] shrink-0 flex-col items-center gap-1 rounded-lg border-2 border-line8 bg-surface px-1 pb-2 pt-3 shadow-hard-sm transition-transform hover:bg-quotebg active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-45"

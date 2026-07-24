@@ -174,8 +174,10 @@ model Pet {
   name         String // 本人がつけた名前（初期値は種族名）
   affection    Int       @default(0)
   lastPettedAt DateTime? @db.Date
-  // ごはん（Issue #23）: 1日1回/匹の判定と、好物を見つけた記録（ごはん図鑑用）
+  // ごはん（Issue #23）: 1日3回/匹。lastFedAt=最後にあげた日（回数リセット判定）、
+  // fedCount=その日の給餌回数、favoriteFoundAt=好物を見つけた記録（ごはん図鑑用）
   lastFedAt       DateTime? @db.Date
+  fedCount        Int       @default(0)
   favoriteFoundAt DateTime?
   befriendedAt DateTime  @default(now())
 

@@ -23,7 +23,7 @@ export type RoomPet = {
   name: string;
   affection: number;
   pettedToday: boolean;
-  fedToday: boolean;
+  feedsLeft: number; // きょう あと何回ごはんをあげられるか（1日3回まで）
 };
 
 // 演出の尺（ms）。CSSアニメ側と揃えてある
@@ -182,7 +182,9 @@ export function LivingScene(props: {
         const r = await feedPet(petId, foodId);
         setPets((ps) =>
           ps.map((p) =>
-            p.id === petId ? { ...p, affection: r.affection, fedToday: true } : p
+            p.id === petId
+              ? { ...p, affection: r.affection, feedsLeft: r.feedsLeft }
+              : p
           )
         );
         setStocks((ss) =>
@@ -361,7 +363,7 @@ export function LivingScene(props: {
           petName={menuPet.name}
           affection={menuPet.affection}
           pettedToday={menuPet.pettedToday}
-          fedToday={menuPet.fedToday}
+          feedsLeft={menuPet.feedsLeft}
           stocks={stocks}
           busy={serving !== null}
           onPet={() => onPet(menuPet.id)}
