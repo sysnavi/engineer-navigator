@@ -4,13 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { TUTORIAL_STEPS } from "@/lib/tutorial";
 import { PixelAvatar } from "@/components/pixel-avatar";
-import { completeTutorial } from "@/app/actions";
+import { completeTutorial, updateMentorStance } from "@/app/actions";
+import { STANCES, type StanceId } from "@/lib/ai/stance";
 
 // 初回チュートリアル（モーダル歩き）。初回ログイン時に自動表示。
 // マイページの「もう一度」から window イベント "en:tutorial" で再表示できる。
 export function Tutorial(props: { defaultOpen: boolean }) {
   const [open, setOpen] = useState(props.defaultOpen);
   const [i, setI] = useState(0);
+  // 接し方の選択（未選択なら保存しない＝既定のふつうのまま）
+  const [stance, setStance] = useState<StanceId | null>(null);
 
   // マイページ等からの再表示要求を受ける
   useEffect(() => {
@@ -70,6 +73,37 @@ export function Tutorial(props: { defaultOpen: boolean }) {
           <p className="max-w-[42ch] text-[13px] leading-relaxed text-ink">
             {step.body}
           </p>
+
+          {step.pick === "stance" && (
+            <div className="flex w-full flex-col gap-2">
+              {STANCES.map((st) => {
+                const on = stance === st.id;
+                return (
+                  <button
+                    key={st.id}
+                    onClick={() => {
+                      setStance(st.id);
+                      // 選んだ時点で保存する（後で「次へ」を押さず閉じても残る）
+                      const fd = new FormData();
+                      fd.set("stance", st.id);
+                      updateMentorStance(fd).catch(() => {});
+                    }}
+                    aria-pressed={on}
+                    className={`rounded-lg border-[2.5px] border-line8 px-3 py-2 text-left shadow-hard-sm ${
+                      on ? "bg-royal text-white" : "bg-surface text-ink"
+                    }`}
+                  >
+                    <span className="text-[12.5px] font-bold">
+                      <span aria-hidden="true">{st.emoji}</span> {st.label}
+                    </span>
+                    <span className="block text-[11px] leading-snug opacity-80">
+                      {st.summary}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {last && step.cta && (
             <Link

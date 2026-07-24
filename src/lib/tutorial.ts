@@ -7,6 +7,9 @@ export type TutorialStep = {
   title: string;
   body: string;
   cta?: { href: string; label: string }; // 最終ステップ等の誘導（任意）
+  // 説明だけでなく、その場で設定を選ばせるステップ（今は接し方のみ）。
+  // 選ばなくても既定（ふつう）で進めるので、フローは止めない。
+  pick?: "stance";
 };
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
@@ -24,6 +27,12 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     sprite: "chick",
     title: "スキルが育つ",
     body: "AIの提案を承認するとスキルのレベルが上がって、「成長の道筋」として記録に残る。承認するかは自分で決められる。",
+  },
+  {
+    sprite: "chick",
+    title: "どう言われたい？",
+    body: "AIメンターの接し方を選べるよ。あとからマイページでいつでも変えられる。スキルの判定のきびしさは変わらないから安心して選んでね。",
+    pick: "stance",
   },
   {
     sprite: "minarai",
