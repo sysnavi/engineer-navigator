@@ -7,7 +7,12 @@
 //   dish     = お皿をそっと置く（基本）
 //   hand     = てのひらから差し出す（なつき度8以上で解放）
 //   together = いっしょに いただきます（好物を当てた日に自動）
+//
+// 【描画位置】body 直下へポータルする。シーン（DESKTOP/LIVING）は isolate で
+// スタッキングコンテキストを作っているため、その内側に置くと z-index が
+// シーン内でしか効かず、後ろに並ぶウィンドウ（LIVING等）に上書きされる。
 
+import { createPortal } from "react-dom";
 import { FoodSprite } from "@/components/pets/food-sprite";
 import { FOODS, HAND_SERVE_MIN_AFFECTION } from "@/lib/pets/foods";
 
@@ -30,7 +35,11 @@ export function CareMenu(props: {
     count: props.stocks.find((s) => s.foodId === f.id)?.count ?? 0,
   })).filter((x) => x.count > 0);
 
-  return (
+  // このメニューはクリック後にだけ描かれる＝常にクライアント側なので、
+  // document の有無を見るだけでよい（ハイドレーション不一致は起きない）
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     // fixed でシーン(縦横比固定 + overflow-hidden)の外へ逃がす。
     // absolute のままだとスマホでは器(16:9で約193px)に収まらず上下が切れる。
     // スマホは下から出るシート、sm以上は従来どおり中央ダイアログ。
@@ -131,6 +140,7 @@ export function CareMenu(props: {
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
