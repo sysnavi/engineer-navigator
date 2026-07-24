@@ -146,10 +146,14 @@ export function DesktopScene(props: {
     });
   }
 
-  // なでなで。メニューは開いたまま何度でも撫でられる（ハートはメニュー側で出す）。
-  // なつき度が実際に上がった日だけ fedToday 相当の pettedToday を反映。
+  // なでなで。メニューを閉じて来客本体にハート＋にっこりを出す。
+  // 何回でも撫でられる（また来客をタップすればメニューが開く）。
+  // なつき度が実際に上がった日だけ pettedToday を反映。
   function onPetVisitor() {
     if (!props.visitor) return;
+    setMenuOpen(false);
+    setVisitorHeart(true);
+    setTimeout(() => setVisitorHeart(false), 1600);
     start(async () => {
       try {
         const r = await petPet(props.visitor!.id);

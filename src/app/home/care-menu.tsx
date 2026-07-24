@@ -12,7 +12,6 @@
 // スタッキングコンテキストを作っているため、その内側に置くと z-index が
 // シーン内でしか効かず、後ろに並ぶウィンドウ（LIVING等）に上書きされる。
 
-import { useState } from "react";
 import { createPortal } from "react-dom";
 import { FoodSprite } from "@/components/pets/food-sprite";
 import { FOODS, HAND_SERVE_MIN_AFFECTION } from "@/lib/pets/foods";
@@ -35,14 +34,6 @@ export function CareMenu(props: {
     def: f,
     count: props.stocks.find((s) => s.foodId === f.id)?.count ?? 0,
   })).filter((x) => x.count > 0);
-
-  // なでなでのハート演出（キー更新でCSSアニメを撃ち直す）。メニューは開いたまま
-  // 何度でも撫でられるので、毎回ここでハートを飛ばして手応えを出す。
-  const [pats, setPats] = useState(0);
-  const handlePet = () => {
-    setPats((n) => n + 1);
-    props.onPet();
-  };
 
   // このメニューはクリック後にだけ描かれる＝常にクライアント側なので、
   // document の有無を見るだけでよい（ハイドレーション不一致は起きない）
@@ -84,23 +75,14 @@ export function CareMenu(props: {
           </p>
 
           <div className="flex gap-2">
-            {/* なでなでは何回でもOK（busy中だけ止める）。なつき度の加算は1日1回で、
-                加算済みの日は下のキャプションで知らせる（ボタンは押せるまま） */}
+            {/* なでなでは何回でもOK。押すとメニューを閉じ、ペット本体に
+                ハート＋にっこりが出る（演出はシーン側）。なつき度の加算は1日1回 */}
             <button
-              onClick={handlePet}
+              onClick={props.onPet}
               disabled={props.busy}
-              className="btn8 relative flex-1 overflow-visible py-2 text-[12.5px] disabled:opacity-45"
+              className="btn8 flex-1 py-2 text-[12.5px] disabled:opacity-45"
             >
               なでなでする
-              {pats > 0 && (
-                <span
-                  key={pats}
-                  aria-hidden="true"
-                  className="pet-heart pointer-events-none absolute -top-1 left-1/2 -ml-2 font-pixel text-[14px] text-pinkhot"
-                >
-                  ♥
-                </span>
-              )}
             </button>
             {/* 好物のヒントをくれる（定型台詞なのでトークンゼロ） */}
             <button
