@@ -8,6 +8,12 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { judgeEncounter } from "@/lib/pets/encounter";
 import { speciesById, TALK_TREES } from "@/lib/pets/species";
+import {
+  foodById,
+  affectionGain,
+  serveModeFor,
+  type ServeMode,
+} from "@/lib/pets/foods";
 import { GADGETS } from "@/lib/dungeon/content";
 import {
   clampToZones,
@@ -105,14 +111,17 @@ export async function namePet(petId: string, name: string) {
   // /home のリネームフォームは呼び出し側で revalidatePath する
 }
 
+function todayUtc(): Date {
+  const d = new Date();
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+}
+
 /** なでなで（1日1回/匹）。なつき度+1、返り値は更新後のなつき度 */
 export async function petPet(petId: string): Promise<{ affection: number }> {
   const user = await getCurrentUser();
   const pet = await prisma.pet.findUniqueOrThrow({ where: { id: petId } });
   if (pet.userId !== user.id) throw new Error("この子はあなたのペットではありません");
-  const today = new Date(Date.UTC(
-    new Date().getFullYear(), new Date().getMonth(), new Date().getDate()
-  ));
+  const today = todayUtc();
   if (pet.lastPettedAt && pet.lastPettedAt.getTime() >= today.getTime()) {
     return { affection: pet.affection }; // きょうはもう撫でた（エラーにはしない）
   }
@@ -122,6 +131,86 @@ export async function petPet(petId: string): Promise<{ affection: number }> {
   });
   revalidatePath("/home");
   return { affection: updated.affection };
+}
+
+// ---------------------------------------------------------------------------
+// ごはん（Issue #23 竹案）
+// ---------------------------------------------------------------------------
+
+export type FeedResult = {
+  affection: number;
+  gain: number;
+  /** 演出の出し分け。favorite=大好物 / semi=レア（全種族の準好物） / normal */
+  reaction: "favorite" | "semi" | "normal";
+  serveMode: ServeMode;
+  /** この一口で好物を初めて当てたか（ごはん図鑑に記録された） */
+  discovered: boolean;
+  remaining: number; // そのごはんの残り所持数
+  message: string;
+};
+
+/** ごはんをあげる（1日1回/匹）。
+ *  在庫の減算は「count>0 のときだけ引く」updateMany で行い、
+ *  連打や多重タブでマイナス在庫にならないようにしている。 */
+export async function feedPet(
+  petId: string,
+  foodId: string
+): Promise<FeedResult> {
+  const user = await getCurrentUser();
+  const food = foodById(foodId);
+  if (!food) throw new Error("そのごはんは存在しません");
+
+  const pet = await prisma.pet.findUniqueOrThrow({ where: { id: petId } });
+  if (pet.userId !== user.id) throw new Error("この子はあなたのペットではありません");
+
+  const today = todayUtc();
+  if (pet.lastFedAt && pet.lastFedAt.getTime() >= today.getTime()) {
+    throw new Error("この子には きょうのごはんを もうあげました");
+  }
+
+  // 在庫を1つ消費（在庫が無ければ 0件更新 = 失敗）
+  const consumed = await prisma.foodItem.updateMany({
+    where: { userId: user.id, foodId, count: { gt: 0 } },
+    data: { count: { decrement: 1 } },
+  });
+  if (consumed.count === 0) throw new Error("その ごはんを 持っていません");
+
+  const species = speciesById(pet.speciesId);
+  const isFavorite = species?.favoriteFoodId === food.id;
+  const gain = affectionGain(food, isFavorite);
+  const discovered = isFavorite && !pet.favoriteFoundAt;
+
+  const updated = await prisma.pet.update({
+    where: { id: petId },
+    data: {
+      affection: { increment: gain },
+      lastFedAt: today,
+      ...(discovered ? { favoriteFoundAt: new Date() } : {}),
+    },
+  });
+
+  const stock = await prisma.foodItem.findUnique({
+    where: { userId_foodId: { userId: user.id, foodId } },
+    select: { count: true },
+  });
+
+  const reaction = isFavorite ? "favorite" : food.semiFavorite ? "semi" : "normal";
+  const message = isFavorite
+    ? `★ 大好物！ ${pet.name}は おおよろこび！`
+    : food.semiFavorite
+      ? `${pet.name}は ${food.name} に おおよろこび！`
+      : `${pet.name}は ${food.name} を たべた。`;
+
+  revalidatePath("/home");
+  return {
+    affection: updated.affection,
+    gain,
+    reaction,
+    serveMode: serveModeFor(pet.affection, isFavorite),
+    discovered,
+    remaining: stock?.count ?? 0,
+    message,
+  };
 }
 
 // ---------------------------------------------------------------------------

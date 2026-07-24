@@ -26,6 +26,10 @@ import {
   type Gadget,
   type Rarity,
 } from "@/lib/dungeon/content";
+import { rollFood, foodById } from "@/lib/pets/foods";
+
+/** 宝箱にごはんが同梱されている確率（Issue #23。ボスは確定なので別扱い） */
+const FOOD_DROP_RATE = 0.45;
 
 // 紙芝居の1コマ。クライアントはこれを順に表示するだけ
 export type DungeonStep = {
@@ -36,6 +40,7 @@ export type DungeonStep = {
   outcome?: "success" | "fail" | "avoid" | "none";
   depthAfter: number; // このコマ終了時点の深度（プログレス表示用）
   gadgetId?: string; // 獲得ガジェット
+  foodId?: string; // 獲得ごはん（Issue #23）
 };
 
 export type DungeonState = {
@@ -188,6 +193,7 @@ export async function performDive(userId: string): Promise<{
   let shieldLeft = hasShield ? 1 : 0;
   let buff = 0; // RESTのbuff: 次のENCOUNTER成功率に加算（1回で消費）
   const gotGadgets: string[] = [];
+  const gotFoods: string[] = []; // 同じごはんを複数拾えるので配列（重複＝個数）
   const steps: DungeonStep[] = [];
 
   // --- 出発 ---
@@ -219,6 +225,9 @@ export async function performDive(userId: string): Promise<{
         const drop = rollRarity(Math.max(depth, RARITY_MIN_DEPTH.SSR), stats.generation, true);
         const isNew = !owned.has(drop.id) && !gotGadgets.includes(drop.id);
         if (isNew) gotGadgets.push(drop.id);
+        // ボス撃破の褒美にレアなごはん（きんのオムライス）が確定で出る
+        const bossFood = rollFood(depth, true);
+        if (bossFood) gotFoods.push(bossFood.id);
         steps.push({
           kind: "BOSS",
           title: `ボス: ${boss.name}`,
@@ -228,11 +237,15 @@ export async function performDive(userId: string): Promise<{
             isNew
               ? `宝物庫から「${drop.name}」を手に入れた！`
               : `宝物庫の「${drop.name}」は既に持っていた。丁寧に磨いた。`,
+            ...(bossFood
+              ? [`宝物庫の奥に「${bossFood.name}」も残っていた。持って帰ろう。`]
+              : []),
           ],
           sprite: boss.sprite,
           outcome: "success",
           depthAfter: depth,
           gadgetId: isNew ? drop.id : undefined,
+          foodId: bossFood?.id,
         });
       } else {
         depth = Math.max(1, depth - 1);
@@ -314,6 +327,9 @@ export async function performDive(userId: string): Promise<{
         const drop = rollRarity(depth, stats.generation, !!mods?.treasureWeightMul);
         const isNew = !owned.has(drop.id) && !gotGadgets.includes(drop.id);
         if (isNew) gotGadgets.push(drop.id);
+        // 宝箱にはガジェットと一緒にごはんが入っていることがある（深いほど良いものが出る）
+        const food = Math.random() < FOOD_DROP_RATE ? rollFood(depth, false) : null;
+        if (food) gotFoods.push(food.id);
         steps.push({
           kind: "TREASURE",
           title: "宝箱発見！",
@@ -322,11 +338,15 @@ export async function performDive(userId: string): Promise<{
             isNew
               ? `「${drop.name}」を手に入れた！（${drop.rarity}）`
               : `「${drop.name}」…は既に持っていた。予備としてしまっておこう。`,
+            ...(food
+              ? [`すみに「${food.name}」も入っていた。ペットのおみやげにしよう。`]
+              : []),
           ],
           sprite: "icon-chest",
           outcome: "success",
           depthAfter: depth,
           gadgetId: isNew ? drop.id : undefined,
+          foodId: food?.id,
         });
       }
     } else if (ev === "TRAP") {
@@ -387,8 +407,13 @@ export async function performDive(userId: string): Promise<{
     title: `地下${depth}階に到達！`,
     lines: [
       `本日の探索終了 — 到達: 地下${depth}階（出発: ${baseDepth}階）`,
-      gotGadgets.length > 0
-        ? `戦利品: ${gotGadgets.map((id) => GADGETS.find((g) => g.id === id)?.name).join("・")}`
+      gotGadgets.length > 0 || gotFoods.length > 0
+        ? `戦利品: ${[
+            ...gotGadgets.map((id) => GADGETS.find((g) => g.id === id)?.name),
+            ...gotFoods.map((id) => foodById(id)?.name),
+          ]
+            .filter(Boolean)
+            .join("・")}`
         : "戦利品はなかったが、いい運動になった。",
       record,
       "今日はもう帰ろう。休むのも仕事のうち。",
@@ -398,6 +423,11 @@ export async function performDive(userId: string): Promise<{
   });
 
   // --- 保存（slot @@unique が二重潜行を構造で弾く） ---
+  // ごはんは同じものを複数拾えるので、id ごとに個数を集計して加算する
+  const foodCounts = gotFoods.reduce<Record<string, number>>((acc, id) => {
+    acc[id] = (acc[id] ?? 0) + 1;
+    return acc;
+  }, {});
   await prisma.$transaction([
     prisma.dungeonRun.create({
       data: { userId, slot, baseDepth, depth, steps },
@@ -410,6 +440,13 @@ export async function performDive(userId: string): Promise<{
           }),
         ]
       : []),
+    ...Object.entries(foodCounts).map(([foodId, n]) =>
+      prisma.foodItem.upsert({
+        where: { userId_foodId: { userId, foodId } },
+        update: { count: { increment: n } },
+        create: { userId, foodId, count: n },
+      })
+    ),
   ]);
 
   return { steps, depth, kind };

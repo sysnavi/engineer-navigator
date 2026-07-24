@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/db";
 import { mondayOf } from "@/lib/week";
+import { DAILY_FOOD_ID } from "@/lib/pets/foods";
 import {
   geneById,
   genesFromExpBySource,
@@ -92,17 +93,30 @@ function dayOf(date: Date): Date {
   );
 }
 
-/** サイト訪問を記録する（1日1回・重複は無視）。レイアウトから呼ぶ。 */
+/** サイト訪問を記録する（1日1回・重複は無視）。レイアウトから呼ぶ。
+ *  その日の初訪問なら、ごはんのデイリー配布も同時に行う（Issue #23）。
+ *  UserVisit の @@unique が「1日1回」を構造で保証しているので、
+ *  createMany の挿入件数をそのまま配布判定に使える。 */
 export async function recordVisit(userId: string): Promise<void> {
   try {
-    await prisma.userVisit.createMany({
+    const { count } = await prisma.userVisit.createMany({
       data: [{ userId, date: dayOf(new Date()) }],
       skipDuplicates: true,
     });
+    if (count > 0) await grantDailyFood(userId);
   } catch (e) {
     // 訪問記録の失敗で画面を壊さない
     console.error("recordVisit failed:", e);
   }
+}
+
+/** ごはんのデイリー配布（ログイン1日1個）。呼び出しは recordVisit 経由のみ。 */
+async function grantDailyFood(userId: string): Promise<void> {
+  await prisma.foodItem.upsert({
+    where: { userId_foodId: { userId, foodId: DAILY_FOOD_ID } },
+    update: { count: { increment: 1 } },
+    create: { userId, foodId: DAILY_FOOD_ID, count: 1 },
+  });
 }
 
 /** 訪問日の配列から 連続日数(今日/昨日まで) と 7日連続ボーナス回数 を計算 */

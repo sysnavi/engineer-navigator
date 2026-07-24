@@ -75,6 +75,7 @@ model User {
   ownedGadgets     OwnedGadget[]
   encounters       Encounter[]
   pets             Pet[]
+  foodItems        FoodItem[]
   authIdentities   AuthIdentity[]
   inquiries        Inquiry[]
   authSessions     AuthSession[]
@@ -173,9 +174,24 @@ model Pet {
   name         String // 本人がつけた名前（初期値は種族名）
   affection    Int       @default(0)
   lastPettedAt DateTime? @db.Date
+  // ごはん（Issue #23）: 1日1回/匹の判定と、好物を見つけた記録（ごはん図鑑用）
+  lastFedAt       DateTime? @db.Date
+  favoriteFoundAt DateTime?
   befriendedAt DateTime  @default(now())
 
   @@index([userId])
+}
+
+// ごはんの所持数（Issue #23）。ごはんマスタは src/lib/pets/foods.ts のTS定義で、
+// DBには「誰が何をいくつ持っているか」だけを置く（マスタ追加でマイグレーション不要）。
+model FoodItem {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  foodId String // FOODS の id
+  count  Int    @default(0)
+
+  @@unique([userId, foodId])
 }
 
 // アバター継承（転生）: 完了した世代の記録。1行 = 家系図の1段（先祖）。

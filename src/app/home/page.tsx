@@ -17,8 +17,11 @@ import {
   WALLPAPERS,
   FLOORS,
 } from "@/lib/home/scene";
+import { FOODS } from "@/lib/pets/foods";
+import { FoodSprite } from "@/components/pets/food-sprite";
 import { DesktopScene, type DeskGadget, type DeskVisitor } from "./desktop-scene";
 import { LivingScene, type RoomPet } from "./living-scene";
+import type { FoodStock } from "./care-menu";
 import { ActionForm } from "@/components/toast";
 import { namePet, placeGadgetAt, setRoomTheme } from "./actions";
 
@@ -29,10 +32,11 @@ function today(): Date {
 
 export default async function HomePage() {
   const user = await getCurrentUser();
-  const [pets, owned, fledCount] = await Promise.all([
+  const [pets, owned, fledCount, foodRows] = await Promise.all([
     prisma.pet.findMany({ where: { userId: user.id }, orderBy: { befriendedAt: "asc" } }),
     prisma.ownedGadget.findMany({ where: { userId: user.id } }),
     prisma.encounter.count({ where: { userId: user.id, status: "FLED" } }),
+    prisma.foodItem.findMany({ where: { userId: user.id } }),
   ]);
 
   const ownedDefs = owned
@@ -64,9 +68,13 @@ export default async function HomePage() {
         id: visitorPet.id,
         speciesId: visitorPet.speciesId,
         name: visitorPet.name,
+        affection: visitorPet.affection,
         pettedToday:
           !!visitorPet.lastPettedAt &&
           visitorPet.lastPettedAt.getTime() >= today().getTime(),
+        fedToday:
+          !!visitorPet.lastFedAt &&
+          visitorPet.lastFedAt.getTime() >= today().getTime(),
       }
     : null;
 
@@ -78,7 +86,14 @@ export default async function HomePage() {
       name: p.name,
       affection: p.affection,
       pettedToday: !!p.lastPettedAt && p.lastPettedAt.getTime() >= today().getTime(),
+      fedToday: !!p.lastFedAt && p.lastFedAt.getTime() >= today().getTime(),
     }));
+
+  // ごはんの在庫（0個も含めて全種返す。おせわメニュー側で持っている分だけ出す）
+  const stocks: FoodStock[] = FOODS.map((f) => ({
+    foodId: f.id,
+    count: foodRows.find((r) => r.foodId === f.id)?.count ?? 0,
+  }));
 
   const wallpaperCss = themeCss(WALLPAPERS, user.homeWallpaper, "cream");
   const floorCss = themeCss(FLOORS, user.homeFloor, "wood");
@@ -110,6 +125,7 @@ export default async function HomePage() {
           wallpaperCss={wallpaperCss}
           floorCss={floorCss}
           visitor={visitor}
+          stocks={stocks}
         />
         {stored.length > 0 && (
           <div className="mt-3">
@@ -161,12 +177,61 @@ export default async function HomePage() {
           wallpaperCss={wallpaperCss}
           floorCss={floorCss}
           awayName={visitor?.name ?? null}
+          stocks={stocks}
         />
         <p className="mt-2.5 text-[11.5px] text-inksoft">
           なかま {pets.length} 匹
           {fledCount > 0 && ` ／ これまで逃げられた回数 ${fledCount} 回（また会えるさ）`}
-          ｜ クリックでなでなで（1日1回）｜ ときどきデスクに遊びに行きます
+          ｜ クリックで おせわメニュー（なでなで・ごはん／各1日1回）｜
+          ときどきデスクに遊びに行きます
         </p>
+
+        {/* ===== ごはん図鑑 ===== */}
+        <div className="mt-4 rounded-lg border-2 border-line8 bg-surface p-3">
+          <PixelLabel className="mb-2">GOHAN — ごはん図鑑</PixelLabel>
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            {FOODS.map((f) => {
+              const count = stocks.find((s) => s.foodId === f.id)?.count ?? 0;
+              // 好物を見つけた子だけ名前を出す（見つけるまでは ？？？）
+              const lovers = pets
+                .filter(
+                  (p) =>
+                    p.favoriteFoundAt &&
+                    speciesById(p.speciesId)?.favoriteFoodId === f.id
+                )
+                .map((p) => p.name);
+              return (
+                <div
+                  key={f.id}
+                  className="flex items-start gap-2.5 rounded-lg border-2 border-line8 bg-win px-2.5 py-2"
+                >
+                  <span className="shrink-0 pt-0.5">
+                    <FoodSprite id={f.id} px={3} label={f.name} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[12.5px] font-extrabold">
+                      {f.name}
+                      <span className="ml-1.5 font-pixel text-[10px] text-lemon">
+                        {"★".repeat(f.rarity)}
+                      </span>
+                      <span className="ml-1.5 font-pixel text-[10px] text-royal2">
+                        x{count}
+                      </span>
+                    </p>
+                    <p className="text-[11px] leading-snug text-inksoft">{f.desc}</p>
+                    <p className="mt-0.5 text-[10.5px] font-bold text-inksoft">
+                      {f.semiFavorite
+                        ? "みんなの ごちそう（+2）"
+                        : lovers.length > 0
+                          ? `好物: ${lovers.join("・")} ♥`
+                          : "好物: ？？？"}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </Window>
 
       {/* ===== きせかえ（壁紙・床は2部屋共通） ===== */}

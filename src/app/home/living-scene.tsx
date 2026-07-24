@@ -2,13 +2,19 @@
 
 // LIVING.sav — ペットが暮らすリビング（Issue #12 松）。
 // 旧 room.tsx から分離してペット専用に。ラグとまど（CSS描き）のうえで
-// ゆらゆら歩き・なでなで（1日1回）。デスクに遊びに行っている子はここには居ない。
+// ゆらゆら歩き。ペットをクリックすると おせわメニュー（なでなで / ごはん）が開く。
+// デスクに遊びに行っている子はここには居ない。
+//
+// ごはん（Issue #23）: 器にもりつけて差し出す→もぐもぐ→リアクション、の順で再生。
+// 好物を当てた日は「いっしょに いただきます」（おじぎ付き）に自動で切り替わる。
 
 import { useState, useTransition } from "react";
 import Image from "next/image";
-import { petPet } from "./actions";
+import { petPet, feedPet, type FeedResult } from "./actions";
 import { PET_SIZE } from "@/lib/home/scene";
 import { speciesById } from "@/lib/pets/species";
+import { CareMenu, type FoodStock } from "./care-menu";
+import { FoodServe } from "./food-serve";
 
 export type RoomPet = {
   id: string;
@@ -16,7 +22,13 @@ export type RoomPet = {
   name: string;
   affection: number;
   pettedToday: boolean;
+  fedToday: boolean;
 };
+
+// 演出の尺（ms）。CSSアニメ側と揃えてある
+const SERVE_IN = { dish: 560, hand: 700, together: 620 };
+const BITE_MS = 300; // 一口の間隔（3口で完食）
+const BOW_MS = 1000;
 
 function affectionTier(a: number): string {
   if (a >= 15) return "かぞく";
@@ -25,25 +37,43 @@ function affectionTier(a: number): string {
   return "であいたて";
 }
 
+/** もりつけ演出の進行状態 */
+type Serving = {
+  petId: string;
+  foodId: string;
+  mode: "dish" | "hand" | "together";
+  eaten: number; // 0..1
+  phase: "serve" | "itadakimasu" | "eating" | "react";
+  bubble: string | null;
+  joy: boolean;
+};
+
 export function LivingScene(props: {
   pets: RoomPet[];
   wallpaperCss: string;
   floorCss: string;
   awayName: string | null; // デスクへ遊びに行っている子（表示だけ）
+  stocks: FoodStock[];
 }) {
   const [pets, setPets] = useState(props.pets);
   const [hearts, setHearts] = useState<string | null>(null);
+  const [stocks, setStocks] = useState(props.stocks);
+  const [menuPetId, setMenuPetId] = useState<string | null>(null);
+  const [serving, setServing] = useState<Serving | null>(null);
+  const [log, setLog] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   // サーバーアクション後の再レンダーで新入りペット等を反映（props→state同期）。
   // refはrender中に読めない(react-hooks/refs)ため前回キーもstateで持つ
-  const propsKey = JSON.stringify(props.pets);
+  const propsKey = JSON.stringify([props.pets, props.stocks]);
   const [lastKey, setLastKey] = useState(propsKey);
   if (lastKey !== propsKey) {
     setLastKey(propsKey);
     if (pets !== props.pets) setPets(props.pets);
+    if (stocks !== props.stocks) setStocks(props.stocks);
   }
 
   const onPet = (petId: string) => {
+    setMenuPetId(null);
     setHearts(petId);
     setTimeout(() => setHearts((h) => (h === petId ? null : h)), 1600);
     startTransition(async () => {
@@ -59,6 +89,112 @@ export function LivingScene(props: {
       }
     });
   };
+
+  /** 話しかける: 好物のヒント台詞を吹き出しに出す（定型なのでトークンゼロ・DB不要） */
+  const onTalk = (petId: string) => {
+    setMenuPetId(null);
+    const pet = pets.find((p) => p.id === petId);
+    const sp = pet && speciesById(pet.speciesId);
+    if (!sp) return;
+    setServing({
+      petId,
+      foodId: "",
+      mode: "dish",
+      eaten: 1, // 器は出さない（ヒントの吹き出しだけ）
+      phase: "react",
+      bubble: sp.foodHint,
+      joy: false,
+    });
+    setTimeout(() => setServing(null), 3600);
+  };
+
+  /** もりつけ→もぐもぐ→リアクション を順に再生する（サーバー結果を受けてから開始） */
+  const playServe = (petId: string, foodId: string, r: FeedResult) => {
+    const mode = r.serveMode;
+    setServing({
+      petId,
+      foodId,
+      mode,
+      eaten: 0,
+      phase: "serve",
+      bubble: null,
+      joy: false,
+    });
+
+    const step = (fn: () => void, ms: number) => setTimeout(fn, ms);
+    const eat = (after: () => void) => {
+      setServing((s) => (s ? { ...s, phase: "eating" } : s));
+      [1, 2, 3].forEach((n) =>
+        step(
+          () => setServing((s) => (s ? { ...s, eaten: n / 3 } : s)),
+          BITE_MS * n
+        )
+      );
+      step(after, BITE_MS * 3 + 120);
+    };
+    const react = () => {
+      const joyful = r.reaction !== "normal";
+      setServing((s) =>
+        s
+          ? {
+              ...s,
+              phase: "react",
+              joy: joyful,
+              bubble:
+                r.reaction === "favorite"
+                  ? "…！ だいすきなやつだ！！"
+                  : r.reaction === "semi"
+                    ? "かがやいてる…！ ごちそうだ！"
+                    : "もぐもぐ…。ごちそうさま！",
+            }
+          : s
+      );
+      if (joyful) setHearts(petId);
+      step(() => {
+        setServing(null);
+        setHearts((h) => (h === petId ? null : h));
+      }, 1600);
+    };
+
+    if (mode === "together") {
+      // いっしょに いただきます → もぐもぐ → ごちそうさまでした
+      step(() => {
+        setServing((s) =>
+          s ? { ...s, phase: "itadakimasu", bubble: "いただきます！" } : s
+        );
+        step(() => eat(react), BOW_MS);
+      }, SERVE_IN.together);
+    } else {
+      step(() => eat(react), SERVE_IN[mode]);
+    }
+  };
+
+  const onFeed = (petId: string, foodId: string) => {
+    setMenuPetId(null);
+    startTransition(async () => {
+      try {
+        const r = await feedPet(petId, foodId);
+        setPets((ps) =>
+          ps.map((p) =>
+            p.id === petId ? { ...p, affection: r.affection, fedToday: true } : p
+          )
+        );
+        setStocks((ss) =>
+          ss.map((s) => (s.foodId === foodId ? { ...s, count: r.remaining } : s))
+        );
+        setLog(
+          r.discovered
+            ? `${r.message} 好物を見つけた！（ごはん図鑑に記録した）`
+            : `${r.message} なつき度 +${r.gain}`
+        );
+        playServe(petId, foodId, r);
+      } catch (e) {
+        setLog(e instanceof Error ? e.message : "ごはんをあげられませんでした");
+      }
+    });
+  };
+
+  const menuPet = pets.find((p) => p.id === menuPetId) ?? null;
 
   // 3/4見下ろし: ペットは床に散らばって暮らす（座標は匹ごとに決定的・y=奥行きで前後関係）
   const spot = (i: number) => ({
@@ -111,13 +247,26 @@ export function LivingScene(props: {
         const sp = speciesById(p.speciesId);
         if (!sp) return null;
         const happy = sp.sprites.happy ?? sp.sprites.normal;
-        const showHappy = hearts === p.id;
+        const serve = serving?.petId === p.id ? serving : null;
+        const showHappy = hearts === p.id || serve?.joy === true;
         const pos = spot(i);
+        // ごはん中は そぞろ歩きを止めて、もぐもぐ/おじぎ/大よろこび に差し替える
+        const bodyAnim = serve
+          ? serve.joy
+            ? "pet-joy"
+            : serve.phase === "eating"
+              ? "pet-munch"
+              : serve.phase === "itadakimasu"
+                ? "pet-bow"
+                : ""
+          : showHappy
+            ? ""
+            : "alien-patapata";
         return (
           <button
             key={p.id}
-            onClick={() => onPet(p.id)}
-            title={`${p.name}（なつき度 ${p.affection}・${affectionTier(p.affection)}）${p.pettedToday ? " きょうはなでなで済み" : " クリックでなでる"}`}
+            onClick={() => setMenuPetId(p.id)}
+            title={`${p.name}（なつき度 ${p.affection}・${affectionTier(p.affection)}）クリックで おせわメニュー`}
             className="absolute -translate-x-1/2 -translate-y-full"
             style={{
               left: `${pos.x}%`,
@@ -130,18 +279,27 @@ export function LivingScene(props: {
             }}
           >
             <span
-              className="pet-wander relative flex w-full flex-col items-center"
-              style={{
-                animationDuration: `${5 + (i % 4) * 1.4}s`,
-                animationDelay: `${(i % 5) * -1.3}s`,
-              }}
+              className={`relative flex w-full flex-col items-center ${serve ? "" : "pet-wander"}`}
+              style={
+                serve
+                  ? undefined
+                  : {
+                      animationDuration: `${5 + (i % 4) * 1.4}s`,
+                      animationDelay: `${(i % 5) * -1.3}s`,
+                    }
+              }
             >
+              {serve?.bubble && (
+                <span className="absolute -top-9 z-[1000] whitespace-nowrap rounded-lg border-2 border-line8 bg-win px-2 py-0.5 text-[10.5px] font-bold shadow-hard-sm">
+                  {serve.bubble}
+                </span>
+              )}
               {hearts === p.id && (
                 <span className="pet-heart absolute -top-4 font-pixel text-[13px] text-pinkhot">
                   ♥
                 </span>
               )}
-              <span className={`w-full ${showHappy ? "" : "alien-patapata"}`} style={{ animationDuration: "0.9s" }}>
+              <span className={`w-full ${bodyAnim}`} style={{ animationDuration: "0.9s" }}>
                 <Image
                   src={showHappy ? happy : sp.sprites.normal}
                   alt={p.name}
@@ -159,10 +317,49 @@ export function LivingScene(props: {
           </button>
         );
       })}
-      {props.awayName && (
+      {/* もりつけたごはん（ペットの足元にそっと置かれる）。
+          「話しかける」だけのときは foodId が空なので器を出さない */}
+      {serving?.foodId &&
+        (() => {
+          const i = pets.findIndex((p) => p.id === serving.petId);
+          if (i < 0) return null;
+          const pos = spot(i);
+          return (
+            <FoodServe
+              foodId={serving.foodId}
+              mode={serving.mode}
+              eaten={serving.eaten}
+              left={`calc(${pos.x}% + 26px)`}
+              bottom={`${100 - (34 + pos.y * 0.66)}%`}
+            />
+          );
+        })()}
+
+      {log && (
+        <p className="absolute inset-x-2 bottom-1 z-[1250] truncate rounded border-2 border-line8 bg-win/95 px-2 py-0.5 text-[10.5px] font-bold">
+          {log}
+        </p>
+      )}
+
+      {props.awayName && !log && (
         <p className="absolute bottom-1 right-2 z-[1200] font-pixel text-[9.5px] tracking-wide text-inksoft">
           {props.awayName}はデスクへおでかけ中
         </p>
+      )}
+
+      {menuPet && (
+        <CareMenu
+          petName={menuPet.name}
+          affection={menuPet.affection}
+          pettedToday={menuPet.pettedToday}
+          fedToday={menuPet.fedToday}
+          stocks={stocks}
+          busy={serving !== null}
+          onPet={() => onPet(menuPet.id)}
+          onTalk={() => onTalk(menuPet.id)}
+          onFeed={(foodId) => onFeed(menuPet.id, foodId)}
+          onClose={() => setMenuPetId(null)}
+        />
       )}
     </div>
   );

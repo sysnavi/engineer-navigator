@@ -9,6 +9,8 @@
 // 【会話】性格タイプ（4種）ごとの定型ツリーが基本（トークンゼロ）。
 // ANTHROPIC_API_KEY があれば自由会話モードも解放され、aiPersona が人格になる。
 
+import type { FoodId } from "./foods";
+
 export type PersonalityId = "friendly" | "tsun" | "shy" | "pace";
 
 export type PetSpecies = {
@@ -23,6 +25,10 @@ export type PetSpecies = {
   };
   intro: string; // 出会いの第一声（種族の個性）
   aiPersona: string; // AI自由会話モードの人格設定（1-2文）
+  // ごはん（Issue #23）: 種族ごとに好物がひとつ。当てると なつき度+2 で大喜び。
+  // 好物は一覧では見せず、話しかけたときの foodHint でだけ匂わせる（トークンゼロ）。
+  favoriteFoodId: FoodId;
+  foodHint: string;
   retired?: boolean;
 };
 
@@ -43,6 +49,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("kakure-kiwi"),
     intro: "……（葉っぱのかげから、じっとこっちを見ている）",
     aiPersona: "鉢巻きをした隠れ里のキーウィ。忍びのように物陰から人を観察している。口数は少ないが義理堅い。",
+    favoriteFoodId: "onigiri",
+    foodHint: "……にぎりめしは、しのびの ほぞんしょく。……いや、なんでもない。",
   },
   {
     id: "omusubi-ghost",
@@ -52,6 +60,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("omusubi-ghost"),
     intro: "おなか、すいてない？ぼく、ここにいるよ。",
     aiPersona: "おむすびの姿をしたやさしいゴースト。誰かの空腹と疲れを心配してばかりいる。",
+    favoriteFoodId: "coffee-milk",
+    foodHint: "ふぁ〜…あさは やっぱり ぎゅうにゅうの ゆめを みるんだ…。",
   },
   {
     id: "nama-mimic",
@@ -61,6 +71,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("nama-mimic"),
     intro: "……宝箱じゃないぞ。ジョッキだ。まちがえるな。",
     aiPersona: "生ビールジョッキに化けたミミック。宝箱と間違われるのが不服。強がりだが飲みの誘いには弱い。",
+    favoriteFoodId: "melonpan",
+    foodHint: "……べつに、ジョッキの よこに パンが あってもいいとは 思うぞ。",
   },
   {
     id: "choco-slime",
@@ -70,6 +82,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("choco-slime"),
     intro: "とけそう……でも、まだ とけない。だいじょうぶ。",
     aiPersona: "チョコレートのスライム。暑さに弱くていつも溶けかけているが、本人はいたってのんき。",
+    favoriteFoodId: "coffee-milk",
+    foodHint: "つめたい ぎゅうにゅう…あれを のむと、とけかけの からだが しまるんだ…。",
   },
   {
     id: "melon-hyozaurus",
@@ -79,6 +93,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("melon-hyozaurus"),
     intro: "しゃりしゃり〜！つめたいの、いる？",
     aiPersona: "メロンかき氷の恐竜。夏の縁日が大好きで、暑い日ほど元気になる。冷たいものを分けたがる。",
+    favoriteFoodId: "melonpan",
+    foodHint: "しゃりしゃり〜！メロンって きいただけで しっぽが うごいちゃう！",
   },
   {
     id: "lemon-mc",
@@ -88,6 +104,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("lemon-mc"),
     intro: "Yo！きみのがんばり、韻を踏んで讃えにきたぜ！",
     aiPersona: "レモン味のラッパー。何でも韻を踏んで褒めてくる陽気なMC。テンションが高い。",
+    favoriteFoodId: "melonpan",
+    foodHint: "Yo！さくさくの あいつと ライムは 韻を ふむ！パン、パン、メロンパン！",
   },
   {
     id: "umai-ninbou",
@@ -97,6 +115,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("umai-ninbou"),
     intro: "……気配を消していたのに、気づかれてしまった。",
     aiPersona: "覆面をしたスナック菓子の忍者。気配を消すのが得意だが、いつも誰かに見つかってしまう。",
+    favoriteFoodId: "onigiri",
+    foodHint: "……にんむちゅうの けいしょく。にぎってあるやつが、いちばん たべやすい。",
   },
   {
     id: "taro-gaeru",
@@ -106,6 +126,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("taro-gaeru"),
     intro: "べ、べつに遊びに来たんじゃないケロ。散歩の途中だケロ。",
     aiPersona: "駄菓子屋の帽子をかぶったカエル。素直じゃないが面倒見がいい。語尾にケロ。",
+    favoriteFoodId: "onigiri",
+    foodHint: "べつに にぎりめしが すきってわけじゃ ないケロ。……のりが すきなだけだケロ。",
   },
   {
     id: "yurei-boy",
@@ -115,6 +137,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("yurei-boy"),
     intro: "……ぼくのこと、見える？ほんとに？",
     aiPersona: "レトロな携帯ゲーム機の姿をした幽霊。存在に気づいてもらえると照れる。さみしがり。",
+    favoriteFoodId: "coffee-milk",
+    foodHint: "……よふかしのとき、しろい のみものが あると、ちょっと あんしんする。",
   },
   {
     id: "sushinchu-slime",
@@ -124,6 +148,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("sushinchu-slime"),
     intro: "ぷるん。……ぼく、あんまり動かないタイプ。",
     aiPersona: "駄菓子のスライム。動くのが苦手でいつもその場にいる。休むことの大切さを説く。",
+    favoriteFoodId: "melonpan",
+    foodHint: "うごかない ぼくでも…さくさくの おとだけは、ちゃんと きこえるんだ。",
   },
   {
     id: "dagashi-mimic",
@@ -133,6 +159,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("dagashi-mimic"),
     intro: "この箱の中身？……教えるわけないだろ。",
     aiPersona: "駄菓子箱に化けたミミック。中身を秘密にしたがるが、気に入った相手にはこっそり分けてくれる。",
+    favoriteFoodId: "onigiri",
+    foodHint: "この はこの なかみ？……のりの においが するって？き、きのせいだ。",
   },
   {
     id: "game-kerotch",
@@ -142,6 +170,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("game-kerotch"),
     intro: "ピコピコ……あ、ハイスコア更新した。きみもやる？",
     aiPersona: "携帯ゲーム機型のカエル。いつも何かのスコアを更新している。ゲームの話になると早口。",
+    favoriteFoodId: "melonpan",
+    foodHint: "かたてで つまめるやつが いいんだ。ハイスコアちゅうは てが はなせないから。",
   },
   {
     id: "limes-musubi",
@@ -151,6 +181,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("limes-musubi"),
     intro: "ライム、キメていくかい？おむすびだけに。",
     aiPersona: "ライム味のおむすびラッパー。ダジャレとライム（韻）をかけて話す陽気なやつ。",
+    favoriteFoodId: "onigiri",
+    foodHint: "むすんで ひらいて、また むすぶ！おむすびだけに、ライム キマった？",
   },
   {
     id: "furuhon-ghost",
@@ -160,6 +192,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("furuhon-ghost"),
     intro: "……この本、まだ読まれてないんだ。ずっと。",
     aiPersona: "古本に宿ったゴースト。積読の悲しみを知っている。技術書の話をすると少し嬉しそうにする。",
+    favoriteFoodId: "coffee-milk",
+    foodHint: "……よるの としょしつ。ページの よこに、あの しろいのが あったなあ。",
   },
   {
     id: "kero-jockey",
@@ -169,6 +203,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("kero-jockey"),
     intro: "おつかれ！とりあえず一杯、いっとく？",
     aiPersona: "ジョッキから顔を出すカエル。仕事終わりの労いが上手。乾杯が好き。",
+    favoriteFoodId: "coffee-milk",
+    foodHint: "ふろあがりの いっぱいって、じつは あれが さいこうなんだよな。",
   },
   {
     id: "sour-obake",
@@ -178,6 +214,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("sour-obake"),
     intro: "すっぱい顔してるって？……きみもだよ、疲れてるとき。",
     aiPersona: "酸っぱい駄菓子のおばけ。毒舌だが相手の疲れをよく見抜いている。ツンとした物言い。",
+    favoriteFoodId: "melonpan",
+    foodHint: "あまいのは にがて…って いいたいけど。……あの さくさくは、べつ。",
   },
   {
     id: "choco-boy",
@@ -187,6 +225,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("choco-boy"),
     intro: "……画面ごしなら、ちょっとだけ話せる。",
     aiPersona: "チョコ色の携帯ゲーム機の少年。直接話すのは苦手だが、画面越しだと饒舌になる。",
+    favoriteFoodId: "coffee-milk",
+    foodHint: "……がめんごしなら いえる。ぼく、ちゃいろい のみものが すき。",
   },
   {
     id: "kiwi-slime",
@@ -196,6 +236,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("kiwi-slime"),
     intro: "たねが いっぱいでしょ。ぜんぶ、ぼくの ともだち。",
     aiPersona: "キウイのスライム。種を友達だと思っている不思議なやつ。話がゆっくりで和む。",
+    favoriteFoodId: "onigiri",
+    foodHint: "たねが いっぱいの ぼくには…くろい のりが、なんだか なつかしいんだ。",
   },
   {
     id: "bluehawaii-ghost",
@@ -205,6 +247,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("bluehawaii-ghost"),
     intro: "しゅわしゅわ〜！夏の匂いがする方に来ちゃった！",
     aiPersona: "ブルーハワイ味のかき氷ゴースト。お祭りと夏が大好きで、いつも浮かれている。",
+    favoriteFoodId: "melonpan",
+    foodHint: "なつまつり〜！やたいの さくさくパン、あれが たまらないんだ！",
   },
   {
     id: "moja-mc",
@@ -214,6 +258,8 @@ export const PET_SPECIES: PetSpecies[] = [
     sprites: pet("moja-mc"),
     intro: "オレのリリックは辛口だ。覚悟しろよ。",
     aiPersona: "赤くて辛そうなラッパー。辛口の批評をするが、根は相手の成長を願っている。",
+    favoriteFoodId: "coffee-milk",
+    foodHint: "からいオレの リリックのあと…しろいので クールダウンする。ないしょだぞ。",
   },
 ];
 

@@ -512,6 +512,96 @@ body {
       transform: translateX(20px);
     }
   }
+  /* ---------- ごはん（Issue #23）: なげない・もりつけて差し出す ---------- */
+  @media (prefers-reduced-motion: no-preference) {
+    /* お皿をそっと置く（上からふわっと。飛ばさない） */
+    .food-place {
+      animation: food-place 0.5s steps(3, jump-none) both;
+    }
+    /* てのひらから — 画面の下＝プレイヤーの手元から差し出す */
+    .food-rise {
+      animation: food-rise 0.65s steps(5, jump-none) both;
+    }
+    /* いただきます／ごちそうさまの おじぎ */
+    .pet-bow {
+      animation: pet-bow 1s steps(2, jump-none) both;
+    }
+    /* もぐもぐ（squash & stretch） */
+    .pet-munch {
+      animation: pet-munch 0.9s steps(1, jump-none) both;
+    }
+    /* 好物をあてたときの大よろこび */
+    .pet-joy {
+      animation: pet-joy 1.1s steps(6, jump-none) both;
+    }
+  }
+  @keyframes food-place {
+    0% {
+      transform: translateY(-12px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  @keyframes food-rise {
+    0% {
+      transform: translateY(70px);
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  @keyframes pet-bow {
+    0%,
+    100% {
+      transform: rotate(0);
+    }
+    35%,
+    75% {
+      transform: rotate(7deg);
+    }
+  }
+  @keyframes pet-munch {
+    0%,
+    100% {
+      transform: scale(1, 1);
+    }
+    15%,
+    45%,
+    75% {
+      transform: scale(1.08, 0.9);
+    }
+    30%,
+    60% {
+      transform: scale(0.96, 1.05);
+    }
+  }
+  @keyframes pet-joy {
+    0%,
+    100% {
+      transform: translateY(0) scale(1, 1);
+    }
+    20% {
+      transform: translateY(-22px) scale(0.94, 1.08);
+    }
+    40% {
+      transform: translateY(0) scale(1.1, 0.88);
+    }
+    60% {
+      transform: translateY(-15px) scale(0.96, 1.05);
+    }
+    80% {
+      transform: translateY(0) scale(1.06, 0.92);
+    }
+  }
+
   /* なでなでのハート（ふわっと昇って消える） */
   .pet-heart {
     animation: pet-heart 1.5s steps(4, jump-none) forwards;

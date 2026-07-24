@@ -19,14 +19,19 @@ import {
   type DeskTier,
 } from "@/lib/home/scene";
 import { speciesById } from "@/lib/pets/species";
-import { moveGadget, stowGadget, petPet } from "./actions";
+import { moveGadget, stowGadget, petPet, feedPet } from "./actions";
+import { CareMenu, type FoodStock } from "./care-menu";
+import { FoodServe } from "./food-serve";
+import type { ServeMode } from "@/lib/pets/foods";
 
 export type DeskGadget = Gadget & { x: number; y: number; z: number };
 export type DeskVisitor = {
   id: string;
   speciesId: string;
   name: string;
+  affection: number;
   pettedToday: boolean;
+  fedToday: boolean;
 };
 
 const DESK_STYLES: Record<DeskTier["tier"], { plate: string; leg: string; extra?: string }> = {
@@ -42,6 +47,7 @@ export function DesktopScene(props: {
   wallpaperCss: string;
   floorCss: string;
   visitor: DeskVisitor | null;
+  stocks: FoodStock[];
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
@@ -58,6 +64,17 @@ export function DesktopScene(props: {
   }
   const [overBox, setOverBox] = useState(false);
   const [visitorHeart, setVisitorHeart] = useState(false);
+  // おせわ（なでなで / ごはん）— リビングと同じ機構をデスクの来客にも
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [bubble, setBubble] = useState<string | null>(null);
+  const [stocks, setStocks] = useState(props.stocks);
+  const [fedToday, setFedToday] = useState(props.visitor?.fedToday ?? false);
+  const [affection, setAffection] = useState(props.visitor?.affection ?? 0);
+  const [feeding, setFeeding] = useState<{
+    foodId: string;
+    mode: ServeMode;
+    eaten: number;
+  } | null>(null);
   const [, start] = useTransition();
 
   // ドラッグ中カテゴリの許可ゾーン（ガイド表示用）
@@ -129,6 +146,7 @@ export function DesktopScene(props: {
 
   function onPetVisitor() {
     if (!props.visitor) return;
+    setMenuOpen(false);
     setVisitorHeart(true);
     setTimeout(() => setVisitorHeart(false), 1600);
     start(async () => {
@@ -136,6 +154,61 @@ export function DesktopScene(props: {
         await petPet(props.visitor!.id);
       } catch {
         // なでなで失敗で画面は壊さない
+      }
+    });
+  }
+
+  // 話しかける: 好物のヒントを吹き出しで（定型台詞・トークンゼロ）
+  function onTalkVisitor() {
+    if (!props.visitor) return;
+    setMenuOpen(false);
+    const hint = speciesById(props.visitor.speciesId)?.foodHint;
+    if (!hint) return;
+    setBubble(hint);
+    setTimeout(() => setBubble(null), 3600);
+  }
+
+  // ごはん（Issue #23）。おでかけ中の子にもあげられるようにしておく
+  // （ペットが1匹だけの日に「今日はごはんをあげられない」が起きないように）
+  function onFeedVisitor(foodId: string) {
+    if (!props.visitor) return;
+    setMenuOpen(false);
+    setFeeding({ foodId, mode: "dish", eaten: 0 });
+    start(async () => {
+      try {
+        const r = await feedPet(props.visitor!.id, foodId);
+        setFedToday(true);
+        setAffection(r.affection);
+        setStocks((ss) =>
+          ss.map((s) => (s.foodId === foodId ? { ...s, count: r.remaining } : s))
+        );
+        setFeeding({ foodId, mode: r.serveMode, eaten: 0 });
+        // もぐもぐ（3口）→ リアクション
+        [1, 2, 3].forEach((n) =>
+          setTimeout(
+            () => setFeeding((f) => (f ? { ...f, eaten: n / 3 } : f)),
+            600 + 300 * n
+          )
+        );
+        setTimeout(() => {
+          setBubble(
+            r.reaction === "favorite"
+              ? "…！ だいすきなやつだ！！"
+              : r.reaction === "semi"
+                ? "かがやいてる…！ ごちそうだ！"
+                : "もぐもぐ…。ごちそうさま！"
+          );
+          if (r.reaction !== "normal") setVisitorHeart(true);
+        }, 1620);
+        setTimeout(() => {
+          setFeeding(null);
+          setBubble(null);
+          setVisitorHeart(false);
+        }, 3300);
+      } catch (e) {
+        setFeeding(null);
+        setBubble(e instanceof Error ? e.message : "あげられませんでした");
+        setTimeout(() => setBubble(null), 3000);
       }
     });
   }
@@ -312,18 +385,35 @@ export function DesktopScene(props: {
       {/* きょうの来客: デスクのよこ（床）で遊ぶペット */}
       {props.visitor && sp && (
         <button
-          onClick={onPetVisitor}
-          title={`${props.visitor.name}がデスクのよこで遊んでいる${props.visitor.pettedToday ? "（きょうはなでなで済み）" : "（クリックでなでる）"}`}
+          onClick={() => setMenuOpen(true)}
+          title={`${props.visitor.name}がデスクのよこで遊んでいる（クリックで おせわメニュー）`}
           className="absolute -translate-x-1/2 -translate-y-full"
           style={{ left: "22%", top: "84%", width: `${PET_SIZE}%`, zIndex: depthZ(84) }}
         >
-          <span className="pet-wander inline-block w-full" style={{ animationDuration: "6.5s" }}>
+          <span
+            className={`inline-block w-full ${feeding ? "" : "pet-wander"}`}
+            style={feeding ? undefined : { animationDuration: "6.5s" }}
+          >
+            {bubble && (
+              <span className="absolute -top-9 left-1/2 z-[1300] -translate-x-1/2 whitespace-nowrap rounded-lg border-2 border-line8 bg-win px-2 py-0.5 text-[10.5px] font-bold shadow-hard-sm">
+                {bubble}
+              </span>
+            )}
             {visitorHeart && (
               <span className="pet-heart absolute -top-4 left-1/2 font-pixel text-[13px] text-pinkhot">
                 ♥
               </span>
             )}
-            <span className="alien-patapata inline-block w-full" style={{ animationDuration: "1.6s" }}>
+            <span
+              className={`inline-block w-full ${
+                feeding
+                  ? feeding.eaten > 0 && feeding.eaten < 1
+                    ? "pet-munch"
+                    : ""
+                  : "alien-patapata"
+              }`}
+              style={{ animationDuration: "1.6s" }}
+            >
               <Image
                 src={(visitorHeart && sp.sprites.happy) || sp.sprites.normal}
                 alt={props.visitor.name}
@@ -336,6 +426,32 @@ export function DesktopScene(props: {
             </span>
           </span>
         </button>
+      )}
+
+      {/* もりつけたごはん（来客のよこにそっと置かれる） */}
+      {feeding && (
+        <FoodServe
+          foodId={feeding.foodId}
+          mode={feeding.mode}
+          eaten={feeding.eaten}
+          left="30%"
+          bottom="14%"
+        />
+      )}
+
+      {menuOpen && props.visitor && (
+        <CareMenu
+          petName={props.visitor.name}
+          affection={affection}
+          pettedToday={props.visitor.pettedToday}
+          fedToday={fedToday}
+          stocks={stocks}
+          busy={feeding !== null}
+          onPet={onPetVisitor}
+          onTalk={onTalkVisitor}
+          onFeed={onFeedVisitor}
+          onClose={() => setMenuOpen(false)}
+        />
       )}
 
       {/* 収納BOX（ここへドロップでしまう） */}
