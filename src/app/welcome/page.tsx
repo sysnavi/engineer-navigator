@@ -1,13 +1,59 @@
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { enabledProviders, PROVIDER_LABELS } from "@/lib/oauth";
+import { PixelAvatar } from "@/components/pixel-avatar";
 
 // 公開ランディング。ログイン手段は OAuth（Google/GitHub・PIIゼロ）と招待リンクの併存。
+
+// ヒーローに並べる進化段階（src/lib/exp.ts の STAGES から代表を抜粋）。
+// 画像ではなく実際のスプライトを描くので、アバターを更新すればここも自動で揃う。
+const HERO_STAGES = [
+  { sprite: "egg", name: "たまご" },
+  { sprite: "chick", name: "ひよこ" },
+  { sprite: "minarai", name: "みならい" },
+  { sprite: "ichininmae", name: "いちにんまえ" },
+  { sprite: "meister", name: "マイスター" },
+];
+
+// 「何ができるか」を3枚で。機能名の羅列ではなく、行動→見返りの形で書く。
+const FEATURES = [
+  {
+    title: "書けば、経歴書になる",
+    body: "今週やったことを5分で書くだけ。AIがスキルを見つけて提案し、承認するとスキルマップと経歴書が自動で育ちます。",
+    tag: "週報 → スキル → 経歴書",
+  },
+  {
+    title: "解けば、腕が上がる",
+    body: "現場で使える四択の良問バンク。解くのも作るのもEXPになり、同じお題に正解するとスキルの「検証済み」バッジが付きます。",
+    tag: "腕試し / 良問バンク",
+  },
+  {
+    title: "潜れば、戦利品が増える",
+    body: "育てたアバターがフルオートでダンジョンを探索。持ち帰ったガジェットはマイホームに飾れます。",
+    tag: "ダンジョン / マイホーム",
+  },
+];
 
 const OAUTH_ERRORS: Record<string, string> = {
   state: "確認情報が一致しませんでした。もう一度お試しください。",
   denied: "ログインがキャンセルされました。",
   exchange: "プロバイダとの通信に失敗しました。時間をおいてお試しください。",
   provider: "このログイン方法は現在利用できません。",
+};
+
+// SNSからの流入が主戦場なので、このページ固有のOGPを持たせる（Issue #15）。
+// カード画像は opengraph-image.tsx で動的生成。
+export const metadata = {
+  title: "がんばりは、ぜんぶ経験値になる。— Engineer Navigator",
+  description:
+    "週報・腕試し・ダンジョン。エンジニアの日々のがんばりがEXPになって、アバターとスキルマップと経歴書が同時に育つ。メールも本名も不要、登録なしで試せます。",
+  openGraph: {
+    title: "がんばりは、ぜんぶ経験値になる。",
+    description:
+      "週報を書く。四択を解く。現場の話をシェアする。その全部がEXPになって、あなたのアバターが育つ。",
+    siteName: "Engineer Navigator",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default async function WelcomePage({
@@ -24,15 +70,33 @@ export default async function WelcomePage({
 
   return (
     <div className="mx-auto max-w-lg space-y-6 py-8">
+      {/* ヒーロー（Issue #15）。スクショ画像を置かず、実際のアバターを
+          そのまま並べている — 画像素材の管理が要らず、世界観とも一致する。 */}
       <div className="text-center">
         <PixelLabel>ENGINEER NAVIGATOR</PixelLabel>
-        <PixelTitle as="h1" className="mt-1 text-3xl text-royal">
-          エンジニアの成長OS
+        <PixelTitle as="h1" className="mt-1 text-[28px] leading-tight text-royal sm:text-3xl">
+          がんばりは、
+          <br className="sm:hidden" />
+          ぜんぶ経験値になる。
         </PixelTitle>
-        <p className="mt-2 text-[13px] text-inksoft">
-          週報もクイズもよもやまも、ここでの頑張りが全部つながって育つ。
+        <p className="mt-3 text-[13.5px] leading-relaxed text-ink">
+          週報を書く。四択を解く。現場の話をシェアする。
           <br />
-          遊びと学びのいいとこどりを目指した、エンジニアの成長サービス（テスト公開中）
+          その全部がEXPになって、<b>あなたのアバターが育つ</b>。
+        </p>
+
+        <div className="mt-5 flex items-end justify-center gap-1.5 sm:gap-3">
+          {HERO_STAGES.map((s, i) => (
+            <div key={s.sprite} className="flex flex-col items-center gap-1">
+              <PixelAvatar sprite={s.sprite} px={i === HERO_STAGES.length - 1 ? 4 : 3} />
+              <span className="font-pixel text-[9px] tracking-wide text-inksoft sm:text-[10px]">
+                {s.name}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 font-pixel text-[10px] tracking-wide text-royal2">
+          LV.1 → LV.12 … その先は「継承」へ
         </p>
       </div>
 
@@ -104,17 +168,41 @@ export default async function WelcomePage({
         </Window>
       )}
 
-      <Window title="ACCESS" titleEm=".txt">
-        <p className="text-[13.5px] leading-relaxed">
+      {/* 何ができるか（Issue #15）。CTAの後ろに置き、迷った人が読んで戻れる順序にする */}
+      {FEATURES.map((f) => (
+        <Window key={f.title} title={f.tag.split(" ")[0]} titleEm=".exe">
+          <PixelLabel className="!text-pinkhot">{f.tag}</PixelLabel>
+          <p className="mt-2 text-[15px] font-extrabold leading-snug text-ink">
+            {f.title}
+          </p>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-inksoft">
+            {f.body}
+          </p>
+        </Window>
+      ))}
+
+      {/* 安心材料。個人情報を持たない設計は最大の差別化なので独立した枠で見せる */}
+      <Window title="PRIVACY" titleEm=".txt">
+        <PixelLabel>あなたの情報は、ほとんど預かりません</PixelLabel>
+        <ul className="mt-3 space-y-2 text-[12.5px] leading-relaxed text-ink">
+          <li>
+            ・<b>メールアドレスも本名もパスワードも不要</b>です。ログイン連携でも、
+            受け取るのは「同じ人が戻ってきた」ことを確かめるハッシュだけ。
+          </li>
+          <li>
+            ・表示されるのは<b>あなたが決めるハンドル</b>（ペンネーム可）だけです。
+          </li>
+          <li>
+            ・週報やコンディションは<b>あなた以外に見えません</b>。公開するかどうかは、
+            1件ずつあなたが選びます。
+          </li>
+        </ul>
+        <p className="mt-3 border-t-2 border-dashed border-grid8 pt-2.5 text-[12px] text-inksoft">
           <b>招待リンク</b>（
           <span className="font-pixel text-[12px] text-royal2">/join/…</span>
-          ）をお持ちの方は、そのURLを開くだけで利用を開始できます。
+          ）をお持ちの方は、そのURLを開くだけで始められます。
+          本名や客先の実名は入力しないでください。
         </p>
-        <ul className="mt-3 space-y-1.5 text-[12.5px] text-inksoft">
-          <li>・メールアドレスやパスワードは登録不要です。</li>
-          <li>・表示名はあなたが決めるハンドル（ペンネーム可）だけ。</li>
-          <li>・本名や客先の実名は入力しないでください。</li>
-        </ul>
       </Window>
     </div>
   );
