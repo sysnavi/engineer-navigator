@@ -40,6 +40,14 @@ const SYSTEM_PROMPT = `あなたはエンジニアの成長を支援するアナ
 エンジニアの週報を解析し、指定されたJSONのみを出力してください（説明文は不要）。
 
 ## スキル抽出のルール
+- **実績の根拠になるのは【今週やったこと】【新しく触れた技術・初めてやったこと】だけ**。
+  【詰まったこと・モヤモヤ】は困りごと、【来週やること】は予定であり、**どちらも実績ではない**。
+  この2欄だけを根拠にスキルを立ててはならない（例:「障害対応が続いていてきつい」は
+  障害対応スキルの根拠にならない。「Terraformを勉強したい」も同様）。
+- 困りごと欄に出てくる技術は、実施した行動が【今週やったこと】側から読み取れる場合にのみ、
+  その行動が示すレベルで抽出する。苦戦・未解決の記述をレベルの根拠にしない。
+- evidenceQuote は**【今週やったこと】【新しく触れた技術】からの原文引用**に限る（要約しない）。
+  そこから引用できないものは、そもそも抽出しない。
 - 技術名・工程・役割（リーダー経験、顧客折衝など）を抽出する
 - 確実に読み取れるものだけを抽出し、推測で水増ししない
 - 「本番リリース」「本番デプロイ」への関与は最重要。必ず kind=EXPERIENCE で抽出する
@@ -81,6 +89,28 @@ const SYSTEM_PROMPT = `あなたはエンジニアの成長を支援するアナ
 ## 登録ノウハウの優先
 参考として判定基準・対応ノウハウが与えられた場合は、一般論よりそれを優先して判断すること。
 reason には、その基準に照らした根拠（例: 「判定基準のLv4条件である本番リリース経験に該当」）を書く。`;
+
+/** 引用の照合用に、記号・空白の揺れを落として正規化する */
+function normalizeQuote(text: string): string {
+  return text.replace(/[\s「」『』（）()【】、。,.・…"'”’!?！？]/g, "").toLowerCase();
+}
+
+/**
+ * 実績欄（やったこと／新しく触れた技術）から引用できない提案を落とす。
+ * 「障害対応が続いていて正直きつい」のような困りごとや、来週の予定を
+ * 実績として拾う誤抽出を、プロンプト任せにせず構造で止める（Issue #24）。
+ * 言い換えで引用された場合まで落とすと正当な抽出を巻き込むので、
+ * 「実績欄に無く、かつ困りごと／予定欄にある」ものだけを対象にする。
+ */
+export function isFoundedOnAchievement(
+  quote: string,
+  achievement: string,
+  nonAchievement: string
+): boolean {
+  const q = normalizeQuote(quote ?? "");
+  if (q.length < 6) return true; // 短すぎる引用は判定材料にしない
+  return achievement.includes(q) || !nonAchievement.includes(q);
+}
 
 /** 顧客名などの固有名詞をマスキングする前処理（守りのAI武装） */
 function maskSensitive(text: string, aliases: { real?: string | null }[]): string {
@@ -202,7 +232,19 @@ ${maskSensitive(report.shareText ?? "", [])}`;
       "LANGUAGE", "FRAMEWORK", "CLOUD", "DATABASE",
       "AI", "TOOL", "PROCESS", "SOFT",
     ]);
+    const achievementText = normalizeQuote(
+      `${report.didText ?? ""}\n${report.newText ?? ""}`
+    );
+    const nonAchievementText = normalizeQuote(
+      `${report.struggleText ?? ""}\n${report.nextText ?? ""}`
+    );
+    const dropped: string[] = [];
     for (const s of data.skills) {
+      if (!isFoundedOnAchievement(s.evidenceQuote, achievementText, nonAchievementText)) {
+        // 困りごと／来週の予定を根拠にした提案は作らない（実績ではないため）
+        dropped.push(s.name);
+        continue;
+      }
       const matched = masterSkills.find(
         (m) =>
           m.name.toLowerCase() === s.name.toLowerCase() ||
@@ -222,6 +264,11 @@ ${maskSensitive(report.shareText ?? "", [])}`;
           sourceReportId: report.id,
         },
       });
+    }
+    if (dropped.length) {
+      console.warn(
+        `[analyzeReport] 実績欄から引用できないため提案を見送り: ${dropped.join(", ")} (report=${report.id})`
+      );
     }
 
     await prisma.reportAnalysis.update({
