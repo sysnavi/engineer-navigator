@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { SKILL_LEVELS } from "@/lib/skill-levels";
 
 // 経歴書のデータ組み立て。/resume（画面）と /api/resume/pdf（PDF出力）で共有する。
 
@@ -14,13 +15,10 @@ export const CATEGORY_LABELS: Record<string, string> = {
   OTHER: "その他",
 };
 
-export const LEVEL_DEFS: Record<number, string> = {
-  1: "学習中",
-  2: "指導のもとで実務可能",
-  3: "一人で実務可能",
-  4: "本番リリース経験・指導可能",
-  5: "設計判断・技術選定をリード",
-};
+// 10段階ルーブリック（Issue #25）の営業向け文言。定義本体は src/lib/skill-levels.ts
+export const LEVEL_DEFS: Record<number, string> = Object.fromEntries(
+  SKILL_LEVELS.map((d) => [d.level, d.behavior])
+);
 
 export function fmtMonth(d: Date | null): string {
   if (!d) return "現在";

@@ -55,17 +55,21 @@ export function PixelLabel(props: { children: ReactNode; className?: string }) {
   );
 }
 
-/** スキルレベルの光るブロック（1-5） */
+/** スキルレベルの光るブロック。max>5（10段階）は小さめブロックで幅を抑える */
 export function LevelBlocks(props: { level: number; max?: number }) {
   const max = props.max ?? 5;
+  const compact = max > 5;
   return (
     <span
-      className="inline-flex gap-1"
+      className={`inline-flex ${compact ? "gap-[3px]" : "gap-1"}`}
       role="img"
       aria-label={`レベル${props.level} / ${max}`}
     >
       {Array.from({ length: max }, (_, i) => (
-        <i key={i} className={`blk8 ${i < props.level ? "f" : ""}`} />
+        <i
+          key={i}
+          className={`blk8 ${compact ? "blk8-sm" : ""} ${i < props.level ? "f" : ""}`}
+        />
       ))}
     </span>
   );

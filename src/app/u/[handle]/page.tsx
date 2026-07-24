@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { loadPublicProfile } from "@/lib/public-profile";
 import { speciesById } from "@/lib/pets/species";
 import { Window, PixelTitle, PixelLabel, LevelBlocks } from "@/components/retro";
+import { SKILL_LEVEL_MAX, skillLevelDef } from "@/lib/skill-levels";
 
 const CATEGORY_LABELS: Record<string, string> = {
   LANGUAGE: "言語",
@@ -72,7 +73,7 @@ export default async function PublicProfilePage({
                   {h.engineerSkill.skill.name}
                 </span>
                 <span className="flex items-center gap-2">
-                  <LevelBlocks level={h.level} />
+                  <LevelBlocks level={h.level} max={SKILL_LEVEL_MAX} />
                   <span className="font-pixel text-[12px] text-royal2">
                     Lv{h.level}
                   </span>
@@ -98,10 +99,11 @@ export default async function PublicProfilePage({
                     className="flex items-center justify-between rounded-lg border-2 border-line8 bg-surface px-3 py-2.5 shadow-hard-sm"
                   >
                     <span className="text-[13.5px] font-bold">{es.skill.name}</span>
-                    <span className="flex items-center gap-2">
-                      <LevelBlocks level={es.level} />
+                    <span className="flex items-center gap-2" title={skillLevelDef(es.level).behavior}>
+                      <LevelBlocks level={es.level} max={SKILL_LEVEL_MAX} />
                       <span className="font-pixel text-[12px] text-royal2">
                         Lv{es.level}
+                        <span className="text-inksoft">「{skillLevelDef(es.level).label}」</span>
                       </span>
                     </span>
                   </div>

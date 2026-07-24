@@ -336,6 +336,18 @@ body {
       inset -3px -3px 0 rgba(0, 0, 0, 0.18),
       inset 3px 3px 0 rgba(255, 255, 255, 0.35);
   }
+  /* 10段階表示用の小ブロック（Issue #25） */
+  .blk8-sm {
+    width: 10px;
+    height: 10px;
+    border-width: 1.5px;
+    border-radius: 2px;
+  }
+  .blk8-sm.f {
+    box-shadow:
+      inset -2px -2px 0 rgba(0, 0, 0, 0.18),
+      inset 2px 2px 0 rgba(255, 255, 255, 0.35);
+  }
 
   /* ---------- badges / quotes ---------- */
   .badge8 {

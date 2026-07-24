@@ -12,6 +12,7 @@ import {
   PixelLabel,
   LevelBlocks,
 } from "@/components/retro";
+import { SKILL_LEVEL_MAX } from "@/lib/skill-levels";
 
 export default async function ResumePage() {
   const user = await getCurrentUser();
@@ -82,7 +83,7 @@ export default async function ResumePage() {
                         <td className="py-2 pr-3 font-bold">{es.skill.name}</td>
                         <td className="py-2 pr-3">
                           <span className="flex items-center gap-2">
-                            <LevelBlocks level={es.level} />
+                            <LevelBlocks level={es.level} max={SKILL_LEVEL_MAX} />
                             <span className="font-pixel text-[12px] text-royal2">
                               Lv{es.level}
                             </span>

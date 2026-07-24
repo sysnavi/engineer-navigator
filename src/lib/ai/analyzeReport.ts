@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { completeJson, MODELS } from "./client";
 import { searchKnowledge, formatContextBlock } from "./retrieval";
+import { skillLevelRubricText } from "@/lib/skill-levels";
 
 // 週報提出時のAI解析パイプライン（docs/weekly-report.md の設計に対応）
 //  ① スキル抽出 → SkillSuggestion 生成
@@ -34,7 +35,7 @@ type AnalysisResult = {
   feedback: string; // 本人向け「今週の成長ポイント」（2-3文）
 };
 
-const SYSTEM_PROMPT = `あなたはSESエンジニアの成長を支援するアナリストです。
+const SYSTEM_PROMPT = `あなたはエンジニアの成長を支援するアナリストです。
 エンジニアの週報を解析し、指定されたJSONのみを出力してください（説明文は不要）。
 
 ## スキル抽出のルール
@@ -43,7 +44,8 @@ const SYSTEM_PROMPT = `あなたはSESエンジニアの成長を支援するア
 - 「本番リリース」「本番デプロイ」への関与は最重要。必ず kind=EXPERIENCE で抽出する
 - 「AIを活用して生産性を上げた」実績も EXPERIENCE として抽出する
 - evidenceQuote には週報からの原文引用を入れる（要約しない）
-- suggestedLevel の目安: 1=学習中 2=指導下で実務 3=一人で実務可 4=本番リリース経験/指導可 5=技術選定をリード
+- suggestedLevel は次の10段階ルーブリックで判定する。**週報に書かれた観測可能な行動**が根拠になるレベルを選び、迷ったら低い方に倒す:
+  ${skillLevelRubricText()}
 
 ## コンディション解析のルール
 - 文章のトーンから 0-100 のスコアを付ける（100=良好、50=普通、30以下=要注意）

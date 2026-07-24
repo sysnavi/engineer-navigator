@@ -487,9 +487,12 @@ model EngineerSkill {
   userId           String
   skill            Skill     @relation(fields: [skillId], references: [id])
   skillId          String
-  level            Int // 1-5
+  level            Int // 1-10（10段階ルーブリック: src/lib/skill-levels.ts）
   monthsExperience Int?
   lastUsedAt       DateTime?
+  // 検証状態（Issue #25）: null=仮判定 / "interview"=深掘りで検証 / "quiz"=腕試しで検証
+  verifiedBy       String?
+  verifiedAt       DateTime?
   updatedAt        DateTime  @updatedAt
 
   histories SkillHistory[]
@@ -532,6 +535,8 @@ model SkillSuggestion {
   suggestedLevel Int?
   reason         String // 提案理由
   evidenceQuote  String? // 週報からの引用（エビデンス）
+  // 深掘りインタビューのログ（Issue #25）: { questions, answers, judgedLevel, rationale }
+  probe          Json?
 
   sourceReport   WeeklyReport @relation(fields: [sourceReportId], references: [id])
   sourceReportId String

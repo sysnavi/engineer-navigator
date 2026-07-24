@@ -492,32 +492,33 @@ async function main() {
   });
 
   // engineer2 に「クラウド/インフラ」系の成長の道筋（EngineerSkill + 履歴）を作る
+  // level は10段階ルーブリック（src/lib/skill-levels.ts）
   const cloudPath: { skill: string; steps: { level: number; weeksAgo: number; note: string }[] }[] =
     [
       {
         skill: "AWS",
         steps: [
-          { level: 2, weeksAgo: 20, note: "研修とハンズオンで基礎を学習" },
-          { level: 3, weeksAgo: 10, note: "検証環境をEC2/VPCで構築、一人で運用" },
-          { level: 4, weeksAgo: 2, note: "本番のAWS移行に関与、リリースまで担当" },
+          { level: 3, weeksAgo: 20, note: "研修とハンズオンで基礎を学習" },
+          { level: 5, weeksAgo: 10, note: "検証環境をEC2/VPCで構築、一人で運用" },
+          { level: 6, weeksAgo: 2, note: "本番のAWS移行に関与、リリースまで担当" },
         ],
       },
       {
         skill: "Docker",
         steps: [
-          { level: 2, weeksAgo: 16, note: "既存アプリのコンテナ化を指導下で実施" },
-          { level: 3, weeksAgo: 6, note: "マルチステージビルドを一人で設計" },
+          { level: 3, weeksAgo: 16, note: "既存アプリのコンテナ化を指導下で実施" },
+          { level: 5, weeksAgo: 6, note: "マルチステージビルドを一人で設計" },
         ],
       },
       {
         skill: "Kubernetes",
-        steps: [{ level: 1, weeksAgo: 3, note: "学習開始・ローカルで検証中" }],
+        steps: [{ level: 2, weeksAgo: 3, note: "学習開始・ローカルで検証中" }],
       },
       {
         skill: "PostgreSQL",
         steps: [
-          { level: 2, weeksAgo: 14, note: "運用中DBのバックアップ/リストアを担当" },
-          { level: 3, weeksAgo: 4, note: "スロークエリの調査・改善を一人で実施" },
+          { level: 3, weeksAgo: 14, note: "運用中DBのバックアップ/リストアを担当" },
+          { level: 5, weeksAgo: 4, note: "スロークエリの調査・改善を一人で実施" },
         ],
       },
     ];

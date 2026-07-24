@@ -1,12 +1,17 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { decideSuggestion } from "@/app/actions";
 import {
   Window,
   PixelTitle,
   PixelLabel,
   LevelBlocks,
 } from "@/components/retro";
+import {
+  SKILL_LEVEL_MAX,
+  skillLevelDef,
+  VERIFIED_LABELS,
+} from "@/lib/skill-levels";
+import { SuggestionCard } from "./suggestion-card";
 
 const CATEGORY_LABELS: Record<string, string> = {
   LANGUAGE: "言語",
@@ -32,7 +37,7 @@ function RadarChart(props: { axes: { label: string; value: number }[] }) {
   const cx = 150;
   const cy = 130;
   const R = 88;
-  const MAX = 5;
+  const MAX = SKILL_LEVEL_MAX;
   const pt = (i: number, v: number) => {
     const a = (Math.PI * 2 * i) / axes.length - Math.PI / 2;
     const r = (R * v) / MAX;
@@ -54,13 +59,13 @@ function RadarChart(props: { axes: { label: string; value: number }[] }) {
         .map((a) => `${a.label} ${a.value.toFixed(1)}`)
         .join("、")}`}
     >
-      {[1, 2, 3, 4, 5].map((v) => (
+      {[2, 4, 6, 8, 10].map((v) => (
         <polygon
           key={v}
           points={poly(v)}
           fill="none"
           stroke="var(--grid)"
-          strokeWidth={v === 5 ? 2.5 : 1.5}
+          strokeWidth={v === SKILL_LEVEL_MAX ? 2.5 : 1.5}
         />
       ))}
       {axes.map((_, i) => {
@@ -174,48 +179,18 @@ export default async function SkillsPage() {
             LEVEL UP READY! — {suggestions.length}件
           </PixelLabel>
           {suggestions.map((s) => (
-            <div
+            <SuggestionCard
               key={s.id}
-              className="rounded-lg border-2 border-line8 bg-surface p-4 shadow-hard-sm"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="min-w-[240px] flex-1 space-y-2">
-                  <p className="flex flex-wrap items-center gap-2 text-[14px] font-extrabold">
-                    <span className="badge8">{KIND_LABELS[s.kind]}</span>
-                    {s.skillName}
-                    {s.suggestedLevel != null && (
-                      <span className="text-royal2"> → Lv{s.suggestedLevel}</span>
-                    )}
-                  </p>
-                  <p className="text-[13px] text-inksoft">{s.reason}</p>
-                  {s.evidenceQuote && (
-                    <p className="quote8">週報より:「{s.evidenceQuote}」</p>
-                  )}
-                </div>
-                <div className="flex shrink-0 gap-2.5">
-                  <form
-                    action={async () => {
-                      "use server";
-                      await decideSuggestion(s.id, true);
-                    }}
-                  >
-                    <button className="btn8 btn8-ok px-4 py-2 text-[12px]">
-                      ◯ しょうにん
-                    </button>
-                  </form>
-                  <form
-                    action={async () => {
-                      "use server";
-                      await decideSuggestion(s.id, false);
-                    }}
-                  >
-                    <button className="btn8 px-4 py-2 text-[12px]">
-                      × きゃっか
-                    </button>
-                  </form>
-                </div>
-              </div>
-            </div>
+              aiEnabled={!!process.env.ANTHROPIC_API_KEY}
+              suggestion={{
+                id: s.id,
+                kindLabel: KIND_LABELS[s.kind] ?? s.kind,
+                skillName: s.skillName,
+                suggestedLevel: s.suggestedLevel,
+                reason: s.reason,
+                evidenceQuote: s.evidenceQuote,
+              }}
+            />
           ))}
         </Window>
       )}
@@ -252,7 +227,7 @@ export default async function SkillsPage() {
                     </p>
                   </div>
                   <span className="flex shrink-0 items-center gap-2">
-                    <LevelBlocks level={h.level} />
+                    <LevelBlocks level={h.level} max={SKILL_LEVEL_MAX} />
                     <span className="font-pixel text-[12px] text-royal2">
                       Lv{h.level}
                     </span>
@@ -270,6 +245,11 @@ export default async function SkillsPage() {
             まだスキルが登録されていません。週報を提出するとAIが提案します。
           </p>
         )}
+        {skills.length > 0 && (
+          <p className="mb-3 text-[11.5px] text-inksoft">
+            ⚠仮判定のスキルは、承認時の深掘りインタビューか、腕試しで同じお題の問題に2問正解すると ✓検証済み になります。
+          </p>
+        )}
         <div className="space-y-5">
           {[...byCategory.entries()].map(([category, list]) => (
             <div key={category}>
@@ -280,15 +260,36 @@ export default async function SkillsPage() {
                 {list.map((es) => (
                   <div
                     key={es.id}
-                    className="flex items-center justify-between rounded-lg border-2 border-line8 bg-surface px-3 py-2.5 shadow-hard-sm"
+                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border-2 border-line8 bg-surface px-3 py-2.5 shadow-hard-sm"
                   >
-                    <span className="text-[13.5px] font-bold">
-                      {es.skill.name}
+                    <span className="flex min-w-0 items-center gap-1.5 text-[13.5px] font-bold">
+                      <span className="truncate">{es.skill.name}</span>
+                      {es.verifiedBy ? (
+                        <span
+                          className="shrink-0 font-pixel text-[9.5px] tracking-wide text-[var(--good)]"
+                          title={VERIFIED_LABELS[es.verifiedBy] ?? "検証済み"}
+                        >
+                          ✓検証済み
+                        </span>
+                      ) : (
+                        <span
+                          className="shrink-0 font-pixel text-[9.5px] tracking-wide text-inksoft"
+                          title="深掘りインタビューか腕試しの正解で検証済みになります"
+                        >
+                          ⚠仮判定
+                        </span>
+                      )}
                     </span>
-                    <span className="flex items-center gap-2">
-                      <LevelBlocks level={es.level} />
+                    <span
+                      className="flex items-center gap-2"
+                      title={skillLevelDef(es.level).behavior}
+                    >
+                      <LevelBlocks level={es.level} max={SKILL_LEVEL_MAX} />
                       <span className="font-pixel text-[12px] text-royal2">
                         Lv{es.level}
+                        <span className="text-inksoft">
+                          「{skillLevelDef(es.level).label}」
+                        </span>
                       </span>
                     </span>
                   </div>

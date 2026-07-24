@@ -702,17 +702,34 @@ export async function decideSuggestion(suggestionId: string, approve: boolean) {
   }
 
   const level = suggestion.suggestedLevel ?? 1;
+  // 深掘りインタビュー済み（probeに判定あり）なら検証済み、そうでなければ仮判定（Issue #25）
+  const probe = suggestion.probe as { judgedLevel?: number } | null;
+  const verified = probe?.judgedLevel != null;
   const engineerSkill = await prisma.engineerSkill.upsert({
     where: { userId_skillId: { userId: user.id, skillId } },
-    update: { level, lastUsedAt: new Date() },
-    create: { userId: user.id, skillId, level, lastUsedAt: new Date() },
+    update: {
+      level,
+      lastUsedAt: new Date(),
+      verifiedBy: verified ? "interview" : null,
+      verifiedAt: verified ? new Date() : null,
+    },
+    create: {
+      userId: user.id,
+      skillId,
+      level,
+      lastUsedAt: new Date(),
+      verifiedBy: verified ? "interview" : null,
+      verifiedAt: verified ? new Date() : null,
+    },
   });
 
   await prisma.skillHistory.create({
     data: {
       engineerSkillId: engineerSkill.id,
       level,
-      sourceNote: `週報のAI提案を承認（${suggestion.reason}）`,
+      sourceNote: verified
+        ? `深掘りインタビューで検証して承認（${suggestion.reason}）`
+        : `週報のAI提案を承認・仮判定（${suggestion.reason}）`,
     },
   });
 
