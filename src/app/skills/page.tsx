@@ -11,7 +11,7 @@ import {
   skillLevelDef,
   VERIFIED_LABELS,
 } from "@/lib/skill-levels";
-import { SuggestionCard } from "./suggestion-card";
+import { SuggestionCard, type SuggestionData } from "./suggestion-card";
 
 const CATEGORY_LABELS: Record<string, string> = {
   LANGUAGE: "言語",
@@ -189,6 +189,9 @@ export default async function SkillsPage() {
                 suggestedLevel: s.suggestedLevel,
                 reason: s.reason,
                 evidenceQuote: s.evidenceQuote,
+                // 判定済みで未承認のまま再訪した場合も、判定結果と根拠を復元する
+                // （渡さないと確定Lvの下に旧Lvの根拠だけが残り矛盾して見える）
+                probe: s.probe as SuggestionData["probe"],
               }}
             />
           ))}
