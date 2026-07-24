@@ -126,7 +126,7 @@ npm run ingest:knowledge      # content/knowledge/<kind>/*.md を埋め込み投
 - /report 画面の「設問間の大きな空白」はアプリのバグではない（ブラウザプレビューペインが0幅で描画したアーティファクト。実ページは正常）
 - **マイグレーション運用**: 非対話シェルでは `migrate dev` が使えない（seed実行や@unique制約の確認プロンプトで止まる）。additive変更は「手書き migration.sql + `migrate deploy`」で適用する。適用済みmigrationを手編集するとチェックサム不整合で`migrate dev`が全面停止→`_prisma_migrations.checksum`を現ファイルのsha256に更新して整合（resetは全データ消えるので厳禁）
 - **公開共有の鉄則**: 公開ビュー(/u/[handle], /discover, src/lib/public-profile.ts)にコンディション(設問1/2/5/7・スコア)を絶対に含めない。SELECTすらしない設計を維持すること
-- **AIレート制限/停止**: 全AI呼び出しは `src/lib/usage.ts` の `assertAiAllowed(userId, kind)` を**トークン消費前に**通す（3ストリーミングRoute + 週報解析/メンター提案/学習プラン/ロールプレイ開始・評価/インタビュー要約）。1分15回・24h300回で拒否、24h600回超で自動停止（`AI_RATE_PER_MINUTE`/`AI_RATE_PER_DAY`/`AI_AUTO_SUSPEND_PER_DAY`で調整）。新しいAI入口を足したら必ずこのガードを通すこと。停止/復帰は管理者のみ（マイページADMINパネル、`setUserSuspended`）
+- **AIレート制限/停止**: 全AI呼び出しは `src/lib/usage.ts` の `assertAiAllowed(userId, kind)` を**トークン消費前に**通す（3ストリーミングRoute + 週報解析/メンター提案/学習プラン/ロールプレイ開始・評価/インタビュー要約）。1分15回・24h300回で拒否、24h600回超で自動停止（`AI_RATE_PER_MINUTE`/`AI_RATE_PER_DAY`/`AI_AUTO_SUSPEND_PER_DAY`で調整）。新しいAI入口を足したら必ずこのガードを通すこと。停止/復帰は管理者のみ（マイページADMINパネル、`setUserSuspended`）。**さらに全ユーザー合算の24時間上限（Issue #17, 2026-07-24）**: 既定1000回・`AI_GLOBAL_PER_DAY`で調整。到達すると当日は**全員のAIを停止**（code=`GLOBAL_DAY`）し、Slackへ**1日1回だけ**通知する（プロセス内メモリで重複抑止。複数インスタンスならインスタンスごとに1通）。週報提出などAI以外は生きる縮退のまま（`actions.ts` の try/catch で解析だけスキップ）。判定順は 停止 → 自動停止判定 → **全体上限** → 分 → 日 で、全体が止まっても悪用者の自動停止検知は先に効く。管理ダッシュボードの `AI 24H` に `消費/上限` と残数を表示。集計用に `AiUsage` へ `@@index([createdAt])` を追加（既存の複合索引は userId 先頭なので全体集計に効かない）。⚠Issueで「検討」とされていた**1ユーザーが日次上限に張り付く異常のSlack通知は未実装**（自動停止で実害は止まるため見送り）。⚠管理画面の**上限到達時の表示（⚠ 上限到達・AI全体停止中）は実際に到達させての目視未確認**（分岐は三項演算子のみ）
 
 ## 未実装・今後
 

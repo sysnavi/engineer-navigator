@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { notify } from "@/lib/notify";
 
 // スパム・いたずらによる過剰なトークン消費を防ぐレート制限＆アカウント停止。
 // すべてのAI呼び出しの入口で assertAiAllowed() を通す（トークンを使う前に弾く）。
@@ -14,13 +15,18 @@ export const AI_LIMITS = {
   perMinute: num(process.env.AI_RATE_PER_MINUTE, 15), // 直近1分の上限（連打対策）
   perDay: num(process.env.AI_RATE_PER_DAY, 300), // 24時間の上限（到達で当日打ち止め）
   autoSuspendPerDay: num(process.env.AI_AUTO_SUSPEND_PER_DAY, 600), // これを超えたら自動停止
+  // 全ユーザー合算の24時間上限（Issue #17）。個人運営なので、ユーザー数が
+  // 想定外に増えた日に請求が青天井にならないための防波堤。到達したら当日は
+  // 全体でAIを止める（週報の保存などAI以外の機能は生きる）。
+  globalPerDay: num(process.env.AI_GLOBAL_PER_DAY, 1000),
 };
 
 export type AiBlockCode =
   | "SUSPENDED"
   | "RATE_MINUTE"
   | "RATE_DAY"
-  | "AUTO_SUSPENDED";
+  | "AUTO_SUSPENDED"
+  | "GLOBAL_DAY";
 
 export class AiBlockedError extends Error {
   code: AiBlockCode;
@@ -73,9 +79,10 @@ export async function assertAiAllowed(
   const minuteAgo = new Date(now.getTime() - 60_000);
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000);
 
-  const [lastMinute, lastDay] = await Promise.all([
+  const [lastMinute, lastDay, globalDay] = await Promise.all([
     prisma.aiUsage.count({ where: { userId, createdAt: { gte: minuteAgo } } }),
     prisma.aiUsage.count({ where: { userId, createdAt: { gte: dayAgo } } }),
+    prisma.aiUsage.count({ where: { createdAt: { gte: dayAgo } } }),
   ]);
 
   // 24時間の呼び出しが自動停止しきい値を超えたら、アカウントを停止する
@@ -90,6 +97,15 @@ export async function assertAiAllowed(
     throw new AiBlockedError(
       "AUTO_SUSPENDED",
       "利用量が上限を大きく超えたため、アカウントを自動停止しました。心当たりがなければ管理者にご連絡ください。"
+    );
+  }
+  // 全体上限（個人ユーザーの落ち度ではないので、文言は詫びと再開見込みを添える）。
+  // 悪用者の自動停止判定はこの前に済ませているので、全体が止まっても検知は効く。
+  if (globalDay >= AI_LIMITS.globalPerDay) {
+    await alertGlobalCapOnce(globalDay);
+    throw new AiBlockedError(
+      "GLOBAL_DAY",
+      "今日のAI利用枠を使い切りました（サービス全体の上限です）。また明日おいでください。週報の保存など、AI以外の機能はそのまま使えます。"
     );
   }
   if (lastMinute >= AI_LIMITS.perMinute) {
@@ -108,6 +124,20 @@ export async function assertAiAllowed(
   }
 
   await prisma.aiUsage.create({ data: { userId, kind } });
+}
+
+// 全体上限に達したことを運営に知らせる。到達後はリクエストのたびに呼ばれるため、
+// プロセス内で日付が変わるまで1回だけ通知する（DBに状態を持つほどの価値はない。
+// 複数インスタンス構成ならインスタンスごとに1通届く程度の粗さは許容）。
+let lastGlobalAlertDay: string | null = null;
+
+async function alertGlobalCapOnce(count: number): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  if (lastGlobalAlertDay === today) return;
+  lastGlobalAlertDay = today;
+  await notify(
+    `⚠ AIのグローバル日次上限に到達しました（直近24時間で${count}回 / 上限${AI_LIMITS.globalPerDay}回）。当日のAI機能は全体停止中です。上限は AI_GLOBAL_PER_DAY で調整できます。`
+  ).catch(() => {});
 }
 
 /** 直近24時間のAI利用回数（管理画面の表示用） */

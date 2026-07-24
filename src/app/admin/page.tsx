@@ -128,7 +128,16 @@ export default async function AdminPage() {
           value={suspendedCount}
           hint="停止中"
         />
-        <StatCard label="AI 24H" value={ai24hTotal} hint="呼び出し総数" />
+        {/* 全体の日次上限に対する消費量（Issue #17）。到達すると当日はAIが全体停止する */}
+        <StatCard
+          label="AI 24H"
+          value={`${ai24hTotal}/${AI_LIMITS.globalPerDay}`}
+          hint={
+            ai24hTotal >= AI_LIMITS.globalPerDay
+              ? "⚠ 上限到達・AI全体停止中"
+              : `全体上限まで残り${AI_LIMITS.globalPerDay - ai24hTotal}回`
+          }
+        />
         <StatCard label="REPORTS" value={totalReports} hint="週報 累計" />
         <StatCard
           label="演習/相談"

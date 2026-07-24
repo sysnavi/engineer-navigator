@@ -367,6 +367,9 @@ model AiUsage {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+  // 全ユーザー合算の日次集計（グローバル上限・管理画面）用。
+  // 上の複合索引は userId が先頭なので、userId を絞らない集計には効かない。
+  @@index([createdAt])
 }
 
 model Project {
