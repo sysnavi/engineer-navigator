@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { requireFullAccountUser } from "@/lib/guest";
 import { isDomainId } from "@/lib/domains";
 
 // 良問バンクのサーバーアクション。四択の採点はここ（サーバー）で行い、正解は
@@ -13,7 +14,7 @@ const MAX_LEN = 500;
 
 /** 四択問題を作成（作成者＝本人） */
 export async function createQuizQuestion(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await requireFullAccountUser();
   const str = (k: string) => {
     const v = formData.get(k);
     return typeof v === "string" ? v.trim() : "";
@@ -134,7 +135,7 @@ async function promoteSkillsVerifiedByQuiz(userId: string, topic: string) {
 
 /** 「もう表示しない」の設定（本人にだけ以後出題されなくなる） */
 export async function setQuizHidden(questionId: string, hidden: boolean) {
-  const user = await getCurrentUser();
+  const user = await requireFullAccountUser();
   if (hidden) {
     await prisma.quizHidden.upsert({
       where: { questionId_userId: { questionId, userId: user.id } },
@@ -150,7 +151,7 @@ export async function setQuizHidden(questionId: string, hidden: boolean) {
 
 /** 問題を0-10で評価（1人1票・上書き可）。全員分を集計して良問スコアに反映。 */
 export async function rateQuiz(questionId: string, score: number) {
-  const user = await getCurrentUser();
+  const user = await requireFullAccountUser();
   const s = Math.max(0, Math.min(10, Math.round(score)));
 
   await prisma.$transaction(async (tx) => {

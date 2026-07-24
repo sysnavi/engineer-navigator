@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { requireFullAccountUser } from "@/lib/guest";
 import { mondayOf } from "@/lib/week";
 import { analyzeReport } from "@/lib/ai/analyzeReport";
 import { completeJson, type ChatMessage } from "@/lib/ai/client";
@@ -54,7 +55,7 @@ function reportDataFromForm(formData: FormData) {
 }
 
 export async function saveReportDraft(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await requireFullAccountUser();
   if (!user.consentedAt) {
     throw new Error("週報の利用にはオンボーディングでの同意が必要です");
   }
@@ -80,7 +81,7 @@ export type SubmitReportResult = {
 export async function submitReport(
   formData: FormData
 ): Promise<SubmitReportResult> {
-  const user = await getCurrentUser();
+  const user = await requireFullAccountUser();
   if (!user.consentedAt) {
     throw new Error("週報の利用にはオンボーディングでの同意が必要です");
   }
@@ -167,7 +168,7 @@ export async function updateDisplayName(formData: FormData) {
 }
 
 export async function updateShareSettings(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await requireFullAccountUser();
   const rawHandle = formData.get("handle");
   const bio = formData.get("bio");
   const isPublic = formData.get("isPublic") === "on";
@@ -231,7 +232,7 @@ export async function updateMentorStance(formData: FormData) {
 }
 
 export async function toggleReportPublic(reportId: string, isPublic: boolean) {
-  const user = await getCurrentUser();
+  const user = await requireFullAccountUser();
   const report = await prisma.weeklyReport.findUnique({
     where: { id: reportId },
     select: { userId: true },
@@ -363,7 +364,7 @@ export async function logout() {
 // ---------------------------------------------------------------------------
 
 export async function createMentorSession(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await requireFullAccountUser();
   const topic = formData.get("topic");
   const certification = formData.get("certification");
   const firstMessage = formData.get("firstMessage");
@@ -439,7 +440,7 @@ export type StudyTopic = { title: string; why: string; firstQuestion: string };
 const DAY_MS = 86400_000;
 
 export async function createStudyPlan(formData: FormData) {
-  const user = await getCurrentUser();
+  const user = await requireFullAccountUser();
   const certification = formData.get("certification");
   const examDateRaw = formData.get("examDate");
   if (typeof certification !== "string" || !certification.trim()) {
@@ -521,7 +522,7 @@ export async function toggleStudyItem(itemId: string, done: boolean) {
 // ---------------------------------------------------------------------------
 
 export async function startRoleplay(scenarioId: string) {
-  const user = await getCurrentUser();
+  const user = await requireFullAccountUser();
   // 停止中・レート超過ならセッションを作らせない（開始時に相手役の生成でトークンを使うため）
   await assertAiAllowed(user.id, "roleplay-start").catch(throwFriendly);
   await prisma.roleplayScenario.findUniqueOrThrow({ where: { id: scenarioId } });
@@ -546,7 +547,7 @@ export async function startRoleplay(scenarioId: string) {
 }
 
 export async function endRoleplay(sessionId: string) {
-  const user = await getCurrentUser();
+  const user = await requireFullAccountUser();
   const session = await prisma.roleplaySession.findUniqueOrThrow({
     where: { id: sessionId },
   });

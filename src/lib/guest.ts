@@ -32,6 +32,18 @@ export function assertNotGuest(user: { role: Role }): void {
 }
 
 /**
+ * ゲストに解放していない **Server Action** のゲート。
+ * 画面を弾くだけではアクションを直接叩かれると通るため、書き込みの入口で使う。
+ * （ゲストに許す書き込み＝腕試しの回答・ダンジョン・ペット等はこれを通さない）
+ */
+export async function requireFullAccountUser() {
+  const { getCurrentUser } = await import("@/lib/auth");
+  const user = await getCurrentUser();
+  assertNotGuest(user);
+  return user;
+}
+
+/**
  * ゲストに解放していない画面のゲート。ログイン必須＋ゲストなら /welcome へ戻す。
  * 画面を一覧から隠すだけでは直URLで入れてしまうため、対象ページの先頭で
  * getCurrentUser() の代わりにこれを呼ぶ。

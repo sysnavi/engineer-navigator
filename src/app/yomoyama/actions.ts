@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { requireFullAccountUser } from "@/lib/guest";
 import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
 import { moderateYomoyama } from "@/lib/ai/moderation";
 
@@ -15,7 +16,7 @@ export type PostResult =
 // 投稿はAI門番を通過したものだけ保存。ブロック時は理由を返してフォームに表示する
 // （例外を投げるとエラー画面になるため、結果オブジェクトで返す）。
 export async function postYomoyama(body: string): Promise<PostResult> {
-  const user = await getCurrentUser();
+  const user = await requireFullAccountUser();
   const text = (body ?? "").trim();
 
   if (!text) return { ok: false, error: "本文を入力してください。" };
@@ -67,7 +68,7 @@ export type LikeResult = { liked: boolean; count: number };
 
 /** いいねのトグル。連打はレート制限、停止中は不可。新しい状態と件数を返す。 */
 export async function toggleLike(postId: string): Promise<LikeResult> {
-  const user = await getCurrentUser();
+  const user = await requireFullAccountUser();
   if (user.suspendedAt) {
     throw new Error("アカウントが停止中のため操作できません。");
   }
@@ -104,7 +105,7 @@ export async function addComment(
   postId: string,
   body: string
 ): Promise<PostResult> {
-  const user = await getCurrentUser();
+  const user = await requireFullAccountUser();
   const text = (body ?? "").trim();
 
   if (!text) return { ok: false, error: "コメントを入力してください。" };
@@ -157,7 +158,7 @@ export async function addComment(
 
 /** 投稿者本人がコメント受付を切り替える */
 export async function setAllowComments(postId: string, allow: boolean) {
-  const user = await getCurrentUser();
+  const user = await requireFullAccountUser();
   const post = await prisma.yomoyamaPost.findUnique({
     where: { id: postId },
     select: { authorId: true },
