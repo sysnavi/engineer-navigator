@@ -373,6 +373,11 @@ export default async function MyPage({
         )}
       </Window>
 
+      {/* 目指す領域・接し方・公開プロフィールはフル機能専用（Issue #18）。
+          ゲストはAIメンターも公開プロフィールも使えない。特にSHAREの保存は
+          ゲスト遮断アクションでエラーになるので、まとめて非表示にする。 */}
+      {user.role !== "GUEST" && (
+        <>
       {/* 目指す技術領域（キャリアの方向性） */}
       <Window title="GOAL" titleEm=".cfg">
         <PixelLabel>目指す領域 — 伸ばしたいロールを選ぶ</PixelLabel>
@@ -528,6 +533,9 @@ export default async function MyPage({
           </div>
         )}
       </Window>
+
+        </>
+      )}
 
       {/* UIモード: デスクトップ/クラシックの切替（旧UIは削除せず選べるモードとして共存） */}
       <Window title="SHELL" titleEm=".cfg">
