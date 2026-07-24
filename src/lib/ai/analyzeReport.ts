@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { completeJson, MODELS } from "./client";
 import { searchKnowledge, formatContextBlock } from "./retrieval";
 import { skillLevelRubricText } from "@/lib/skill-levels";
+import { domainsToLabels } from "@/lib/domains";
 
 // 週報提出時のAI解析パイプライン（docs/weekly-report.md の設計に対応）
 //  ① スキル抽出 → SkillSuggestion 生成
@@ -32,7 +33,7 @@ type AnalysisResult = {
   conditionScore: number; // 0-100（100=良好）
   conditionReasons: string[];
   consultationSignals: string[]; // 運営がフォローすべきシグナル
-  feedback: string; // 本人向け「今週の成長ポイント」（2-3文）
+  feedback: string; // 本人向け「今週の成長ポイント」（4-5文・良かった点の意味づけ+次の一手）
 };
 
 const SYSTEM_PROMPT = `あなたはエンジニアの成長を支援するアナリストです。
@@ -51,6 +52,22 @@ const SYSTEM_PROMPT = `あなたはエンジニアの成長を支援するアナ
 - 文章のトーンから 0-100 のスコアを付ける（100=良好、50=普通、30以下=要注意）
 - ネガティブ語の存在ではなく、疲弊・孤立・停滞・諦めの兆候を重視する
 - 技術的な苦戦（詰まった等）は健全な挑戦であり、それ自体は減点しない
+
+## フィードバック（feedback）のルール — 最重要
+本人が読んで「来週なにをするか」が変わる文章にする。**コーチとして、次の一手の提案に重心を置く**。
+構成（この順・4〜5文）:
+1. 良かった点を1つだけ。週報の言い換えではなく「なぜそれがキャリア資産になるか」を意味づける（1〜2文）。
+2. 次の一手を1〜2つ。**来週すぐ実行できる粒度**まで具体化する（2〜3文）。
+   - 本人の現在のスキルLvと目指す領域に接続する（例: PlaywrightがLv2なら「今のプロジェクトのスモークテストを1本だけE2E化してみる」まで落とす）。
+   - 可能なら「これは経歴書・単価に効く」というSESキャリアの意味づけを一言添える。
+   - 前週の「来週やること」が渡された場合、有言実行だったかに軽く触れてよい（詰問にはしない）。
+   - 「過去のフィードバック」が渡された場合、同じ助言を繰り返さない。
+禁止:
+- 週報内容の要約・言い換え / 羅列的な称賛（「〜も素晴らしいです」の連発）
+- 「相談してみましょう」「意識するとよいでしょう」等の、本人が動けない丸投げ・一般論
+- 3つ以上の助言を並べること（次の一手は多くて2つ）
+例外（トーンの自動調整）:
+- コンディションスコアが低い週（目安40以下）は、提案を1つに絞り、ねぎらいと休養を優先した言葉にする。無理に発破をかけない。
 
 ## 出力JSONスキーマ
 {
@@ -90,11 +107,43 @@ export async function analyzeReport(reportId: string): Promise<void> {
       .map((es) => `${es.skill.name}(Lv${es.level})`)
       .join(", ");
 
+    // フィードバックを「次の一手」にするための材料（Issue #24）:
+    // 目指す領域・前週の宣言（有言実行の対比）・直近の助言（繰り返し防止）を渡す
+    const targetDomains = domainsToLabels(report.user.targetDomains);
+    const [prevReport, pastFeedbacks] = await Promise.all([
+      prisma.weeklyReport.findFirst({
+        where: { userId: report.userId, weekStart: { lt: report.weekStart } },
+        orderBy: { weekStart: "desc" },
+        select: { nextText: true },
+      }),
+      prisma.reportAnalysis.findMany({
+        where: {
+          report: { userId: report.userId, weekStart: { lt: report.weekStart } },
+          feedbackText: { not: null },
+        },
+        orderBy: { report: { weekStart: "desc" } },
+        take: 3,
+        select: { feedbackText: true },
+      }),
+    ]);
+    const pastFeedbackBlock = pastFeedbacks.length
+      ? `\n## 過去のフィードバック（同じ助言を繰り返さないこと）\n${pastFeedbacks
+          .map((f, i) => `${i + 1}. ${f.feedbackText}`)
+          .join("\n")}`
+      : "";
+
     const userPrompt = `## 現在のスキルマップ
 ${currentSkills || "（未登録）"}
 
+## 目指す領域（次の一手はここに接続する）
+${targetDomains ?? "（未設定）"}
+
 ## 自己申告
 コンディション: ${report.conditionSelf ?? "-"}/4、稼働の体感: ${report.workloadSelf ?? "-"}/4
+
+## 先週の「来週やること」（有言実行だったか対比する材料）
+${prevReport?.nextText ? maskSensitive(prevReport.nextText, []) : "（前週の記録なし）"}
+${pastFeedbackBlock}
 
 ## 週報本文
 【今週やったこと】
