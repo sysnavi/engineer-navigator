@@ -151,7 +151,7 @@ export async function setQuizHidden(questionId: string, hidden: boolean) {
 
 /** 問題を0-10で評価（1人1票・上書き可）。全員分を集計して良問スコアに反映。 */
 export async function rateQuiz(questionId: string, score: number) {
-  const user = await requireFullAccountUser();
+  const user = await getCurrentUser();
   const s = Math.max(0, Math.min(10, Math.round(score)));
 
   await prisma.$transaction(async (tx) => {

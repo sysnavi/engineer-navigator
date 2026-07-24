@@ -58,9 +58,12 @@ export default async function QuizHubPage() {
         <Link href="/quiz/play" className="btn8 btn8-start text-[13px]">
           ▶ 腕試しを始める
         </Link>
-        <Link href="/quiz/new" className="btn8 text-[13px]">
-          ＋ 問題を作る
-        </Link>
+        {/* 出題はゲスト不可（Issue #18）。押しても弾かれるボタンは見せない */}
+        {user.role !== "GUEST" && (
+          <Link href="/quiz/new" className="btn8 text-[13px]">
+            ＋ 問題を作る
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">

@@ -59,10 +59,14 @@ const ROLE_LABELS: Record<string, string> = {
 export default async function MyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ linked?: string; oauth_error?: string }>;
+  searchParams: Promise<{
+    linked?: string;
+    oauth_error?: string;
+    promoted?: string;
+  }>;
 }) {
   const user = await getCurrentUser();
-  const { linked, oauth_error } = await searchParams;
+  const { linked, oauth_error, promoted } = await searchParams;
   const devLogin = process.env.DEV_LOGIN_ENABLED === "true";
   const isAdmin = user.role === "ADMIN";
   const [devUsers, submittedReports, player, lineage, identities, inquiries] =
@@ -204,6 +208,18 @@ export default async function MyPage({
         {linked && (
           <p className="mt-2 rounded-lg border-2 border-line8 bg-quotebg px-3 py-1.5 font-pixel text-[11px] text-royal">
             ✓ 連携しました！次からこのアカウントでログインできます
+          </p>
+        )}
+        {/* ゲストからの昇格（Issue #18）。引き継ぎができたことを明示する —
+            「消えるかも」と思いながら育てた人への答え合わせになる */}
+        {promoted && (
+          <p className="mt-2 rounded-lg border-2 border-line8 bg-quotebg px-3 py-2 text-[12.5px] leading-relaxed text-ink">
+            <b className="font-pixel text-[11px] text-royal">
+              ✓ 登録が完了しました
+            </b>
+            <br />
+            お試し中に育てたアバター・戦利品・腕試しの記録は、そのまま引き継がれています。
+            週報やAIメンターも使えるようになりました。
           </p>
         )}
         {oauth_error === "already-linked" && (
