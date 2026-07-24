@@ -58,13 +58,14 @@ export default async function AdminPage() {
         },
       },
     }),
+    // 拒否された試行(blocked)は実際にAIを呼んでいないので集計から除く（Issue #17）
     prisma.aiUsage.groupBy({
       by: ["userId"],
-      where: { createdAt: { gte: dayAgo } },
+      where: { blocked: false, createdAt: { gte: dayAgo } },
       _count: { _all: true },
     }),
     prisma.aiUsage.findMany({
-      where: { createdAt: { gte: weekAgo } },
+      where: { blocked: false, createdAt: { gte: weekAgo } },
       distinct: ["userId"],
       select: { userId: true },
     }),

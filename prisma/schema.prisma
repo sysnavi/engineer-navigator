@@ -364,6 +364,10 @@ model AiUsage {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
   kind      String // 用途タグ（mentor-chat / roleplay-chat / interview / report-analysis 等）
+  // 拒否された試行も記録する（Issue #17）。true の行は実際にAIを呼んでいないので
+  // レート制限の消費にはカウントせず、「連打の検知（自動停止）」にだけ使う。
+  // これが無いと24h件数が1日上限を超えられず、自動停止が永久に発火しない。
+  blocked   Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])

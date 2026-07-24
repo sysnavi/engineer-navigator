@@ -85,19 +85,29 @@ export async function assertAiAllowed(
   const minuteAgo = new Date(now.getTime() - 60_000);
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000);
 
-  const [lastMinute, lastDay, globalDay] = await Promise.all([
-    prisma.aiUsage.count({ where: { userId, createdAt: { gte: minuteAgo } } }),
+  // 上限の消費は「実際に通った呼び出し（blocked=false）」だけで数える。
+  // 一方 autoSuspend は「試行回数（拒否も含む）」で数える — 拒否を数えないと
+  // 24h件数が1日上限を超えられず、自動停止が永久に発火しないため（Issue #17）。
+  const [lastMinute, lastDay, globalDay, attempts24h] = await Promise.all([
+    prisma.aiUsage.count({
+      where: { userId, blocked: false, createdAt: { gte: minuteAgo } },
+    }),
+    prisma.aiUsage.count({
+      where: { userId, blocked: false, createdAt: { gte: dayAgo } },
+    }),
+    prisma.aiUsage.count({
+      where: { blocked: false, createdAt: { gte: dayAgo } },
+    }),
     prisma.aiUsage.count({ where: { userId, createdAt: { gte: dayAgo } } }),
-    prisma.aiUsage.count({ where: { createdAt: { gte: dayAgo } } }),
   ]);
 
-  // 24時間の呼び出しが自動停止しきい値を超えたら、アカウントを停止する
-  if (lastDay >= autoSuspendPerDay) {
+  // 24時間の試行回数が自動停止しきい値を超えたら、アカウントを停止する
+  if (attempts24h >= autoSuspendPerDay) {
     await prisma.user.update({
       where: { id: userId },
       data: {
         suspendedAt: now,
-        suspendReason: `自動停止: 24時間で${lastDay}回のAI利用（上限${autoSuspendPerDay}${isNewcomer ? "・新規アカウント慣らし中" : ""}）`,
+        suspendReason: `自動停止: 24時間で${attempts24h}回のAI試行（上限${autoSuspendPerDay}${isNewcomer ? "・新規アカウント慣らし中" : ""}）`,
       },
     });
     throw new AiBlockedError(
@@ -114,13 +124,18 @@ export async function assertAiAllowed(
       "今日のAI利用枠を使い切りました（サービス全体の上限です）。また明日おいでください。週報の保存など、AI以外の機能はそのまま使えます。"
     );
   }
+  // 本人の連打による拒否は試行として記録する（自動停止の判定材料）。
+  // 全体上限・停止中による拒否は本人の落ち度ではないので記録しない
+  // （記録すると、混雑した日に無関係のユーザーが自動停止に近づいてしまう）。
   if (lastMinute >= AI_LIMITS.perMinute) {
+    await recordBlockedAttempt(userId, kind);
     throw new AiBlockedError(
       "RATE_MINUTE",
       "短時間のリクエストが多すぎます。少し時間をおいてからお試しください。"
     );
   }
   if (lastDay >= perDay) {
+    await recordBlockedAttempt(userId, kind);
     throw new AiBlockedError(
       "RATE_DAY",
       isNewcomer
@@ -130,6 +145,13 @@ export async function assertAiAllowed(
   }
 
   await prisma.aiUsage.create({ data: { userId, kind } });
+}
+
+/** 拒否された試行を記録する（枠は消費しない = blocked:true）。失敗しても本流は止めない */
+async function recordBlockedAttempt(userId: string, kind: string): Promise<void> {
+  await prisma.aiUsage
+    .create({ data: { userId, kind, blocked: true } })
+    .catch((e) => console.error("failed to record blocked attempt:", e));
 }
 
 // 全体上限に達したことを運営に知らせる。到達後はリクエストのたびに呼ばれるため、
@@ -146,10 +168,10 @@ async function alertGlobalCapOnce(count: number): Promise<void> {
   ).catch(() => {});
 }
 
-/** 直近24時間のAI利用回数（管理画面の表示用） */
+/** 直近24時間のAI利用回数（管理画面の表示用。拒否された試行は含まない） */
 export async function aiUsageToday(userId: string): Promise<number> {
   const dayAgo = new Date(Date.now() - 24 * 60 * 60_000);
   return prisma.aiUsage.count({
-    where: { userId, createdAt: { gte: dayAgo } },
+    where: { userId, blocked: false, createdAt: { gte: dayAgo } },
   });
 }
