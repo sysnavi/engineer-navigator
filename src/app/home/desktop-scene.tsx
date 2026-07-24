@@ -21,6 +21,7 @@ import {
 import { speciesById } from "@/lib/pets/species";
 import { moveGadget, stowGadget, petPet, feedPet } from "./actions";
 import { CareMenu, type FoodStock } from "./care-menu";
+import { PetSpeech } from "./pet-speech";
 import { FoodServe } from "./food-serve";
 import type { ServeMode } from "@/lib/pets/foods";
 
@@ -394,11 +395,6 @@ export function DesktopScene(props: {
             className={`inline-block w-full ${feeding ? "" : "pet-wander"}`}
             style={feeding ? undefined : { animationDuration: "6.5s" }}
           >
-            {bubble && (
-              <span className="absolute -top-9 left-1/2 z-[1300] -translate-x-1/2 whitespace-nowrap rounded-lg border-2 border-line8 bg-win px-2 py-0.5 text-[10.5px] font-bold shadow-hard-sm">
-                {bubble}
-              </span>
-            )}
             {visitorHeart && (
               <span className="pet-heart absolute -top-4 left-1/2 font-pixel text-[13px] text-pinkhot">
                 ♥
@@ -426,6 +422,11 @@ export function DesktopScene(props: {
             </span>
           </span>
         </button>
+      )}
+
+      {/* セリフ窓（シーン幅に収まる折り返し窓。頭上の吹き出しだと切れる） */}
+      {bubble && props.visitor && (
+        <PetSpeech name={props.visitor.name} text={bubble} />
       )}
 
       {/* もりつけたごはん（来客のよこにそっと置かれる） */}

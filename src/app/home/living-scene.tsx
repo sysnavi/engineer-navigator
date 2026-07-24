@@ -14,6 +14,7 @@ import { petPet, feedPet, type FeedResult } from "./actions";
 import { PET_SIZE } from "@/lib/home/scene";
 import { speciesById } from "@/lib/pets/species";
 import { CareMenu, type FoodStock } from "./care-menu";
+import { PetSpeech } from "./pet-speech";
 import { FoodServe } from "./food-serve";
 
 export type RoomPet = {
@@ -289,11 +290,6 @@ export function LivingScene(props: {
                     }
               }
             >
-              {serve?.bubble && (
-                <span className="absolute -top-9 z-[1000] whitespace-nowrap rounded-lg border-2 border-line8 bg-win px-2 py-0.5 text-[10.5px] font-bold shadow-hard-sm">
-                  {serve.bubble}
-                </span>
-              )}
               {hearts === p.id && (
                 <span className="pet-heart absolute -top-4 font-pixel text-[13px] text-pinkhot">
                   ♥
@@ -317,6 +313,14 @@ export function LivingScene(props: {
           </button>
         );
       })}
+      {/* セリフ窓（シーン幅に収まる折り返し窓。頭上の吹き出しだと切れる） */}
+      {serving?.bubble && (
+        <PetSpeech
+          name={pets.find((p) => p.id === serving.petId)?.name ?? ""}
+          text={serving.bubble}
+        />
+      )}
+
       {/* もりつけたごはん（ペットの足元にそっと置かれる）。
           「話しかける」だけのときは foodId が空なので器を出さない */}
       {serving?.foodId &&
@@ -336,7 +340,7 @@ export function LivingScene(props: {
         })()}
 
       {log && (
-        <p className="absolute inset-x-2 bottom-1 z-[1250] truncate rounded border-2 border-line8 bg-win/95 px-2 py-0.5 text-[10.5px] font-bold">
+        <p className="absolute inset-x-2 bottom-1 z-[1250] rounded border-2 border-line8 bg-win/95 px-2 py-0.5 text-[10.5px] font-bold leading-snug">
           {log}
         </p>
       )}
