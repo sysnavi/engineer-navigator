@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { domainsToLabels } from "@/lib/domains";
 import type { ChatMessage } from "./client";
+import { chatStanceBlock, toStance } from "./stance";
 
 // AIメンター（Phase 3）— 設計は docs/roadmap.md
 // 「理論 → 現場システムでどう適用するか」を必ず具体例つきで返すのが心臓部。
@@ -69,7 +70,10 @@ export async function buildMentorMessages(
 ): Promise<{ system: string; messages: ChatMessage[] }> {
   const session = await prisma.mentorSession.findUniqueOrThrow({
     where: { id: sessionId },
-    include: { messages: { orderBy: { createdAt: "asc" } } },
+    include: {
+      messages: { orderBy: { createdAt: "asc" } },
+      user: { select: { mentorStance: true } },
+    },
   });
 
   const context = await buildContext(session.userId);
@@ -83,5 +87,11 @@ export async function buildMentorMessages(
     content: m.content,
   }));
 
-  return { system: `${MENTOR_SYSTEM}\n\n${context}${topicLine}`, messages };
+  // 本人が選んだ接し方を反映（きびしめは1往復だけ問い返してから答える）
+  const stanceBlock = chatStanceBlock(toStance(session.user.mentorStance));
+
+  return {
+    system: `${MENTOR_SYSTEM}${stanceBlock}\n\n${context}${topicLine}`,
+    messages,
+  };
 }

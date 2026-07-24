@@ -1,5 +1,6 @@
 import { completeJson } from "./client";
 import { searchLearningChunks, formatContextBlock } from "./retrieval";
+import { studyPlanStanceBlock, toStance } from "./stance";
 
 // 資格別学習プラン（Phase 3）: 試験日から逆算した週次カリキュラムをClaudeが生成。
 // 学習コンテンツRAGで裏付ける（社内教材があればそれに沿った計画になる）。
@@ -18,6 +19,7 @@ export async function generatePlanItems(params: {
   certification: string;
   weeks: number;
   currentSkills: string;
+  stance?: string | null;
 }): Promise<PlanItem[]> {
   const chunks = await searchLearningChunks(
     `${params.certification} 学習 試験 対策`,
@@ -33,7 +35,8 @@ export async function generatePlanItems(params: {
 - 序盤は基礎、中盤は頻出範囲の演習、終盤は模試と弱点復習、と逆算で配分する。最後の週は必ず直前対策（模試・総復習）にする。
 - 相手の今のスキルを踏まえ、既に強い分野は軽く、弱い分野に時間を配る。
 - 参考資料がある場合はその範囲を計画に織り込む。
-- 出力はJSONのみ: { "items": [{ "weekLabel": string, "title": string, "detail": string }] }`,
+- 出力はJSONのみ: { "items": [{ "weekLabel": string, "title": string, "detail": string }] }
+${studyPlanStanceBlock(toStance(params.stance))}`,
     user: `## 資格
 ${params.certification}
 

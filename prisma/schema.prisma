@@ -37,6 +37,9 @@ model User {
   // 目指す技術領域（キャリアの方向性）。値は src/lib/domains.ts の DomainDef.id。
   // メンター提案・ロールプレイ評価を本人の目標領域に寄せるために使う。
   targetDomains String[] @default([])
+  // AIメンターの接し方（やさしめ/ふつう/きびしめ）。値は src/lib/ai/stance.ts の StanceId。
+  // 変えるのは語り口と要求水準だけで、スキルの判定基準は全員共通（社内で比較可能に保つため）。
+  mentorStance String @default("normal")
   // 初回オンボーディングの同意（AI解析・閲覧範囲・評価不使用）取得日時。null=未同意
   consentedAt DateTime?
   // 初回チュートリアル（アプリの歩き方）完了日時。null=未完了→初回自動表示(Issue #5)

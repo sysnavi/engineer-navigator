@@ -15,6 +15,7 @@ import { isPaletteId } from "@/lib/palettes";
 import { isUiShell } from "@/lib/shell";
 import { appsForRole, DOCK_SLOTS } from "@/lib/apps";
 import { isDomainId } from "@/lib/domains";
+import { toStance } from "@/lib/ai/stance";
 import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
 import { performRebirth, EXP_WEIGHTS } from "@/lib/exp";
 import { createInvite } from "@/lib/invite";
@@ -213,6 +214,18 @@ export async function updateTargetDomains(formData: FormData) {
   await prisma.user.update({
     where: { id: user.id },
     data: { targetDomains: Array.from(new Set(domains)) },
+  });
+  revalidatePath("/mypage");
+}
+
+// AIメンターの接し方（やさしめ/ふつう/きびしめ）を保存。
+// 効くのは語り口と要求水準だけで、スキルの判定基準は変わらない（stance.ts参照）。
+export async function updateMentorStance(formData: FormData) {
+  const user = await getCurrentUser();
+  const stance = toStance(String(formData.get("stance") ?? ""));
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { mentorStance: stance },
   });
   revalidatePath("/mypage");
 }
@@ -459,6 +472,7 @@ export async function createStudyPlan(formData: FormData) {
     certification: certification.trim(),
     weeks,
     currentSkills,
+    stance: user.mentorStance,
   });
 
   const monday = mondayOf(now);

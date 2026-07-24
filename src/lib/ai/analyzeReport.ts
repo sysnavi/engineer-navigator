@@ -3,6 +3,7 @@ import { completeJson, MODELS } from "./client";
 import { searchKnowledge, formatContextBlock } from "./retrieval";
 import { skillLevelRubricText } from "@/lib/skill-levels";
 import { domainsToLabels } from "@/lib/domains";
+import { feedbackStanceBlock, LOW_CONDITION_OVERRIDE, toStance } from "./stance";
 
 // 週報提出時のAI解析パイプライン（docs/weekly-report.md の設計に対応）
 //  ① スキル抽出 → SkillSuggestion 生成
@@ -76,6 +77,7 @@ const SYSTEM_PROMPT = `あなたはエンジニアの成長を支援するアナ
 - 3つ以上の助言を並べること（次の一手は多くて2つ）
 例外（トーンの自動調整）:
 - コンディションスコアが低い週（目安40以下）は、提案を1つに絞り、ねぎらいと休養を優先した言葉にする。無理に発破をかけない。
+  **これは本人が選んだ接し方（やさしめ/ふつう/きびしめ）より優先する。**
 
 ## 出力JSONスキーマ
 {
@@ -214,8 +216,16 @@ ${maskSensitive(report.shareText ?? "", [])}`;
         "登録されたコンディション対応ノウハウ（トーン解析・シグナル判断の参考）"
       );
 
+    // 本人が選んだ接し方（Issue: メンタースタンス）。自己申告が低い週は
+    // モデルの判定を待たずに安全側へ倒す（SYSTEM_PROMPT側の40以下ルールと二重の担保）。
+    const stance = toStance(report.user.mentorStance);
+    const selfLow =
+      (report.conditionSelf ?? 4) <= 2 || (report.workloadSelf ?? 4) <= 1;
+    const stanceBlock =
+      feedbackStanceBlock(stance) + (selfLow ? LOW_CONDITION_OVERRIDE : "");
+
     const { data, usage } = await completeJson<AnalysisResult>({
-      system: SYSTEM_PROMPT + knowledgeBlock,
+      system: SYSTEM_PROMPT + stanceBlock + knowledgeBlock,
       user: userPrompt,
       model: MODELS.analysis,
     });

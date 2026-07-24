@@ -15,6 +15,7 @@ import {
   skillLevelDef,
   skillLevelRubricText,
 } from "@/lib/skill-levels";
+import { probeStanceBlock, toStance } from "@/lib/ai/stance";
 
 export type ProbeLog = {
   questions: string[];
@@ -68,6 +69,9 @@ export async function generateSkillProbe(
         "申告されたスキルについて、実際の経験の深さを確かめる短い質問を2〜3個作ってください。",
         "観点: 具体的な手順 / 使ったツール・コマンド / どこからどこまでを一人でやったか / 本番か検証環境か / 詰まった点とその解決。",
         "答えやすい具体的な質問にする。1問60文字以内。JSON: {\"questions\": string[]}",
+        // 本人が選んだ接し方は「質問の突っ込み具合」にだけ効かせる。
+        // 判定（submitSkillProbe）には渡さない — レベルの基準は全員共通に保つ。
+        probeStanceBlock(toStance(user.mentorStance)),
       ].join("\n"),
       user: [
         `スキル: ${suggestion.skillName}`,

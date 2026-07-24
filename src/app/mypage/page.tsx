@@ -9,8 +9,10 @@ import {
   updateDisplayName,
   updateShareSettings,
   updateTargetDomains,
+  updateMentorStance,
   logout,
 } from "@/app/actions";
+import { STANCES, toStance } from "@/lib/ai/stance";
 import { resolveShell } from "@/lib/shell";
 import { appsForRole, resolveDock } from "@/lib/apps";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
@@ -377,6 +379,48 @@ export default async function MyPage({
                   <span className="inline-flex items-center gap-1.5 rounded-lg border-[2.5px] border-line8 bg-surface px-3 py-1.5 text-[12.5px] font-bold text-ink shadow-hard-sm transition-transform peer-checked:bg-royal peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-pinkhot">
                     <span aria-hidden="true">{d.emoji}</span>
                     {d.label}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <button className="btn8 btn8-start text-[12px]">▶ 保存</button>
+        </ActionForm>
+      </Window>
+
+      {/* AIメンターの接し方（スタンス） */}
+      <Window title="STANCE" titleEm=".cfg">
+        <PixelLabel>メンターの接し方 — どう言われたいかを選ぶ</PixelLabel>
+        <p className="mt-2 text-[12.5px] text-inksoft">
+          週報のフィードバック・AIメンター・スキルの深掘り・学習プランの言い方が変わります。
+          <br />
+          スキルのレベル判定の基準は変わりません（誰が選んでも同じものさしです）。
+          コンディションが下がっている週は、きびしめでも自動でねぎらい寄りになります。
+        </p>
+        <ActionForm
+          action={updateMentorStance}
+          ok="メンターの接し方を保存しました"
+          className="mt-3 space-y-3"
+        >
+          <div className="flex flex-wrap gap-2">
+            {STANCES.map((st) => {
+              const on = toStance(user.mentorStance) === st.id;
+              return (
+                <label key={st.id} className="cursor-pointer">
+                  <input
+                    type="radio"
+                    name="stance"
+                    value={st.id}
+                    defaultChecked={on}
+                    className="peer sr-only"
+                  />
+                  <span className="inline-flex max-w-[260px] flex-col gap-0.5 rounded-lg border-[2.5px] border-line8 bg-surface px-3 py-2 text-left shadow-hard-sm transition-transform peer-checked:bg-royal peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-pinkhot">
+                    <span className="text-[12.5px] font-bold">
+                      <span aria-hidden="true">{st.emoji}</span> {st.label}
+                    </span>
+                    <span className="text-[11px] leading-snug opacity-80">
+                      {st.summary}
+                    </span>
                   </span>
                 </label>
               );
