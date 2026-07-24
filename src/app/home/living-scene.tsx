@@ -73,16 +73,17 @@ export function LivingScene(props: {
     if (stocks !== props.stocks) setStocks(props.stocks);
   }
 
+  // なでなで。メニューは開いたまま何度でも撫でられる（ハートはメニュー側で出す）。
+  // なつき度が実際に上がった日だけ pettedToday を立てる。
   const onPet = (petId: string) => {
-    setMenuPetId(null);
-    setHearts(petId);
-    setTimeout(() => setHearts((h) => (h === petId ? null : h)), 1600);
     startTransition(async () => {
       try {
         const r = await petPet(petId);
         setPets((ps) =>
           ps.map((p) =>
-            p.id === petId ? { ...p, affection: r.affection, pettedToday: true } : p
+            p.id === petId
+              ? { ...p, affection: r.affection, pettedToday: p.pettedToday || r.gained }
+              : p
           )
         );
       } catch {

@@ -116,21 +116,27 @@ function todayUtc(): Date {
   return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
 }
 
-/** なでなで（1日1回/匹）。なつき度+1、返り値は更新後のなつき度 */
-export async function petPet(petId: string): Promise<{ affection: number }> {
+/** なでなで。何回でもできる（毎回よろこぶ）が、なつき度が上がるのは1日1回まで。
+ *  無制限に加算するとティア(3/7/15)が一瞬で最大化して「絆を育てる」感触が消えるため、
+ *  ふれあい（アニメ）は自由・成長（affection）はペース配分、で分けている。 */
+export async function petPet(
+  petId: string
+): Promise<{ affection: number; gained: boolean }> {
   const user = await getCurrentUser();
   const pet = await prisma.pet.findUniqueOrThrow({ where: { id: petId } });
   if (pet.userId !== user.id) throw new Error("この子はあなたのペットではありません");
   const today = todayUtc();
-  if (pet.lastPettedAt && pet.lastPettedAt.getTime() >= today.getTime()) {
-    return { affection: pet.affection }; // きょうはもう撫でた（エラーにはしない）
+  const alreadyToday =
+    !!pet.lastPettedAt && pet.lastPettedAt.getTime() >= today.getTime();
+  if (alreadyToday) {
+    return { affection: pet.affection, gained: false }; // きょうの加算は済み（撫でる動作自体はOK）
   }
   const updated = await prisma.pet.update({
     where: { id: petId },
     data: { affection: { increment: 1 }, lastPettedAt: today },
   });
   revalidatePath("/home");
-  return { affection: updated.affection };
+  return { affection: updated.affection, gained: true };
 }
 
 // ---------------------------------------------------------------------------

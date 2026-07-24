@@ -70,6 +70,7 @@ export function DesktopScene(props: {
   const [bubble, setBubble] = useState<string | null>(null);
   const [stocks, setStocks] = useState(props.stocks);
   const [fedToday, setFedToday] = useState(props.visitor?.fedToday ?? false);
+  const [pettedToday, setPettedToday] = useState(props.visitor?.pettedToday ?? false);
   const [affection, setAffection] = useState(props.visitor?.affection ?? 0);
   const [feeding, setFeeding] = useState<{
     foodId: string;
@@ -145,14 +146,15 @@ export function DesktopScene(props: {
     });
   }
 
+  // なでなで。メニューは開いたまま何度でも撫でられる（ハートはメニュー側で出す）。
+  // なつき度が実際に上がった日だけ fedToday 相当の pettedToday を反映。
   function onPetVisitor() {
     if (!props.visitor) return;
-    setMenuOpen(false);
-    setVisitorHeart(true);
-    setTimeout(() => setVisitorHeart(false), 1600);
     start(async () => {
       try {
-        await petPet(props.visitor!.id);
+        const r = await petPet(props.visitor!.id);
+        setAffection(r.affection);
+        if (r.gained) setPettedToday(true);
       } catch {
         // なでなで失敗で画面は壊さない
       }
@@ -444,7 +446,7 @@ export function DesktopScene(props: {
         <CareMenu
           petName={props.visitor.name}
           affection={affection}
-          pettedToday={props.visitor.pettedToday}
+          pettedToday={pettedToday}
           fedToday={fedToday}
           stocks={stocks}
           busy={feeding !== null}
