@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { listPublicProfiles } from "@/lib/public-profile";
 import { Window, PixelTitle, PixelLabel, LevelBlocks } from "@/components/retro";
+import { requireFullAccount } from "@/lib/guest";
 
 export default async function DiscoverPage() {
+  // 発見はゲスト遮断（Issue #18）。公開プロフィールの閲覧は登録後に。
+  // ページ本体はユーザーを使わないが、ゲストを弾くために通す。
+  await requireFullAccount();
   const profiles = await listPublicProfiles();
 
   return (
