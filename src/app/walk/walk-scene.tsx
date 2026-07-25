@@ -10,6 +10,8 @@ import type { PersonalityId } from "@/lib/pets/species";
 import {
   pickMutter,
   timeToBucket,
+  seasonBucket,
+  type SeasonBucket,
   type MoodBucket,
   type LoadBucket,
   type TimeBucket,
@@ -69,6 +71,10 @@ export function WalkScene(props: {
   const [tempC, setTempC] = useState<number | null>(null);
   const [realWeather, setRealWeather] = useState(false);
   const [biome, setBiome] = useState<BiomeId | null>(null);
+  // 季節はマウント時に確定させる（散歩中に変わらないので初期化子で十分）
+  const [season] = useState<SeasonBucket>(() =>
+    seasonBucket(new Date().getMonth() + 1)
+  );
   // ?speed= デバッグ早回し（1〜8）。SSR中はwindowが無いので1
   const [speedMul] = useState(() => {
     if (typeof window === "undefined") return 1;
@@ -117,6 +123,7 @@ export function WalkScene(props: {
     affection: pet.affection,
     petName: pet.name,
     biome: null,
+    season,
   });
   useEffect(() => {
     ctxRef.current = {
@@ -128,8 +135,9 @@ export function WalkScene(props: {
       affection: pet.affection,
       petName: pet.name,
       biome,
+      season,
     };
-  }, [time, weather, props.mood, props.load, pet, biome]);
+  }, [time, weather, props.mood, props.load, pet, biome, season]);
 
   // つぶやきループ（ペットを変えたら作り直す）。基本は辞書、2回目あたりで1度だけAI特別枠。
   useEffect(() => {
