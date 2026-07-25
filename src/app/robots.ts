@@ -9,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: ["/", "/welcome", "/u/"],
+      allow: ["/", "/welcome", "/u/", "/q/"],
       disallow: [
         "/api/",
         "/join/", // 招待トークンURL（秘匿）

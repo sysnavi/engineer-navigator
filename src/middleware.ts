@@ -23,11 +23,11 @@ export function middleware(req: NextRequest) {
 // 静的アセット・API・公開ルート・PWAアセット（manifest / sw.js / 各種アイコン）は
 // 除外。それ以外の画面をゲート。
 // - /contact は未ログインの訪問者からも声を受け取れるよう公開（Issue #9）
-// - /u/ は公開プロフィール。未ログイン＝検索エンジンにも見せるため除外（Issue #14）。
-//   ページ側 loadPublicProfile が isPublic のみ返すので、非公開情報は出ない
+// - /u/ は公開プロフィール、/q/ は良問の公開ページ。未ログイン＝検索エンジンにも
+//   見せるため除外（Issue #14）。ページ側が公開分だけ返し、答えはログイン段差で守る
 // - sitemap.xml / robots.txt もクローラが認証なしで取れるよう除外
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api|welcome|join|contact|u/|sitemap.xml|robots.txt|manifest.webmanifest|sw.js|icon|apple-icon).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api|welcome|join|contact|u/|q/|sitemap.xml|robots.txt|manifest.webmanifest|sw.js|icon|apple-icon).*)",
   ],
 };
