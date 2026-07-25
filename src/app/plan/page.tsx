@@ -26,7 +26,7 @@ export default async function PlanListPage() {
           資格学習プラン
         </PixelTitle>
         <p className="mt-1 text-[13px] text-inksoft">
-          試験日から逆算した週次カリキュラムをAIが作成。進捗をチェックしていけます。
+          試験日から逆算した週次カリキュラムを、AIが作成。
         </p>
       </div>
 

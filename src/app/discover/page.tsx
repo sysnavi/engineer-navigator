@@ -17,7 +17,7 @@ export default async function DiscoverPage() {
           みんなの成長
         </PixelTitle>
         <p className="mt-1 text-[13px] text-inksoft">
-          公開されているエンジニアの成長の道筋を見て学べます。マイページで自分のプロフィールも公開できます。
+          みんなの成長の道筋から学ぶ。
         </p>
       </div>
 

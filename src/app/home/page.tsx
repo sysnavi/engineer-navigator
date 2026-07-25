@@ -111,7 +111,7 @@ export default async function HomePage() {
           マイホーム
         </PixelTitle>
         <p className="mt-1 text-[13px] text-inksoft">
-          デスクにガジェットを飾って自分の作業環境を組み、リビングでは仲間がのんびり暮らします。
+          ガジェットで作業環境を組み、リビングでは仲間が暮らす。
         </p>
       </div>
 

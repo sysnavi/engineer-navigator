@@ -253,8 +253,8 @@ export default async function MyPage({
           )}
         </div>
         <p className="mt-2 text-[11px] text-inksoft">
-          連携時にメールアドレスや名前は受け取りません。保存されるのは復元不能なハッシュだけです。
-          招待リンクで始めた方も、連携しておくとリンクを失くしてもログインできます。
+          連携してもメール・名前は受け取りません（保存は復元不能なハッシュのみ）。
+          招待リンクを失くしてもログインできます。
         </p>
       </Window>
 
@@ -294,9 +294,8 @@ export default async function MyPage({
               </p>
             ) : (
               <p className="mt-1 text-[12.5px] text-inksoft">
-                初代。マイスター（Lv{REBIRTH_MIN_LEVEL}）に到達すると「卵を産む」が解放され、
-                遺伝子と遺産を次の世代へ受け継げます。
-                <b>継承でしか出会えない姿</b>（けんじゃ・でんせつ…）も。
+                初代。マイスター（Lv{REBIRTH_MIN_LEVEL}）で「卵を産む」が解放。
+                <b>継承でしか出会えない姿</b>も。
               </p>
             )}
             <p className="mt-1 text-[11.5px] text-inksoft">
@@ -383,7 +382,7 @@ export default async function MyPage({
       <Window title="GOAL" titleEm=".cfg">
         <PixelLabel>目指す領域 — 伸ばしたいロールを選ぶ</PixelLabel>
         <p className="mt-2 text-[12.5px] text-inksoft">
-          何を目指すか（複数可）で、メンターの提案や役割演習のアドバイスがその方向に寄ります。
+          目指す方向に、AIの提案が寄ります（複数可）。
         </p>
         <ActionForm action={updateTargetDomains} ok="目指す領域を保存しました" className="mt-3 space-y-3">
           <div className="flex flex-wrap gap-2">
@@ -414,10 +413,7 @@ export default async function MyPage({
       <Window title="STANCE" titleEm=".cfg">
         <PixelLabel>メンターの接し方 — どう言われたいかを選ぶ</PixelLabel>
         <p className="mt-2 text-[12.5px] text-inksoft">
-          週報のフィードバック・AIメンター・スキルの深掘り・学習プランの言い方が変わります。
-          <br />
-          スキルのレベル判定の基準は変わりません（誰が選んでも同じものさしです）。
-          コンディションが下がっている週は、きびしめでも自動でねぎらい寄りになります。
+          AIの言い方が変わります。スキル判定のきびしさは変わりません。
         </p>
         <ActionForm
           action={updateMentorStance}
@@ -541,9 +537,6 @@ export default async function MyPage({
       {/* UIモード: デスクトップ/クラシックの切替（旧UIは削除せず選べるモードとして共存） */}
       <Window title="SHELL" titleEm=".cfg">
         <PixelLabel>UIモード — 画面の骨格を選ぶ</PixelLabel>
-        <p className="mt-2 text-[12.5px] text-inksoft">
-          「デスクトップ」はレトロOS風（アイコン＋下部スタートメニュー）、「クラシック」は従来の上部ナビ表示です。いつでも戻せます。
-        </p>
         <div className="mt-3 grid grid-cols-2 gap-3">
           {(
             [
@@ -584,7 +577,7 @@ export default async function MyPage({
       <Window title="DOCK" titleEm=".cfg">
         <PixelLabel>モバイルドック — 下部メニューの3枠を選ぶ</PixelLabel>
         <p className="mt-2 text-[12.5px] text-inksoft">
-          スマホ表示（デスクトップUI）の下部ドックに置く機能を3つ選びます。左端の▶スタートは固定で、その右に選んだ順で並びます。
+          下部ドックに置く機能を3つ選びます。
         </p>
         <DockEditor
           apps={appsForRole(user.role)}
@@ -595,7 +588,7 @@ export default async function MyPage({
       <Window title="PALETTE" titleEm=".cfg">
         <div className="space-y-4">
           <p className="text-[12.5px] text-inksoft">
-            セーブスロットを選ぶと全画面が着せ替わります。ホットピンク（実行ボタン）とレモン（バッジ）はどのパレットでも共通です。
+            パレットを選ぶと全画面が着せ替わります。
           </p>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {PALETTES.map((p) => {
@@ -642,8 +635,7 @@ export default async function MyPage({
       <Window title="TIPS" titleEm=".cfg">
         <PixelLabel>TIPS — 右下のミニ豆知識</PixelLabel>
         <p className="mt-2 text-[12.5px] text-inksoft">
-          機能の使い方や小ネタを、ページを開いたときに右下へさりげなく出します。
-          慣れてきて不要になったらオフにできます。
+          使い方の小ネタを、右下にそっと出します。
         </p>
         <ActionForm
           action={setTipsEnabled}

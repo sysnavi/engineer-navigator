@@ -47,7 +47,7 @@ export default async function YomoyamaPage() {
           よもやま
         </PixelTitle>
         <p className="mt-1 text-[13px] text-inksoft">
-          現場の悲喜こもごもを気軽に。愚痴も自慢も学びも。ハンドル名で残ります。
+          現場のあれこれを、ハンドル名で。
         </p>
       </div>
 

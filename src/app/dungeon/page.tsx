@@ -37,7 +37,7 @@ export default async function DungeonPage() {
           ダンジョン
         </PixelTitle>
         <p className="mt-1 text-[13px] text-inksoft">
-          育てたアバターが自動で潜ります。レベル・世代・血統が深さを決め、深いほどレアなガジェットが眠っています。
+          育てたアバターが自動で潜ります。
         </p>
       </div>
 

@@ -24,17 +24,15 @@ function ConsentGate() {
       <ol className="mt-3 space-y-3 text-[13px]">
         <li className="rounded-lg border-2 border-line8 bg-surface p-3 shadow-hard-sm">
           <b>1. AIが解析します</b> —
-          提出した週報はAIが解析し、スキルの抽出とふりかえりのフィードバックに使われます。
+          週報はAIが解析し、スキル抽出とふりかえりに使われます。
         </li>
         <li className="rounded-lg border-2 border-line8 bg-surface p-3 shadow-hard-sm">
           <b>2. コンディションはあなただけのもの</b> —
-          気分・稼働などのコンディション回答（設問1・2・5とスコア）は
-          <b>あなた以外は誰も見られません</b>（運営も見ません）。
+          気分・稼働の回答は<b>運営を含め誰も見られません</b>。
         </li>
         <li className="rounded-lg border-2 border-line8 bg-surface p-3 shadow-hard-sm">
-          <b>3. 共有されるのはあなたが選んだものだけ</b> —
-          公開プロフィールに載るのは、あなたが個別に公開指定した項目だけです。
-          実績（設問3・4）はあなたの経歴書に反映されます。
+          <b>3. 共有は選んだものだけ</b> —
+          公開プロフィールに載るのは、あなたが公開指定した項目だけです。
         </li>
       </ol>
       <form action={giveConsent} className="mt-5">

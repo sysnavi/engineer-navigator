@@ -53,7 +53,7 @@ export default async function WalkPage() {
           おさんぽ
         </PixelTitle>
         <p className="mt-1 text-[13px] text-inksoft">
-          うちの子と、ただのんびり歩くだけ。天気とあなたの調子に合わせて、ときどきひとことつぶやきます。
+          うちの子と、ただ歩くだけ。
         </p>
       </div>
 

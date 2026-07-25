@@ -38,7 +38,7 @@ export default async function MentorPage() {
       <Window title="先回り提案" titleEm=".ai" barClass="!bg-pinkhot">
         <PixelLabel className="!text-pinkhot">STUDY QUEST</PixelLabel>
         <p className="mt-1 mb-3 text-[12.5px] text-inksoft">
-          あなたの週報の「詰まったこと・新しく触れた技術」から、次に学ぶと効く学習トピックを提案します。
+          週報の「詰まったこと・新しく触れた技術」から、次に学ぶトピックを提案。
         </p>
         <ProposeTopics createAction={createMentorSession} />
       </Window>

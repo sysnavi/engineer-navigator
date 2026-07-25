@@ -18,12 +18,12 @@ const HERO_STAGES = [
 const FEATURES = [
   {
     title: "書けば、経歴書になる",
-    body: "今週やったことを5分で書くだけ。AIがスキルを見つけて提案し、承認するとスキルマップと経歴書が自動で育ちます。",
+    body: "今週やったことを5分書くだけ。AIがスキルを見つけ、経歴書が育ちます。",
     tag: "週報 → スキル → 経歴書",
   },
   {
     title: "解けば、腕が上がる",
-    body: "現場で使える四択の良問バンク。解くのも作るのもEXPになり、同じお題に正解するとスキルの「検証済み」バッジが付きます。",
+    body: "現場で使える四択の良問バンク。解くのも作るのもEXPになります。",
     tag: "腕試し / 良問バンク",
   },
   {
@@ -186,22 +186,19 @@ export default async function WelcomePage({
         <PixelLabel>あなたの情報は、ほとんど預かりません</PixelLabel>
         <ul className="mt-3 space-y-2 text-[12.5px] leading-relaxed text-ink">
           <li>
-            ・<b>メールアドレスも本名もパスワードも不要</b>です。ログイン連携でも、
-            受け取るのは「同じ人が戻ってきた」ことを確かめるハッシュだけ。
+            ・<b>メール・本名・パスワード不要</b>。連携で受け取るのも、本人確認のハッシュだけ。
           </li>
           <li>
             ・表示されるのは<b>あなたが決めるハンドル</b>（ペンネーム可）だけです。
           </li>
           <li>
-            ・週報やコンディションは<b>あなた以外に見えません</b>。公開するかどうかは、
-            1件ずつあなたが選びます。
+            ・週報やコンディションは<b>あなた以外に見えません</b>。公開は1件ずつ選べます。
           </li>
         </ul>
         <p className="mt-3 border-t-2 border-dashed border-grid8 pt-2.5 text-[12px] text-inksoft">
           <b>招待リンク</b>（
           <span className="font-pixel text-[12px] text-royal2">/join/…</span>
-          ）をお持ちの方は、そのURLを開くだけで始められます。
-          本名や客先の実名は入力しないでください。
+          ）はURLを開くだけで始められます。本名や客先の実名は入力しないでください。
         </p>
       </Window>
     </div>

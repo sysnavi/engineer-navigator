@@ -32,7 +32,7 @@ export default async function RoleplayListPage() {
           役割シミュレーター
         </PixelTitle>
         <p className="mt-1 text-[13px] text-inksoft">
-          一歩先の役割（リーダーの難題）をAIとロールプレイ。終わると職務定義書ベースで評価が返ります。
+          一歩先の役割を、AIとロールプレイ。
         </p>
       </div>
 

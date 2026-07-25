@@ -50,7 +50,7 @@ export default async function QuizHubPage() {
           良問バンク
         </PixelTitle>
         <p className="mt-1 text-[13px] text-inksoft">
-          四択を解いて力試し。良いと思った問題を評価すると、みんなの平均で良問が上位に育ちます。
+          四択で力試し。
         </p>
       </div>
 

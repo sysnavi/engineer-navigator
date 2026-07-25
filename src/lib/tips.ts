@@ -121,4 +121,10 @@ export const TIPS: Tip[] = [
     text: "「発見」では他の人の成長の道筋が見られるよ。目標にしたい人を探してみて",
     href: "/discover",
   },
+  {
+    id: "walk",
+    emoji: "🌳",
+    text: "「おさんぽ」でうちの子とのんびり歩けるよ。ときどき ひとことつぶやく",
+    href: "/walk",
+  },
 ];
