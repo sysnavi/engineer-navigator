@@ -131,9 +131,13 @@ model DungeonRun {
   createdAt DateTime @default(now())
   baseDepth Int // 出発時の基礎深度（Lv/世代/形態から導出した値のスナップショット）
   depth     Int // 最終到達階
-  // 確定済みの5ステップ（出発/イベント×3/結果）。乱数はサーバーで解決済みで、
-  // クライアントはこれを紙芝居再生するだけ（リプレイも同じ見た目になる）
+  // 起きたことのログ（出発/イベント/結果）。履歴のリプレイ表示に使う
   steps     Json
+  // コマンド選択制（松）: 潜行は1リクエストで完結せず、コマンドのたびに
+  // サーバーが解決して state を更新する。判定は全てサーバー側で行い、
+  // クライアントはコマンド名しか送らない（改ざん耐性）。
+  status    String   @default("DONE") // "ACTIVE"=潜行中 / "DONE"=決着済み
+  state     Json? // 潜行中の生の状態（HP/SP/敵/持ち物…）。DONEになったらnull
 
   @@unique([userId, slot])
   @@index([userId, createdAt])

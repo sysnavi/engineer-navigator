@@ -57,7 +57,9 @@ function dayStr(d: Date): string {
 }
 
 /** 今日/今週の枠を判定する。daily未使用→daily、使用済み&週報提出済み&bonus未使用→bonus */
-async function resolveSlot(userId: string): Promise<{
+/** きょう使える潜行枠（日次1回＋週報を出した週のボーナス1回）。
+ *  コマンド選択制のセッション（session.ts）からも使うので公開している。 */
+export async function resolveSlot(userId: string): Promise<{
   slot: string | null;
   kind: "daily" | "bonus" | null;
 }> {

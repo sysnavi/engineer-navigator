@@ -14,16 +14,18 @@ import {
   type Rarity,
 } from "@/lib/dungeon/content";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
-import { DungeonPlayer } from "./player";
+import { DivePlayer } from "./dive-player";
+import { getActiveDive } from "./session-actions";
 
 const RARITY_ORDER: Rarity[] = ["UR", "SSR", "SR", "R", "N"];
 
 export default async function DungeonPage() {
   const user = await getCurrentUser();
-  const [stats, state, collection] = await Promise.all([
+  const [stats, state, collection, activeDive] = await Promise.all([
     getPlayerStats(user.id),
     getDungeonState(user.id),
     getCollection(user.id),
+    getActiveDive(), // 途中で閉じても続きから戻れる
   ]);
   const geneMod = stats.genes ? GENE_DUNGEON_MODS[stats.genes.dominant.id] : null;
   const ownedIds = new Set(collection.map((g) => g.id));
@@ -32,24 +34,24 @@ export default async function DungeonPage() {
   return (
     <div className="space-y-7">
       <div>
-        <PixelLabel>DUNGEON — フルオート探索</PixelLabel>
+        <PixelLabel>DUNGEON — コマンド探索</PixelLabel>
         <PixelTitle as="h1" className="text-3xl text-royal">
           ダンジョン
         </PixelTitle>
         <p className="mt-1 text-[13px] text-inksoft">
-          育てたアバターが自動で潜ります。
+          育てたアバターで潜る。どこまで行くかは、きみが決める。
         </p>
       </div>
 
       <Window title="DUNGEON" titleEm=".log">
-        <DungeonPlayer
+        <DivePlayer
           canDive={state.canDive}
           diveKind={state.diveKind}
           restingMessage={state.restingMessage}
           avatarSprite={stats.stage.sprite}
           avatarAccent={stats.genes?.dominant.color}
           baseDepth={baseDepthOf(stats)}
-          lastRunSteps={state.lastRun?.steps ?? null}
+          initialView={activeDive}
         />
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t-2 border-dashed border-peri pt-3 text-[11.5px] text-inksoft">
           <span>
