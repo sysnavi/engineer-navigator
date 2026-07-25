@@ -77,6 +77,20 @@ Phase 0（基盤）+ Phase 1 の縦切りが実装済み。**実 ANTHROPIC_API_K
   - **歩行の表現**: 前傾＋2コマボブ＋土ぼこり＋**瞳が右を向く walk.png**。`scripts/gen-side.py` で20種族に生成（`gen-expressions.py` のSprite再利用。瞳シフト成功12・検出不能8はnormalコピーにフォールバック）。
   - **BGM（`src/app/walk/bgm-player.tsx`）**: 開発者本人の8曲を `public/bgm` からランダム再生（全曲1周してから引き直す＝連続再生しない）。曲間5秒。**ON状態は復元しない** — ブラウザは操作なしの自動再生を必ず止めるので、復元しても「ONなのに鳴らない」だけになる。音量のみlocalStorageに記憶しON時に反映。音源は書き出し時に音量を揃えてある（元は3.4dB差→0.7dB差・128kbps・計27MB）。**⚠自動化テストでは音が出せない**（合成クリックはユーザー操作と見なされない）ので、再生確認は実機の手クリックで行うこと。
 
+- **ペットとの会話（2026-07-26）**: おせわメニューの「はなす」＝AI会話。好物ヒントを返すだけの「ヒントをきく」（旧・話しかける／トークンゼロ）とは別機能。
+  - **汎用チャットとの違いは文脈**（`src/lib/pets/talk-context.ts`）: 週報の内容・さいきん伸ばしたスキル・直近7日のダンジョン戦果・なつき度・前回の会話からの日数・その子が覚えていることを渡す。「AIが喋る」のではなく「きみを見てきた子が喋る」状態をデータで作るのが芯。
+  - **⚠週の前半は今週ぶんの週報が無いのが普通**なので、直近2週間の最新を見る。今週だけを見ると月火は「何も知らない子」になる（実データで気づいた）。コンディションは粗いラベルに畳んでから渡す（生スコアは渡さない）。
+  - **記憶**（`PetMemory`）: 同じ応答の中で `remember` も返させるので、抽出のための追加のAI呼び出しは無い。直近12件だけ保持。
+  - **コスト**: 1往復=AI1回で実測 入力約760/出力約115tok＝**約0.6円**。`assertAiAllowed` に加えて会話専用の日次上限（既定10往復・`PET_TALK_PER_DAY`）を別枠で持つ（会話だけでAI枠を食い潰さないため）。
+  - **声**は音声合成でも録音でもなく、文字数ぶんのビープ（種族idからピッチ決定）。データ不要・コスト0。
+- **ダンジョン＝コマンド選択制（2026-07-26）**: フルオートの紙芝居から、ターン制コマンド戦闘＋階層の選択に作り替えた。
+  - 作り替えの根拠は実測: 潜行まるごと13.8秒・イベント3回固定・**48.9%が手ぶら**・毎秒42文字でクリック待ちゼロ・ボスは地下10階以上が条件で**初心者は構造上たどり着けない**。
+  - `lib/dungeon/battle.ts`（戦闘・**乱数を注入できる純関数**なのでバランスをシミュレーションで検証できる）／`lib/dungeon/session.ts`（探索の状態機械）／`app/dungeon/session-actions.ts`（サーバーアクション）／`app/dungeon/dive-player.tsx`（UI）。
+  - **判定は全部サーバー**。クライアントから来るのはコマンド名だけで、HPやダメージは受け取らない。状態は `DungeonRun.state`（`status` ACTIVE/DONE）に持つので途中で閉じても続きから戻れる。潜行枠は従来どおり `slot` の `@@unique` が守る。
+  - **手ぶらを構造から消した**: 敗走しても戦利品は持ち帰れる／初回は宝箱確定／それでも空なら帰り道でひとつ拾う（`finishDive`）。初回のみ「はじめての盾」1枚。
+  - バランスの目安（各5000回）: 手ぶら0%・初回はB7.6F到達／ボス遭遇20%、ボス撃破率 Lv1 17%→Lv3 75%→Lv8 93%。**数値を触ったら必ずシミュレーションを回し直すこと**（1戦の勝率ではなく「HP持ち越しで何階まで行けるか」で見る）。
+  - 旧 `performDive`（フルオート一括解決）と `app/dungeon/player.tsx` は残置。履歴表示の作り替え時に整理する。
+
 ## 再開手順
 
 ```bash
@@ -140,6 +154,7 @@ npm run ingest:knowledge      # content/knowledge/<kind>/*.md を埋め込み投
 - **認証は招待リンク方式**（PII非保持）: `Invite.token` がログイン資格。`/join/<token>` で引換→`en_session` cookie→`getCurrentUser`(src/lib/auth.ts)がInvite→Userを解決。招待ユーザーは `User.email` が null（メール/氏名を持たない）。ローカルは `DEV_LOGIN_ENABLED=true` で従来のdev-cookie切替＆ゲート無効。本番はこの変数を**設定しない**（middlewareが未認証を/welcomeへ誘導）。管理者はマイページADMINで招待発行/失効。ブートストラップは `ADMIN_INVITE_TOKEN`＋seed→`/join/<token>`。将来のSSO化もgetCurrentUser差し替えで可能
 - デプロイは Vercel + Neon（[DEPLOY.md](../DEPLOY.md)）。build/postinstallで `prisma generate`（生成clientはgitignore）。**マイグレーションはVercelビルドに組み込み済み**（2026-07-20〜: build = generate → `migrate deploy` → next build。Vercel環境変数 `DATABASE_URL_DIRECT`（Neonのdirect接続）が必要。手動migrateとの順序ずれで全ページ500になる事故の再発防止）。ローカル `npm run build` はローカルDB起動が前提になった点に注意
 - /report 画面の「設問間の大きな空白」はアプリのバグではない（ブラウザプレビューペインが0幅で描画したアーティファクト。実ページは正常）
+- **⚠スキーマを足したら dev server を再起動する（2026-07-26に2回踏んだ）**: `prisma generate` でクライアントを作り直しても、起動中の Next dev server は**古いクライアントを掴んだまま**。新しいモデル/列にアクセスすると `prisma.xxx が undefined` や `Unknown argument 'status'` で落ちる。マイグレーション適用 → generate → **dev server 再起動**までが1セット
 - **マイグレーション運用**: 非対話シェルでは `migrate dev` が使えない（seed実行や@unique制約の確認プロンプトで止まる）。additive変更は「手書き migration.sql + `migrate deploy`」で適用する。適用済みmigrationを手編集するとチェックサム不整合で`migrate dev`が全面停止→`_prisma_migrations.checksum`を現ファイルのsha256に更新して整合（resetは全データ消えるので厳禁）
 - **公開共有の鉄則**: 公開ビュー(/u/[handle], /discover, src/lib/public-profile.ts)にコンディション(設問1/2/5/7・スコア)を絶対に含めない。SELECTすらしない設計を維持すること
 - **文言のトーン（2026-07-25）**: 説明が丁寧すぎると「生成AIっぽさ」が出る、というのがユーザーの一貫した指摘。方針は**バッサリ削る** — ページのサブタイトル（H1直下の`<p class=...text-inksoft>`）は短い体言止めか削除、仕組みの先回り解説と保険的な念押し（「いつでも戻せます」等）は全カット。**例外**: 同意ゲート・プライバシー・不可逆操作の要点（AI解析する／コンディションは本人だけ／公開は選んだ物だけ／メール・名前は持たずハッシュのみ）は短くしても必ず残す。⚠**i18n/中央コピー層は無い**（全文言がJSXべた書き）ので、直すときは各ページを個別に触る。データ化されているのは apps.ts / tips.ts / tutorial.ts / pets/species.ts / walk/mutter.ts のみ
