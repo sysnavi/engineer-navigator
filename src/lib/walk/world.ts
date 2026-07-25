@@ -264,6 +264,22 @@ function hillY(x: number, seed: number, amp: number, wave: number): number {
   return Math.round((t * amp) / 4) * 4;
 }
 
+/** ワールド格子をなめらかに滑る画面xで巡回する。
+ *  模様は必ずワールド座標（wx）で決めて、画面には wx - phase で置くこと。
+ *  画面側の格子に描くと、スクロールのたびに模様が再抽選されて全面が点滅する
+ *  （初版の「目にうるさい」の原因）。 */
+function worldCols(
+  phase: number,
+  step: number,
+  cb: (wx: number, x: number) => void
+) {
+  const start = Math.floor(phase / step) * step - step;
+  const off = Math.round(phase); // 列ごとに丸めると継ぎ目が割れるので先に丸める
+  for (let wx = start; wx < phase + W + step; wx += step) {
+    cb(wx, wx - off);
+  }
+}
+
 export function drawFar(
   ctx: CanvasRenderingContext2D,
   biome: BiomeId,
@@ -272,60 +288,57 @@ export function drawFar(
 ) {
   const night = time === "night";
   if (biome === "kusahara" || biome === "teibo") {
-    // 遠い丘（堤防は対岸の丘）
+    // 遠い丘（堤防は対岸の丘）。高さはワールドxで決める＝形が変わらず平行移動する
     ctx.fillStyle = night ? "#3d5a52" : "#a7cba0";
-    for (let x = 0; x < W; x += 8) {
-      const h = 18 + hillY(x + phase, 11, 10, 60);
+    worldCols(phase, 8, (wx, x) => {
+      const h = 18 + hillY(wx, 11, 10, 60);
       ctx.fillRect(x, HORIZON - h, 8, h);
-    }
+    });
     if (biome === "teibo") {
-      // 対岸の小さな家々
-      for (let x = 0; x < W; x += 8) {
-        const wx = Math.floor((x + phase) / 44);
-        if (hash(wx * 5) % 3 === 0) {
-          const hx = x - ((phase + x) % 44) + 20;
-          if (hx > -12 && hx < W) {
-            ctx.fillStyle = night ? "#2c3f63" : "#c7d4e8";
-            ctx.fillRect(hx, HORIZON - 10, 10, 10);
-            ctx.fillStyle = night ? "#ffd84d" : "#8fa3c4";
-            ctx.fillRect(hx + 3, HORIZON - 7, 3, 3);
-          }
-        }
-      }
+      // 対岸の小さな家々（44pxのワールド格子に固定）
+      worldCols(phase, 44, (wx, x) => {
+        const cell = Math.round(wx / 44);
+        if (hash(cell * 5) % 3 !== 0) return;
+        ctx.fillStyle = night ? "#2c3f63" : "#c7d4e8";
+        ctx.fillRect(x + 20, HORIZON - 10, 10, 10);
+        ctx.fillStyle = night ? "#ffd84d" : "#8fa3c4";
+        ctx.fillRect(x + 23, HORIZON - 7, 3, 3);
+      });
     }
   } else if (biome === "kawara" || biome === "yama") {
     // 山なみ（河原=低め・山道=高め2重）
     const big = biome === "yama";
     ctx.fillStyle = night ? "#26355e" : big ? "#7d9bb5" : "#9db8cc";
-    for (let x = 0; x < W; x += 8) {
-      const h = (big ? 40 : 24) + hillY(x + phase, 31, big ? 18 : 10, 52);
+    worldCols(phase, 8, (wx, x) => {
+      const h = (big ? 40 : 24) + hillY(wx, 31, big ? 18 : 10, 52);
       ctx.fillRect(x, HORIZON - h, 8, h);
-    }
+    });
     if (big) {
+      // 手前の山は少し速い層（phase違い）だが、形はそれぞれのワールドxに固定
       ctx.fillStyle = night ? "#1d2a4e" : "#5f7f9e";
-      for (let x = 0; x < W; x += 8) {
-        const h = 26 + hillY(x + phase * 1.3, 77, 14, 40);
+      worldCols(phase * 1.3, 8, (wx, x) => {
+        const h = 26 + hillY(wx, 77, 14, 40);
         ctx.fillRect(x, HORIZON - h, 8, h);
-      }
+      });
     }
   } else {
-    // 街のスカイライン（窓は夜に灯る）
-    for (let x = -16; x < W; x += 8) {
-      const bi = Math.floor((x + phase) / 26);
+    // 街のスカイライン。窓はビル内の行列番号で決める＝ビルに固定されて流れる
+    worldCols(phase, 26, (wx, x) => {
+      const bi = Math.round(wx / 26);
       const h = 16 + (hash(bi * 3) % 26);
-      const bx = x - ((phase + x) % 26);
       ctx.fillStyle = night ? "#222c52" : "#aab6cf";
-      ctx.fillRect(bx, HORIZON - h, 22, h);
+      ctx.fillRect(x, HORIZON - h, 22, h);
       const win = night ? "#ffd84d" : "#8fa0c0";
-      for (let wy = HORIZON - h + 4; wy < HORIZON - 4; wy += 6) {
-        for (let wx = bx + 3; wx < bx + 19; wx += 6) {
-          if (hash(bi * 91 + wy * 7 + wx) % (night ? 3 : 4) === 0) {
+      const rows = Math.floor((h - 8) / 6);
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < 3; c++) {
+          if (hash(bi * 91 + r * 7 + c) % (night ? 3 : 4) === 0) {
             ctx.fillStyle = win;
-            ctx.fillRect(wx, wy, 3, 3);
+            ctx.fillRect(x + 3 + c * 6, HORIZON - h + 4 + r * 6, 3, 3);
           }
         }
       }
-    }
+    });
   }
 }
 
@@ -338,57 +351,60 @@ export function drawMid(
 ) {
   const night = time === "night";
   if (biome === "kusahara") {
-    // 茂み
+    // 茂み（形はワールドxに固定）
     ctx.fillStyle = night ? "#2f4a33" : GRASS.deep;
-    for (let x = 0; x < W; x += 8) {
-      const h = 10 + hillY(x + phase, 7, 8, 26);
+    worldCols(phase, 8, (wx, x) => {
+      const h = 10 + hillY(wx, 7, 8, 26);
       ctx.fillRect(x, HORIZON - h + 8, 8, h);
-    }
+    });
   } else if (biome === "teibo" || biome === "kawara") {
-    // 川面（きらめきは2フレームアニメ）。堤防=遠い帯 / 河原=近い広い帯
+    // 川面。きらめきは位置が滑らかに流れ、明滅だけ2フレームで行う
+    // （位置をframeで動かすとカクカク跳ねて目にうるさい）
     const top = biome === "teibo" ? HORIZON - 2 : HORIZON + 2;
     const deep = biome === "teibo" ? 16 : 26;
     ctx.fillStyle = night ? "#27427a" : WATER.base;
     ctx.fillRect(0, top, W, deep);
     ctx.fillStyle = night ? "#1e3766" : WATER.deep;
     ctx.fillRect(0, top + deep - 6, W, 6);
+    const P = W + 40;
     for (let i = 0; i < 26; i++) {
-      const gx = (hash(i * 17) % (W + 40)) - ((phase * 1.4 + frame * 2) % (W + 40));
-      const x = ((gx % (W + 40)) + (W + 40)) % (W + 40) - 20;
+      const x = ((((hash(i * 17) % P) - phase * 1.4) % P) + P) % P - 20;
       const y = top + 3 + (hash(i * 23) % (deep - 8));
-      ctx.fillStyle = night ? "rgba(200,220,255,0.5)" : WATER.glint;
-      ctx.fillRect(x, y, 4, 2);
+      const bright = (i + frame) % 2 === 0;
+      ctx.fillStyle = night
+        ? `rgba(200,220,255,${bright ? 0.55 : 0.25})`
+        : bright
+          ? WATER.glint
+          : "rgba(191,226,255,0.45)";
+      ctx.fillRect(Math.round(x), y, 4, 2);
     }
   } else if (biome === "machi") {
-    // 家並み（屋根＋窓）
-    for (let x = -20; x < W; x += 8) {
-      const bi = Math.floor((x + phase) / 38);
-      const bx = x - ((phase + x) % 38);
+    // 家並み（屋根＋窓）。38pxのワールド格子に固定
+    worldCols(phase, 38, (wx, x) => {
+      const bi = Math.round(wx / 38);
       const h = 18 + (hash(bi * 13) % 10);
       ctx.fillStyle = night ? "#31406b" : "#dfe6f2";
-      ctx.fillRect(bx, HORIZON - h + 14, 30, h);
+      ctx.fillRect(x, HORIZON - h + 14, 30, h);
       ctx.fillStyle = night ? "#1d2a4e" : "#6f81a8";
-      ctx.fillRect(bx - 2, HORIZON - h + 8, 34, 8); // 屋根
+      ctx.fillRect(x - 2, HORIZON - h + 8, 34, 8); // 屋根
       ctx.fillStyle = night ? "#ffd84d" : "#9fb0d0";
-      ctx.fillRect(bx + 5, HORIZON - h + 20, 5, 5);
-      ctx.fillRect(bx + 19, HORIZON - h + 20, 5, 5);
-    }
+      ctx.fillRect(x + 5, HORIZON - h + 20, 5, 5);
+      ctx.fillRect(x + 19, HORIZON - h + 20, 5, 5);
+    });
   } else {
-    // 針葉樹の列
-    for (let x = -12; x < W; x += 8) {
-      const ti = Math.floor((x + phase) / 22);
-      const tx = x - ((phase + x) % 22);
+    // 針葉樹の列（22pxのワールド格子に固定）
+    worldCols(phase, 22, (wx, x) => {
+      const ti = Math.round(wx / 22);
       const h = 22 + (hash(ti * 7) % 12);
-      const c = night ? "#1e3a2c" : hash(ti) % 2 ? "#3f7043" : "#487d3a";
-      ctx.fillStyle = c;
+      ctx.fillStyle = night ? "#1e3a2c" : hash(ti) % 2 ? "#3f7043" : "#487d3a";
       // 三角形を段々で
       for (let s = 0; s < 4; s++) {
         const w2 = 4 + s * 4;
-        ctx.fillRect(tx + 10 - w2 / 2, HORIZON - h + s * (h / 5), w2, h / 5 + 1);
+        ctx.fillRect(x + 10 - w2 / 2, HORIZON - h + s * (h / 5), w2, h / 5 + 1);
       }
       ctx.fillStyle = night ? "#2a2317" : "#8a6039";
-      ctx.fillRect(tx + 8, HORIZON - 6, 4, 6);
-    }
+      ctx.fillRect(x + 8, HORIZON - 6, 4, 6);
+    });
   }
 }
 
@@ -402,8 +418,9 @@ export function drawGround(
   time: TimeBucket
 ) {
   const night = time === "night";
-  for (let x = 0; x < W; x += 8) {
-    const wx = sx + x;
+  // 模様は全てワールド格子（整数wx）で決め、画面をなめらかに滑らせる。
+  // 画面格子に描くと8pxごとに模様が再抽選されて全面が点滅する
+  worldCols(sx, 8, (wx, x) => {
     const b = biomeAt(wx);
     // 上段（地面のベース: 草 or 舗装 or 石原）
     if (b === "machi") {
@@ -480,7 +497,7 @@ export function drawGround(
       ctx.fillStyle = night ? "#4a3b28" : "#8a6039";
       ctx.fillRect(x + 1, PATH_TOP + 3 + (hash(wx * 7) % 12), 6, 2);
     }
-  }
+  });
 }
 
 // ---------------------------------------------------------------------------
