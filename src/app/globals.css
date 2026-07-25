@@ -647,6 +647,76 @@ body {
       filter: drop-shadow(0 0 7px #7dff8a);
     }
   }
+
+  /* ---------- おさんぽ（WALK.sav） ---------- */
+  /* 背景を右→左に流して「うちの子が前へ歩いている」錯覚を作る（本体はその場で歩行）。
+     遠景ほどゆっくり＝視差。天気は雨/雪/雲のオーバーレイで足す。reduced-motion では静止。 */
+  @media (prefers-reduced-motion: no-preference) {
+    .walk-far {
+      animation: walk-far 6s linear infinite;
+    }
+    .walk-mid {
+      animation: walk-mid 3.4s linear infinite;
+    }
+    .walk-near {
+      animation: walk-near 1.9s linear infinite;
+    }
+    .walk-rain {
+      animation: walk-rain 0.5s linear infinite;
+    }
+    .walk-snow {
+      animation: walk-snow 3.2s linear infinite;
+    }
+    .walk-cloud {
+      animation: walk-cloud 26s linear infinite;
+    }
+    .walk-twinkle {
+      animation: walk-twinkle 2.4s steps(2, jump-none) infinite;
+    }
+  }
+  /* 各レイヤーの shift はタイル幅の整数倍（継ぎ目なくループ） */
+  @keyframes walk-far {
+    to {
+      background-position-x: -120px;
+    }
+  }
+  @keyframes walk-mid {
+    to {
+      background-position-x: -96px;
+    }
+  }
+  @keyframes walk-near {
+    to {
+      background-position-x: -160px;
+    }
+  }
+  @keyframes walk-rain {
+    to {
+      background-position: -40px 120px;
+    }
+  }
+  @keyframes walk-snow {
+    to {
+      background-position: 10px 130px;
+    }
+  }
+  @keyframes walk-cloud {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-140%);
+    }
+  }
+  @keyframes walk-twinkle {
+    0%,
+    100% {
+      opacity: 0.35;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
 }
 
 /* =============================================================

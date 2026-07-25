@@ -38,6 +38,7 @@ export const APPS: AppDef[] = [
   { id: "dungeon", href: "/dungeon", name: "ダンジョン", ext: ".log", group: "asobu", desc: "育てたアバターがフルオートで探索" },
   { id: "yomoyama", href: "/yomoyama", name: "よもやま", ext: ".log", group: "asobu", desc: "現場の話をハンドル名で共有" },
   { id: "discover", href: "/discover", name: "発見", ext: ".net", group: "asobu", desc: "みんなの成長の道筋から学ぶ" },
+  { id: "walk", href: "/walk", name: "おさんぽ", ext: ".sav", group: "asobu", desc: "うちの子とのんびり外を歩く" },
   { id: "home", href: "/home", name: "マイホーム", ext: ".sav", group: "jibun", desc: "ペットが暮らし、戦利品を飾る部屋" },
   { id: "mypage", href: "/mypage", name: "マイページ", ext: ".sys", group: "jibun", desc: "きせかえ・継承・公開設定" },
   // condition（営業・管理者向けダッシュボード）は個人サービス化で廃止（Issue #19 方針A）

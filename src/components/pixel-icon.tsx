@@ -141,6 +141,18 @@ const MAPS: Record<string, string[]> = {
     ".kk.kbbk.kk.",
     "....kkkk....",
   ],
+  // おさんぽ: 小さな子が草の上を歩く
+  walk: [
+    "............",
+    "...kk.......",
+    "..kbbk......",
+    "..kbbkk.....",
+    "..kkkbk.....",
+    "...kkkk.....",
+    "..k.k.k.....",
+    "gggggggggggg",
+    "gggggggggggg",
+  ],
   home: [
     ".....kk.....",
     "....kppk....",

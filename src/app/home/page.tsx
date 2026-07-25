@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { GADGETS, GADGET_CATEGORIES, RARITY_LABELS } from "@/lib/dungeon/content";
 import Image from "next/image";
+import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { speciesById } from "@/lib/pets/species";
@@ -189,6 +190,11 @@ export default async function HomePage() {
           ｜ クリックで おせわメニュー（なでなで1日1回・ごはん1日3回）｜
           ときどきデスクに遊びに行きます
         </p>
+        {pets.length > 0 && (
+          <Link href="/walk" className="btn8 btn8-ok mt-3 inline-block text-[12px]">
+            🌳 おさんぽに行く
+          </Link>
+        )}
 
         {/* ===== ごはん図鑑 ===== */}
         <div className="mt-4 rounded-lg border-2 border-line8 bg-surface p-3">
