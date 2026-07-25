@@ -566,3 +566,64 @@ export function drawProp(ctx: CanvasRenderingContext2D, p: PropInstance, sx: num
   if (x < -spr.width || x > W + spr.width) return;
   ctx.drawImage(spr, x - Math.floor(spr.width / 2), p.footY - spr.height);
 }
+
+// ---------------------------------------------------------------------------
+// 天気（粒で降らせる。世界の一番手前・吹き出しより奥）
+// ---------------------------------------------------------------------------
+
+/** 雨・雪・霧をパーティクルで描く。nowMs は実時間（落下アニメの位相に使う） */
+export function drawWeather(
+  ctx: CanvasRenderingContext2D,
+  weather: WeatherBucket,
+  nowMs: number
+) {
+  const t = nowMs / 1000;
+
+  if (weather === "rain" || weather === "storm") {
+    const storm = weather === "storm";
+    const n = storm ? 130 : 85;
+    const fall = storm ? 210 : 150; // px/s
+    const wind = storm ? 46 : 26; // 左へ流される
+    ctx.fillStyle = storm ? "rgba(210,225,250,0.75)" : "rgba(205,225,250,0.6)";
+    for (let i = 0; i < n; i++) {
+      const seed = hash(i * 31);
+      const y = ((seed >> 4) % (H + 10)) + t * fall;
+      const yy = (y % (H + 10)) - 5;
+      const x0 = (seed % (W + 24)) - t * wind;
+      const xx = ((x0 % (W + 24)) + (W + 24)) % (W + 24) - 12;
+      // 2段ずれの短い雨すじ（粒として見える長さ）
+      ctx.fillRect(xx + 1, yy, 1, 3);
+      ctx.fillRect(xx, yy + 3, 1, 3);
+      // 地面に届いた粒は はねる（道の高さ付近で小さなしぶき）
+      if (yy > PATH_TOP - 4 && yy < PATH_BOT) {
+        ctx.fillRect(xx - 1, PATH_TOP + ((seed >> 6) % 18), 2, 1);
+      }
+    }
+    // 雷雨: ときどき画面が白く光る
+    if (storm && hash(Math.floor(nowMs / 90)) % 46 === 0) {
+      ctx.fillStyle = "rgba(255,255,255,0.28)";
+      ctx.fillRect(0, 0, W, H);
+    }
+  } else if (weather === "snow") {
+    const n = 46;
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    for (let i = 0; i < n; i++) {
+      const seed = hash(i * 47);
+      const y = (((seed >> 4) % (H + 8)) + t * (16 + (seed % 10))) % (H + 8) - 4;
+      const sway = Math.sin(t * 1.2 + i) * 7;
+      const x = ((((seed % (W + 16)) + sway) % (W + 16)) + (W + 16)) % (W + 16) - 8;
+      const big = seed % 3 === 0;
+      ctx.fillRect(Math.round(x), Math.round(y), big ? 2 : 1, big ? 2 : 1);
+    }
+  } else if (weather === "fog") {
+    ctx.fillStyle = "rgba(230,235,240,0.32)";
+    ctx.fillRect(0, 0, W, H);
+    // うっすら流れる霧の帯
+    for (let i = 0; i < 4; i++) {
+      const y = 40 + i * 34;
+      const x = W - (((t * (6 + i * 2) + i * 130) % (W + 120)) - 60);
+      ctx.fillStyle = "rgba(240,244,248,0.28)";
+      ctx.fillRect(Math.round(x) - 60, y, 120, 10);
+    }
+  }
+}

@@ -22,6 +22,7 @@ import {
   drawMid,
   drawGround,
   drawProp,
+  drawWeather,
   propsForSegment,
   hash,
   type BiomeId,
@@ -29,7 +30,7 @@ import {
 } from "@/lib/walk/world";
 import type { TimeBucket, WeatherBucket } from "@/lib/walk/mutter";
 
-const BASE_SPEED = 26; // px/s（のんびり歩き）
+const BASE_SPEED = 14; // px/s（のんびり歩き。散歩なので急がない）
 const PET_SIZE = 48;
 const EVENT_PAUSE_MS = 4800;
 
@@ -198,6 +199,9 @@ export function WalkCanvas(props: {
         ctx.drawImage(img, -PET_SIZE / 2, -PET_SIZE, PET_SIZE, PET_SIZE);
         ctx.restore();
       }
+
+      // 天気（雨・雪・霧の粒。世界の一番手前＝吹き出しの奥）
+      drawWeather(ctx, p.weather, reduced ? 0 : now);
     };
 
     raf = requestAnimationFrame(tick);

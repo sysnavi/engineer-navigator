@@ -209,40 +209,7 @@ export function WalkScene(props: {
           </div>
         )}
 
-        {/* 雨/雪/霧のオーバーレイ（DOM。canvasの上に重ねる） */}
-        {weather === "rain" && (
-          <div
-            className="walk-rain pointer-events-none absolute inset-0"
-            style={{
-              background:
-                "repeating-linear-gradient(105deg,rgba(255,255,255,0.5) 0 2px,transparent 2px 9px)",
-            }}
-          />
-        )}
-        {weather === "storm" && (
-          <div
-            className="walk-rain pointer-events-none absolute inset-0"
-            style={{
-              background:
-                "repeating-linear-gradient(100deg,rgba(255,255,255,0.6) 0 2px,transparent 2px 7px)",
-            }}
-          />
-        )}
-        {weather === "snow" && (
-          <div
-            className="walk-snow pointer-events-none absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(circle,#fff 1.6px,transparent 2px) 0 0 / 26px 26px",
-            }}
-          />
-        )}
-        {weather === "fog" && (
-          <div
-            className="pointer-events-none absolute inset-0"
-            style={{ background: "rgba(230,235,240,0.34)" }}
-          />
-        )}
+        {/* 雨・雪・霧はcanvas内のパーティクル（walk-canvas.tsx drawWeather）で降らせる */}
 
         {/* 時刻の暗幕（夕方・夜） */}
         {TINT[time] && (

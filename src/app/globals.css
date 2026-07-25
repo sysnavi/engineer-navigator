@@ -648,27 +648,9 @@ body {
     }
   }
 
-  /* ---------- おさんぽ（WALK.sav） ---------- */
-  /* 世界はcanvasタイルエンジン（walk-canvas.tsx）。ここは雨・雪のDOMオーバーレイだけ。
-     reduced-motion では静止。 */
-  @media (prefers-reduced-motion: no-preference) {
-    .walk-rain {
-      animation: walk-rain 0.5s linear infinite;
-    }
-    .walk-snow {
-      animation: walk-snow 3.2s linear infinite;
-    }
-  }
-  @keyframes walk-rain {
-    to {
-      background-position: -40px 120px;
-    }
-  }
-  @keyframes walk-snow {
-    to {
-      background-position: 10px 130px;
-    }
-  }
+  /* ---------- おさんぽ（WALK.sav） ----------
+     世界も天気も全部canvasタイルエンジン（walk-canvas.tsx / lib/walk/world.ts）。
+     CSS側の演出は無し。 */
 }
 
 /* =============================================================
