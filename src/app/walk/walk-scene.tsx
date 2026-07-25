@@ -19,6 +19,7 @@ import {
 import { fetchWeather } from "@/lib/walk/weather";
 import { BIOME_JA, type BiomeId } from "@/lib/walk/world";
 import { WalkCanvas } from "./walk-canvas";
+import { BgmPlayer } from "./bgm-player";
 import { walkAiMutter } from "./actions";
 
 export type WalkPet = {
@@ -231,6 +232,7 @@ export function WalkScene(props: {
             📍 {BIOME_JA[biome]}
           </span>
         )}
+        <BgmPlayer />
         {!realWeather && (
           <button
             onClick={loadWeather}
