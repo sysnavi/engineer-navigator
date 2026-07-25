@@ -1,9 +1,45 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { loadPublicProfile } from "@/lib/public-profile";
 import { speciesById } from "@/lib/pets/species";
 import { Window, PixelTitle, PixelLabel, LevelBlocks } from "@/components/retro";
 import { SKILL_LEVEL_MAX, skillLevelDef } from "@/lib/skill-levels";
+
+// 検索意図に寄せた動的metadata（Issue #14）。内容ベースで title/description/OGP を生成。
+// コンディション等の非公開項目は loadPublicProfile が返さないので、ここにも出ない。
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ handle: string }>;
+}): Promise<Metadata> {
+  const { handle } = await params;
+  const profile = await loadPublicProfile(handle);
+  if (!profile) return { title: "プロフィールが見つかりません" };
+
+  const { user } = profile;
+  // 上位スキル名を説明文に織り込む（「React エンジニア 成長」系のロングテール狙い）
+  const topSkills = profile.skills.slice(0, 5).map((s) => s.skill.name);
+  const skillPhrase =
+    topSkills.length > 0 ? `${topSkills.join("・")} など` : "";
+  const title = `${user.name}（@${user.handle}）の成長の道筋 — Engineer Navigator`;
+  const description =
+    (user.bio ? `${user.bio} ` : "") +
+    `${user.name} のスキルマップと成長の記録。${skillPhrase}${topSkills.length ? "の" : ""}レベルの伸びを公開中。週報から自動で育つエンジニアの成長ポートフォリオ。`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/u/${user.handle}` },
+    openGraph: {
+      title,
+      description,
+      type: "profile",
+      siteName: "Engineer Navigator",
+    },
+    twitter: { card: "summary_large_image", title, description },
+  };
+}
 
 const CATEGORY_LABELS: Record<string, string> = {
   LANGUAGE: "言語",
