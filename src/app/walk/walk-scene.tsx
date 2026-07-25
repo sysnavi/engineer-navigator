@@ -1,12 +1,11 @@
 "use client";
 
 // WALK.sav — うちの子とのんびり外を歩くだけのシーン（見る専・低負荷）。
-// 背景を右→左に流して前進の錯覚を作り、本体はその場で歩行アニメ。
-// 1分に1回くらいペットがつぶやく（時刻×天気×きみのコンディション×性格）。
+// 世界はcanvasタイルエンジン（walk-canvas.tsx）: 5ビオーム巡回・視差・イベント。
+// 1分に1回くらいペットがつぶやく（時刻×天気×場所×きみのコンディション×性格）。
 // つぶやきは基本セリフ辞書（トークン0）。1散歩に1回だけAIの特別な一言が混じる（fail-open）。
 
-import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PersonalityId } from "@/lib/pets/species";
 import {
   pickMutter,
@@ -18,6 +17,8 @@ import {
   type WalkContext,
 } from "@/lib/walk/mutter";
 import { fetchWeather } from "@/lib/walk/weather";
+import { BIOME_JA, type BiomeId } from "@/lib/walk/world";
+import { WalkCanvas } from "./walk-canvas";
 import { walkAiMutter } from "./actions";
 
 export type WalkPet = {
@@ -26,19 +27,13 @@ export type WalkPet = {
   personality: PersonalityId;
   affection: number;
   spriteNormal: string;
+  spriteWalk: string;
 };
 
-// 時刻ごとの空（8bitらしいくっきりグラデ）
-const SKY: Record<TimeBucket, string> = {
-  morning: "linear-gradient(180deg,#ffe6b8 0%,#bfe6ff 70%,#d9f2e8 100%)",
-  noon: "linear-gradient(180deg,#8fd0ff 0%,#c7ecff 70%,#e6f7ff 100%)",
-  evening: "linear-gradient(180deg,#ffcf9a 0%,#ff9fb8 55%,#b98ad6 100%)",
-  night: "linear-gradient(180deg,#10163c 0%,#2a2a63 75%,#3b3a72 100%)",
-};
-// 夕方・夜はうっすら暗幕をかけて全体をなじませる
+// 夕方・夜はうっすら暗幕をかけて全体をなじませる（canvasの上に重ねる）
 const TINT: Partial<Record<TimeBucket, string>> = {
   evening: "rgba(40,20,60,0.10)",
-  night: "rgba(8,10,30,0.34)",
+  night: "rgba(8,10,30,0.30)",
 };
 
 const WEATHER_EMOJI: Record<WeatherBucket, string> = {
@@ -72,11 +67,26 @@ export function WalkScene(props: {
   const [weather, setWeather] = useState<WeatherBucket>("clear");
   const [tempC, setTempC] = useState<number | null>(null);
   const [realWeather, setRealWeather] = useState(false);
+  const [biome, setBiome] = useState<BiomeId | null>(null);
+  // ?speed= デバッグ早回し（1〜8）。SSR中はwindowが無いので1
+  const [speedMul] = useState(() => {
+    if (typeof window === "undefined") return 1;
+    const sp = Number(new URLSearchParams(window.location.search).get("speed"));
+    return Number.isFinite(sp) && sp > 1 ? Math.min(8, sp) : 1;
+  });
   const [mutter, setMutter] = useState<{ text: string; special: boolean } | null>(
     null
   );
 
-  // 時刻bucket（マウント時＋5分ごとに更新。日跨ぎ・境界のため）
+  // つぶやき表示（ループ・イベントの両方から呼ぶ）。7秒で自動で消える
+  const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const show = useCallback((text: string, special: boolean) => {
+    setMutter({ text, special });
+    if (clearTimer.current) clearTimeout(clearTimer.current);
+    clearTimer.current = setTimeout(() => setMutter(null), 7000);
+  }, []);
+
+  // 時刻bucket（マウント時＋5分ごとに更新）
   useEffect(() => {
     const update = () => setTime(timeToBucket(new Date().getHours()));
     update();
@@ -105,6 +115,7 @@ export function WalkScene(props: {
     personality: pet.personality,
     affection: pet.affection,
     petName: pet.name,
+    biome: null,
   });
   useEffect(() => {
     ctxRef.current = {
@@ -115,8 +126,9 @@ export function WalkScene(props: {
       personality: pet.personality,
       affection: pet.affection,
       petName: pet.name,
+      biome,
     };
-  }, [time, weather, props.mood, props.load, pet]);
+  }, [time, weather, props.mood, props.load, pet, biome]);
 
   // つぶやきループ（ペットを変えたら作り直す）。基本は辞書、2回目あたりで1度だけAI特別枠。
   useEffect(() => {
@@ -138,6 +150,7 @@ export function WalkScene(props: {
             petId,
             time: ctxRef.current.time,
             weather: ctxRef.current.weather,
+            biome: ctxRef.current.biome ?? undefined,
           });
           if (alive && ai?.reply) shown = { text: ai.reply, special: true };
         } catch {
@@ -151,11 +164,7 @@ export function WalkScene(props: {
 
       recent.unshift(shown.text);
       if (recent.length > 6) recent.pop();
-      setMutter(shown);
-      const cur = shown;
-      setTimeout(() => {
-        if (alive) setMutter((m) => (m === cur ? null : m));
-      }, 7000);
+      show(shown.text, shown.special);
 
       timer = setTimeout(run, 55000 + Math.random() * 15000);
     };
@@ -165,113 +174,25 @@ export function WalkScene(props: {
       alive = false;
       clearTimeout(timer);
     };
-  }, [petId]);
-
-  const isNight = time === "night";
+  }, [petId, show]);
 
   return (
     <div>
-      <div
-        className="isolate relative aspect-[16/9] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8"
-        style={{ background: SKY[time] }}
-      >
-        {/* お日さま / お月さま */}
-        {isNight ? (
-          <>
-            <div className="absolute right-[14%] top-[14%] h-9 w-9 rounded-full border-2 border-line8 bg-[#f4f0d0]" />
-            {[
-              [22, 20],
-              [40, 12],
-              [68, 26],
-              [80, 16],
-              [55, 30],
-            ].map(([x, y], i) => (
-              <i
-                key={i}
-                className="walk-twinkle absolute block h-[3px] w-[3px] bg-white"
-                style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${i * 0.4}s` }}
-              />
-            ))}
-          </>
-        ) : (
-          <div
-            className="absolute h-11 w-11 rounded-full border-2 border-line8"
-            style={{
-              right: time === "evening" ? "16%" : "12%",
-              top: time === "evening" ? "40%" : "12%",
-              background: time === "evening" ? "#ff9d5c" : "#ffdf5a",
-            }}
-          />
-        )}
-
-        {/* くもり/はれ のときだけ 雲を流す */}
-        {(weather === "clear" || weather === "cloudy") && (
-          <>
-            <Cloud className="top-[16%]" durationDelay="-4s" />
-            <Cloud className="top-[26%]" durationDelay="-15s" small />
-          </>
-        )}
-
-        {/* 遠景の丘（ゆっくり流れる＝視差の一番奥） */}
-        <div
-          className="walk-far absolute inset-x-0 bottom-[27%] h-[20%]"
-          style={{
-            background:
-              "radial-gradient(circle at 60px 60px, #8fb98a 60px, transparent 61px) repeat-x",
-            backgroundSize: "120px 60px",
-            opacity: 0.8,
-          }}
-        />
-        {/* 中景の茂み */}
-        <div
-          className="walk-mid absolute inset-x-0 bottom-[24%] h-[14%]"
-          style={{
-            background:
-              "radial-gradient(circle at 24px 30px, #5f9e4a 22px, transparent 23px) repeat-x",
-            backgroundSize: "96px 44px",
-          }}
-        />
-        {/* 地面（手前・いちばん速い） */}
-        <div
-          className="walk-near absolute inset-x-0 bottom-0 h-[27%] border-t-2 border-line8"
-          style={{
-            background:
-              "repeating-linear-gradient(90deg,#8ac559 0 10px,#7ebd4e 10px 20px)",
-          }}
-        />
-        {/* 土の道 */}
-        <div
-          className="walk-near absolute inset-x-0 bottom-[3%] h-[10%]"
-          style={{
-            background:
-              "repeating-linear-gradient(90deg,#d9b784 0 16px,#cfa974 16px 32px)",
-          }}
+      <div className="isolate relative aspect-[16/9] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8 bg-ink">
+        {/* 世界（canvasタイルエンジン） */}
+        <WalkCanvas
+          walkSrc={pet.spriteWalk}
+          normalSrc={pet.spriteNormal}
+          time={time}
+          weather={weather}
+          speedMul={speedMul}
+          onBiomeChange={setBiome}
+          onEventLine={(line) => show(line, false)}
         />
 
-        {/* うちの子（その場で歩行・足元にかげ） */}
-        <div className="absolute bottom-[9%] left-1/2 -translate-x-1/2">
-          <div className="relative flex flex-col items-center">
-            <span className="alien-patapata block w-[84px]" style={{ animationDuration: "0.5s" }}>
-              <Image
-                src={pet.spriteNormal}
-                alt={pet.name}
-                width={96}
-                height={96}
-                style={{ width: "100%", height: "auto", imageRendering: "pixelated" }}
-                unoptimized
-                priority
-              />
-            </span>
-            <span
-              className="mt-[-4px] block h-2 w-[54px] rounded-[50%]"
-              style={{ background: "rgba(0,0,0,0.22)" }}
-            />
-          </div>
-        </div>
-
-        {/* つぶやき窓（本体の頭上・シーン幅に収める） */}
+        {/* つぶやき窓（canvasの上・シーン幅に収める） */}
         {mutter && (
-          <div className="pointer-events-none absolute inset-x-3 top-3 flex justify-center">
+          <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex justify-center">
             <div
               className={`max-w-[86%] rounded-lg border-[2.5px] px-3 py-2 text-[13px] leading-snug shadow-hard-sm ${
                 mutter.special
@@ -288,7 +209,7 @@ export function WalkScene(props: {
           </div>
         )}
 
-        {/* 雨/雪/霧のオーバーレイ */}
+        {/* 雨/雪/霧のオーバーレイ（DOM。canvasの上に重ねる） */}
         {weather === "rain" && (
           <div
             className="walk-rain pointer-events-none absolute inset-0"
@@ -332,12 +253,17 @@ export function WalkScene(props: {
         )}
       </div>
 
-      {/* 天気チップ＋ペット切替 */}
+      {/* 天気・場所チップ＋ペット切替 */}
       <div className="mt-2.5 flex flex-wrap items-center gap-2">
         <span className="rounded-md border-2 border-line8 bg-win px-2 py-1 font-pixel text-[10.5px] tracking-wide">
           {WEATHER_EMOJI[weather]} {WEATHER_JA[weather]}
           {tempC != null && ` ${tempC}℃`}
         </span>
+        {biome && (
+          <span className="rounded-md border-2 border-line8 bg-win px-2 py-1 font-pixel text-[10.5px] tracking-wide text-royal2">
+            📍 {BIOME_JA[biome]}
+          </span>
+        )}
         {!realWeather && (
           <button
             onClick={loadWeather}
@@ -370,21 +296,6 @@ export function WalkScene(props: {
           </span>
         )}
       </div>
-    </div>
-  );
-}
-
-function Cloud(props: { className?: string; durationDelay?: string; small?: boolean }) {
-  const s = props.small ? 0.7 : 1;
-  return (
-    <div
-      className={`walk-cloud pointer-events-none absolute ${props.className ?? ""}`}
-      style={{ right: "-30%", animationDelay: props.durationDelay, transform: "translateX(0)" }}
-    >
-      <span
-        className="block rounded-full border-2 border-line8 bg-white/85"
-        style={{ width: 54 * s, height: 22 * s }}
-      />
     </div>
   );
 }

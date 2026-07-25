@@ -25,6 +25,7 @@ import {
   type MoodBucket,
   type LoadBucket,
 } from "@/lib/walk/mutter";
+import { BIOME_JA, type BiomeId } from "@/lib/walk/world";
 
 const TIME_JA: Record<TimeBucket, string> = {
   morning: "朝",
@@ -58,6 +59,8 @@ export async function walkAiMutter(input: {
   petId: string;
   time: TimeBucket;
   weather: WeatherBucket;
+  /** 歩いている場所（BiomeId）。不正値は無視する */
+  biome?: string;
 }): Promise<{ reply: string } | null> {
   try {
     const user = await getCurrentUser();
@@ -80,9 +83,11 @@ export async function walkAiMutter(input: {
 
     // 触れてよい範囲だけを言葉にする（good/unknown の気分には踏み込まない）
     const careHints = [MOOD_JA[mood], LOAD_JA[load]].filter(Boolean);
+    const biomeJa =
+      input.biome && input.biome in BIOME_JA ? BIOME_JA[input.biome as BiomeId] : null;
     const situation = [
       `いまは${TIME_JA[input.time]}、天気は${WEATHER_JA[input.weather]}。`,
-      `いっしょに散歩している。なつき度は${pet.affection}。`,
+      `いっしょに${biomeJa ? `${biomeJa}を` : ""}散歩している。なつき度は${pet.affection}。`,
       careHints.length > 0
         ? `飼い主の様子: ${careHints.join("・")}。`
         : "飼い主の様子については特に情報がない。",

@@ -22,6 +22,7 @@ export type PetSpecies = {
     normal: string; // 必須
     happy?: string; // 任意（にっこり差分。無ければnormal）
     sleep?: string; // 任意（昼寝差分）
+    walk?: string; // 任意（おさんぽの歩き差分＝瞳が右向き。scripts/gen-side.py で生成）
   };
   intro: string; // 出会いの第一声（種族の個性）
   aiPersona: string; // AI自由会話モードの人格設定（1-2文）
@@ -38,6 +39,7 @@ export type PetSpecies = {
 const pet = (id: string) => ({
   normal: `/pets/${id}/normal.png`,
   happy: `/pets/${id}/happy.png`,
+  walk: `/pets/${id}/walk.png`,
 });
 
 export const PET_SPECIES: PetSpecies[] = [

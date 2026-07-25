@@ -6,6 +6,7 @@
 // 特別な一言だけAIが混じる設計（ハイブリッド）だが、そのAI層は actions.ts 側。ここは辞書。
 
 import type { PersonalityId } from "@/lib/pets/species";
+import type { BiomeId } from "./world";
 
 // ---------------------------------------------------------------------------
 // bucket 定義（連続値は全部ここで粗いカテゴリに畳んでから辞書を引く）
@@ -33,6 +34,8 @@ export type WalkContext = {
   /** なつき度（0〜）。高いほど砕けた・甘えたセリフが増える */
   affection: number;
   petName: string;
+  /** いま歩いている場所（canvasから通知。null=未確定） */
+  biome: BiomeId | null;
 };
 
 /** ローカル時刻(0-23)→朝昼夕夜 */
@@ -179,6 +182,35 @@ const CARE_GOOD: string[] = [
   "その ちょうし その ちょうし！ ぼくは おうえんしてるよ。",
 ];
 
+// 歩いている場所（ビオーム）のセリフ
+const BIOME_LINES: Record<BiomeId, string[]> = {
+  kusahara: [
+    "くさの におい、いっぱい すいこんじゃお。",
+    "はらっぱ、ひろいなあ。ころがりたい。",
+    "バッタ！ …にげられた。",
+  ],
+  teibo: [
+    "ていぼうの うえは かぜが つよいや。",
+    "かわが きらきら してる。ずっと みてられる。",
+    "むこうぎしに いえが みえるね。だれか すんでるのかな。",
+  ],
+  kawara: [
+    "かわの おと、ずっと きいてられるね。",
+    "いしころ だらけ。あるきにくいけど たのしい。",
+    "みずぎわは ちょっと つめたい におい。",
+  ],
+  machi: [
+    "まちの においだ。ゆうはんの じかんかな。",
+    "しらない みせが ある。こんど よってみよ。",
+    "でんせんに とりが ならんでる。かいぎ かな。",
+  ],
+  yama: [
+    "のぼりみちは つかれるけど、くうきが おいしい。",
+    "とりの こえが ちかいね。",
+    "きのねっこ、つまずかないでね。",
+  ],
+};
+
 // どの状況でも混ざる、雰囲気のセリフ
 const AMBIENT: string[] = [
   "…♪ ふんふ〜ん。",
@@ -202,6 +234,7 @@ export function pickMutter(ctx: WalkContext, recent: string[]): string {
   const cands: Weighted[] = [];
   push(cands, TIME_LINES[ctx.time], 3);
   push(cands, WEATHER_LINES[ctx.weather], 3);
+  if (ctx.biome) push(cands, BIOME_LINES[ctx.biome], 4);
   push(cands, PERSONALITY_LINES[ctx.personality], 2);
   push(cands, AMBIENT, 2);
 
