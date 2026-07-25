@@ -6,6 +6,7 @@ import { giveConsent } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { ReportForm } from "./report-form";
 import { InterviewChat } from "./interview";
+import { SelfCareLog } from "@/components/self-care-log";
 
 // 初回オンボーディング: 同意（AI解析・閲覧範囲・公開範囲）を取ってから週報を解錠する。
 // 文言は個人サービス前提（Issue #19 方針A）: コンディションは本人のみ・運営も見ない。
@@ -82,6 +83,9 @@ export default async function ReportPage({
           今週の週報
         </PixelTitle>
       </div>
+
+      {/* セルフケアログ（Issue #16）: コンディションの推移を本人だけが振り返る */}
+      <SelfCareLog userId={user.id} />
 
       {submitted && (
         <div className="ach8">

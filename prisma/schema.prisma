@@ -78,6 +78,7 @@ model User {
   yomoyamaPosts    YomoyamaPost[]
   yomoyamaLikes    YomoyamaLike[]
   yomoyamaComments YomoyamaComment[]
+  yomoyamaReports  YomoyamaReport[]
   visits           UserVisit[]
   avatarGenerations AvatarGeneration[]
   dungeonRuns      DungeonRun[]
@@ -250,11 +251,31 @@ model YomoyamaPost {
   body          String
   // 投稿者が他者コメントの受付をON/OFFできる（OFF時は新規コメント不可・既存は残る）
   allowComments Boolean  @default(true)
+  // 運営による非表示措置（Issue #16）。公開UGC化に伴う安全機構。ソフト隠しで監査可能。
+  hiddenAt     DateTime?
+  hiddenReason String?
   createdAt     DateTime @default(now())
 
   likes    YomoyamaLike[]
   comments YomoyamaComment[]
+  reports  YomoyamaReport[]
 
+  @@index([createdAt])
+}
+
+// 通報（Issue #16）。公開UGCの安全機構。1ユーザー1投稿1件まで。運営が確認して
+// 非表示措置につなげる。理由は定型カテゴリ＋任意メモ。
+model YomoyamaReport {
+  id         String       @id @default(cuid())
+  post       YomoyamaPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId     String
+  reporter   User         @relation(fields: [reporterId], references: [id])
+  reporterId String
+  category   String // spam / harassment / privacy / other
+  note       String?
+  createdAt  DateTime     @default(now())
+
+  @@unique([postId, reporterId])
   @@index([createdAt])
 }
 

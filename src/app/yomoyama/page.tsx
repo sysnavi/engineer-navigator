@@ -4,7 +4,8 @@ import { PixelTitle, PixelLabel } from "@/components/retro";
 import { Composer } from "./composer";
 import { LikeButton } from "./like-button";
 import { CommentForm } from "./comment-form";
-import { setAllowComments, deleteComment } from "./actions";
+import { ReportButton } from "./report-button";
+import { setAllowComments, deleteComment, hidePost, unhidePost } from "./actions";
 
 function timeAgo(d: Date): string {
   const diff = new Date().getTime() - d.getTime();
@@ -23,11 +24,13 @@ export default async function YomoyamaPage() {
   const isAdmin = me.role === "ADMIN";
 
   const posts = await prisma.yomoyamaPost.findMany({
+    // 非表示投稿(hiddenAt)は一般ユーザーには出さない。管理者だけ見えて解除できる（Issue #16）
+    where: isAdmin ? {} : { hiddenAt: null },
     orderBy: { createdAt: "desc" },
     take: 50,
     include: {
       author: { select: { id: true, handle: true, name: true } },
-      _count: { select: { likes: true } },
+      _count: { select: { likes: true, reports: true } },
       likes: { where: { userId: me.id }, select: { id: true } },
       comments: {
         orderBy: { createdAt: "asc" },
@@ -62,8 +65,25 @@ export default async function YomoyamaPage() {
             return (
               <div
                 key={p.id}
-                className="rounded-lg border-2 border-line8 bg-surface px-4 py-3 shadow-hard-sm"
+                className={`rounded-lg border-2 px-4 py-3 shadow-hard-sm ${
+                  p.hiddenAt
+                    ? "border-pinkhot bg-quotebg"
+                    : "border-line8 bg-surface"
+                }`}
               >
+                {/* 管理者だけに見える非表示バナー（Issue #16） */}
+                {p.hiddenAt && (
+                  <div className="mb-2 flex flex-wrap items-center gap-2 rounded border-2 border-pinkhot bg-win px-2 py-1.5">
+                    <span className="font-pixel text-[10px] tracking-wide text-pinkhot">
+                      🚫 非表示中: {p.hiddenReason ?? "運営判断"}
+                    </span>
+                    <form action={unhidePost.bind(null, p.id)} className="ml-auto">
+                      <button className="font-pixel text-[10px] tracking-wide text-royal2 underline-offset-2 hover:underline">
+                        解除
+                      </button>
+                    </form>
+                  </div>
+                )}
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <span className="font-pixel text-[11px] tracking-wide text-royal2">
                     {p.author.handle ?? p.author.name}
@@ -93,12 +113,36 @@ export default async function YomoyamaPage() {
                         p.id,
                         !p.allowComments
                       )}
-                      className="ml-auto"
                     >
                       <button className="font-pixel text-[10px] tracking-wide text-inksoft underline-offset-2 hover:text-royal2 hover:underline">
                         コメント: {p.allowComments ? "受付中 → 停止" : "停止中 → 再開"}
                       </button>
                     </form>
+                  )}
+
+                  {/* 通報（本人以外の登録ユーザー・Issue #16） */}
+                  {!mine && !p.hiddenAt && (
+                    <span className="ml-auto">
+                      <ReportButton postId={p.id} />
+                    </span>
+                  )}
+
+                  {/* 管理者: 通報件数＋非表示措置（Issue #16） */}
+                  {isAdmin && (
+                    <span className="ml-auto flex items-center gap-2">
+                      {p._count.reports > 0 && (
+                        <span className="font-pixel text-[10px] tracking-wide text-pinkhot">
+                          🚩 {p._count.reports}
+                        </span>
+                      )}
+                      {!p.hiddenAt && (
+                        <form action={hidePost.bind(null, p.id, "運営判断")}>
+                          <button className="font-pixel text-[10px] tracking-wide text-pinkhot underline-offset-2 hover:underline">
+                            非表示にする
+                          </button>
+                        </form>
+                      )}
+                    </span>
                   )}
                 </div>
 

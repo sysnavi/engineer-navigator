@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { requireFullAccountUser } from "@/lib/guest";
 import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
 import { moderateYomoyama } from "@/lib/ai/moderation";
+import { REPORT_CATEGORIES } from "./report-categories";
 
 const MAX_LEN = 1000;
 
@@ -171,6 +172,59 @@ export async function setAllowComments(postId: string, allow: boolean) {
     data: { allowComments: allow },
   });
   revalidatePath("/yomoyama");
+}
+
+/** 投稿を通報する（本人以外の登録ユーザー・1投稿1件まで）。Issue #16 */
+export async function reportPost(
+  postId: string,
+  category: string,
+  note?: string
+): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireFullAccountUser();
+  if (!REPORT_CATEGORIES[category]) return { ok: false, error: "不正な通報理由です。" };
+
+  const post = await prisma.yomoyamaPost.findUnique({
+    where: { id: postId },
+    select: { authorId: true },
+  });
+  if (!post) return { ok: false, error: "投稿が見つかりません。" };
+  if (post.authorId === user.id)
+    return { ok: false, error: "自分の投稿は通報できません。" };
+
+  // 1投稿1ユーザー1件（@@uniqueで担保・二重通報は静かに成功扱い）
+  await prisma.yomoyamaReport
+    .create({
+      data: { postId, reporterId: user.id, category, note: note?.slice(0, 500) || null },
+    })
+    .catch(() => {
+      /* 既に通報済み（unique違反）は握りつぶす */
+    });
+  revalidatePath("/yomoyama");
+  return { ok: true };
+}
+
+/** 管理者が投稿を非表示にする（ソフト隠し・監査可能）。Issue #16 */
+export async function hidePost(postId: string, reason: string) {
+  const me = await getCurrentUser();
+  if (me.role !== "ADMIN") throw new Error("この操作は管理者のみ実行できます。");
+  await prisma.yomoyamaPost.update({
+    where: { id: postId },
+    data: { hiddenAt: new Date(), hiddenReason: reason.slice(0, 200) || "運営判断" },
+  });
+  revalidatePath("/yomoyama");
+  revalidatePath("/admin/content");
+}
+
+/** 管理者が非表示を解除する。Issue #16 */
+export async function unhidePost(postId: string) {
+  const me = await getCurrentUser();
+  if (me.role !== "ADMIN") throw new Error("この操作は管理者のみ実行できます。");
+  await prisma.yomoyamaPost.update({
+    where: { id: postId },
+    data: { hiddenAt: null, hiddenReason: null },
+  });
+  revalidatePath("/yomoyama");
+  revalidatePath("/admin/content");
 }
 
 /** 管理者がコメントをソフト削除する（監査のため削除者を記録） */
