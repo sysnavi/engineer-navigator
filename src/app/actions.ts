@@ -231,6 +231,17 @@ export async function updateMentorStance(formData: FormData) {
   revalidatePath("/mypage");
 }
 
+// サイトTIPS（右下トースト）の表示ON/OFF（Issue #20）。端末をまたいで効くようDB保持。
+export async function setTipsEnabled(formData: FormData) {
+  const user = await getCurrentUser();
+  const enabled = formData.get("enabled") === "on";
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { tipsEnabled: enabled },
+  });
+  revalidatePath("/mypage");
+}
+
 export async function toggleReportPublic(reportId: string, isPublic: boolean) {
   const user = await requireFullAccountUser();
   const report = await prisma.weeklyReport.findUnique({

@@ -70,6 +70,9 @@ export default async function RootLayout({
   }
   // ナビの項目は src/lib/apps.ts（機能レジストリ）から。未ログイン（/welcome 等）では出さない
   const nav = loggedIn ? appsForRole(role) : [];
+  // 新規期間（登録3日以内）。TIPSの頻度と内容を切り替える材料（Issue #20）
+  const isNewcomer =
+    !!user && new Date().getTime() - user.createdAt.getTime() < 3 * 86400_000;
   // UIシェル: desktop（レトロOSデスクトップ・下部タスクバー）/ classic（従来の上部ナビ）。
   // 切替はマイページの「UIモード」または UI_SHELL_DEFAULT（ロールバックはgitでなくこの設定で）
   const shell = loggedIn ? resolveShell(user) : "classic";
@@ -111,8 +114,13 @@ export default async function RootLayout({
             guest={role === "GUEST"}
           />
         )}
-        {/* TIPS: 1日1回・チュートリアル完了者のみ（初日はチュートリアルと被せない） */}
-        {loggedIn && user?.tutorialCompletedAt && <TipsToast />}
+        {/* TIPS（Issue #20）: チュートリアル完了者のみ（初日はチュートリアルと被せない）。
+            ゲストは専用ツアーがあり、TIPSは行けない機能に誘導するので出さない。
+            設定でオフにした人にも出さない。新規期間(登録3日以内)は頻度と内容を変える。 */}
+        {loggedIn &&
+          user?.tutorialCompletedAt &&
+          role !== "GUEST" &&
+          user.tipsEnabled && <TipsToast newcomer={isNewcomer} />}
         <Toaster />{/* 保存/送信結果（右上）。発火は notify / ActionForm */}
         {shell === "classic" && (
           <header className="no-print sticky top-0 z-10 border-b-[2.5px] border-line8 bg-royal shadow-hard-sm">

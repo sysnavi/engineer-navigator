@@ -2,55 +2,96 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { TIPS, type Tip } from "@/lib/tips";
+import { TIPS, ONBOARDING_TIPS, type Tip } from "@/lib/tips";
 
-// サイトTIPSトースト。1日1回まで、ページを開いて数秒後に右下へさりげなく出す。
-// 未読のTIPSを優先し、全部読んだら最初から巡回。状態はlocalStorage（サーバー状態なし）。
+// サイトTIPSトースト。ページを開いて数秒後に右下へさりげなく出す。状態はlocalStorage。
+// - 通常: 1日1回まで・未読からランダム。
+// - 新規期間（登録3日以内・newcomer prop）: 1日3回まで、まずオンボーディングキューを
+//   優先度順に流し、消化しきったら通常のランダムに合流する（Issue #20）。
 // 配置: 左下はレアキャラ来訪(Visitor)の指定席なので右下。タスクバー(desktopシェル)を
 // 避けるため bottom-16。モーダル類(z-50〜60)より下の z-30。
 
 const STORAGE_KEY = "en_tips";
 const SHOW_DELAY_MS = 4000;
 const AUTO_HIDE_MS = 25000;
+const NEWCOMER_DAILY_CAP = 3;
+const NORMAL_DAILY_CAP = 1;
 
-type TipsState = { lastShown: string; seen: string[] };
-
-function loadState(): TipsState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as TipsState;
-  } catch {
-    // 壊れていたら初期化
-  }
-  return { lastShown: "", seen: [] };
-}
+// day: 集計中の日付 / count: その日の表示回数 / seen: 既読id。
+// 旧形式（lastShown/seen）も読めるように吸収する。
+type TipsState = { day: string; count: number; seen: string[] };
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function TipsToast() {
+function loadState(): TipsState {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const o = JSON.parse(raw) as Partial<TipsState> & { lastShown?: string };
+      return {
+        // 旧形式 lastShown=今日 は「今日1回表示済み」とみなす
+        day: o.day ?? o.lastShown ?? "",
+        count: o.count ?? (o.lastShown === today() ? 1 : 0),
+        seen: o.seen ?? [],
+      };
+    }
+  } catch {
+    // 壊れていたら初期化
+  }
+  return { day: "", count: 0, seen: [] };
+}
+
+type Pick = { tip: Tip; resetSeen?: boolean };
+
+// 通常: 未読からランダム。全部読んだら既読をリセットして最初から巡回。
+function pickRandom(pool: Tip[], seen: string[]): Pick | null {
+  if (pool.length === 0) return null;
+  const unseen = pool.filter((t) => !seen.includes(t.id));
+  if (unseen.length > 0) {
+    return { tip: unseen[Math.floor(Math.random() * unseen.length)] };
+  }
+  // 全部読んだ → リセットして全体から
+  return { tip: pool[Math.floor(Math.random() * pool.length)], resetSeen: true };
+}
+
+// 新規期間: まずオンボーディングを優先度順に。消化しきったら通常ランダムへ合流。
+function pickNewcomer(seen: string[]): Pick | null {
+  const nextOnboarding = [...ONBOARDING_TIPS]
+    .sort((a, b) => (a.onboarding ?? 99) - (b.onboarding ?? 99))
+    .find((t) => !seen.includes(t.id));
+  if (nextOnboarding) return { tip: nextOnboarding };
+  return pickRandom(TIPS, seen);
+}
+
+export function TipsToast(props: { newcomer?: boolean }) {
   const [tip, setTip] = useState<Tip | null>(null);
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
-    const state = loadState();
-    if (state.lastShown === today()) return; // きょうはもう表示済み
+    const raw = loadState();
+    // 日付が変わっていたらカウントをリセット
+    const state: TipsState =
+      raw.day === today() ? raw : { day: today(), count: 0, seen: raw.seen };
 
-    // 未読を優先。全部読んだらリセットして最初から
-    const unseen = TIPS.filter((t) => !state.seen.includes(t.id));
-    const pool = unseen.length > 0 ? unseen : TIPS;
-    const seen = unseen.length > 0 ? state.seen : [];
-    const pick = pool[Math.floor(Math.random() * pool.length)];
+    const cap = props.newcomer ? NEWCOMER_DAILY_CAP : NORMAL_DAILY_CAP;
+    if (state.count >= cap) return; // きょうの上限に達した
+
+    const pick = props.newcomer
+      ? pickNewcomer(state.seen)
+      : pickRandom(TIPS, state.seen);
+    if (!pick) return;
 
     const showTimer = setTimeout(() => {
-      setTip(pick);
+      setTip(pick.tip);
       try {
         localStorage.setItem(
           STORAGE_KEY,
           JSON.stringify({
-            lastShown: today(),
-            seen: [...seen, pick.id],
+            day: today(),
+            count: state.count + 1,
+            seen: pick.resetSeen ? [pick.tip.id] : [...state.seen, pick.tip.id],
           } satisfies TipsState)
         );
       } catch {
@@ -58,7 +99,7 @@ export function TipsToast() {
       }
     }, SHOW_DELAY_MS);
     return () => clearTimeout(showTimer);
-  }, []);
+  }, [props.newcomer]);
 
   // 表示後は一定時間で自動フェードアウト
   useEffect(() => {

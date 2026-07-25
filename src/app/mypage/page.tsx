@@ -10,6 +10,7 @@ import {
   updateShareSettings,
   updateTargetDomains,
   updateMentorStance,
+  setTipsEnabled,
   logout,
 } from "@/app/actions";
 import { STANCES, toStance } from "@/lib/ai/stance";
@@ -635,6 +636,31 @@ export default async function MyPage({
             })}
           </div>
         </div>
+      </Window>
+
+      {/* サイトTIPSの表示ON/OFF（Issue #20）。端末をまたいで効くようDB保持 */}
+      <Window title="TIPS" titleEm=".cfg">
+        <PixelLabel>TIPS — 右下のミニ豆知識</PixelLabel>
+        <p className="mt-2 text-[12.5px] text-inksoft">
+          機能の使い方や小ネタを、ページを開いたときに右下へさりげなく出します。
+          慣れてきて不要になったらオフにできます。
+        </p>
+        <ActionForm
+          action={setTipsEnabled}
+          ok="TIPSの設定を保存しました"
+          className="mt-3 space-y-3"
+        >
+          <label className="flex items-center gap-2.5 text-[13px] font-bold">
+            <input
+              type="checkbox"
+              name="enabled"
+              defaultChecked={user.tipsEnabled}
+              className="h-4 w-4 accent-[var(--pink-hot)]"
+            />
+            TIPSを表示する
+          </label>
+          <button className="btn8 btn8-start text-[12px]">▶ 保存</button>
+        </ActionForm>
       </Window>
 
       {devLogin && (
