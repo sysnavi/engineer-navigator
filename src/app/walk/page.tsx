@@ -8,7 +8,7 @@ import { prisma } from "@/lib/db";
 import { speciesById } from "@/lib/pets/species";
 import { getConditionSeries, type WeekPoint } from "@/lib/condition";
 import { moodBucket, loadBucket } from "@/lib/walk/mutter";
-import { PixelTitle, PixelLabel, Window } from "@/components/retro";
+import { PixelLabel, Window } from "@/components/retro";
 import { WalkScene, type WalkPet } from "./walk-scene";
 
 export const metadata = {
@@ -48,15 +48,10 @@ export default async function WalkPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div>
+      {/* 見出しは小ラベルだけ。シーンが主役（説明文は置かない） */}
+      <h1>
         <PixelLabel>WALK — おさんぽ</PixelLabel>
-        <PixelTitle as="h1" className="text-3xl text-royal">
-          おさんぽ
-        </PixelTitle>
-        <p className="mt-1 text-[13px] text-inksoft">
-          うちの子と、ただ歩くだけ。
-        </p>
-      </div>
+      </h1>
 
       {pets.length === 0 ? (
         <Window title="WALK" titleEm=".sav">
@@ -70,12 +65,7 @@ export default async function WalkPage() {
           </Link>
         </Window>
       ) : (
-        <>
-          <WalkScene pets={pets} mood={mood} load={load} />
-          <p className="text-center text-[11.5px] text-inksoft">
-            ながめているだけでOK。むりに操作しなくていいよ。
-          </p>
-        </>
+        <WalkScene pets={pets} mood={mood} load={load} />
       )}
     </div>
   );
