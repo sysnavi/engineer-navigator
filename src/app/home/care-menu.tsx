@@ -26,7 +26,8 @@ export function CareMenu(props: {
   stocks: FoodStock[];
   busy: boolean;
   onPet: () => void;
-  onTalk: () => void;
+  onTalk: () => void; // 好物のヒント（定型・トークンゼロ）
+  onChat: () => void; // 会話（AI・週報などを知った状態で話す）
   onFeed: (foodId: string) => void;
   onClose: () => void;
 }) {
@@ -91,9 +92,17 @@ export function CareMenu(props: {
               disabled={props.busy}
               className="btn8 flex-1 py-2 text-[12.5px] disabled:opacity-45"
             >
-              話しかける
+              ヒントをきく
             </button>
           </div>
+          {/* 会話（AI）。この子は週報やダンジョンのことを知っている */}
+          <button
+            onClick={props.onChat}
+            disabled={props.busy}
+            className="btn8 btn8-ok w-full py-2 text-[12.5px] disabled:opacity-45"
+          >
+            💬 はなす
+          </button>
           <p className="text-[10px] text-inksoft">
             {props.pettedToday
               ? "なでなではいつでもOK。なつき度アップはまた明日"
@@ -137,8 +146,7 @@ export function CareMenu(props: {
           </div>
 
           <p className="text-[10.5px] leading-relaxed text-inksoft">
-            種族ごとに好物がひとつ。当てると なつき度が2倍のびます。話しかけると
-            ヒントをくれることがあります。
+            種族ごとに好物がひとつ。当てると なつき度が2倍のびます。
             {props.affection < HAND_SERVE_MIN_AFFECTION && (
               <>
                 <br />

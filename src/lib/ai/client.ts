@@ -25,6 +25,20 @@ export type LlmUsage = {
  * JSONを返すプロンプトを実行し、パース済みオブジェクトと使用量を返す。
  * スキル抽出・トーン解析などの構造化タスク用。
  */
+/**
+ * JSONで返るはずの応答が素の文章で返ってきたときのエラー。
+ * `raw` に元の文章が入るので、会話系のように「文章そのものが使える」場面では
+ * 呼び出し側で救済できる（1往復むだにしないため）。
+ */
+export class LlmJsonError extends Error {
+  raw: string;
+  constructor(raw: string) {
+    super("LLMがJSONを返しませんでした");
+    this.name = "LlmJsonError";
+    this.raw = raw;
+  }
+}
+
 export async function completeJson<T>(params: {
   system: string;
   user: string;
@@ -45,10 +59,26 @@ export async function completeJson<T>(params: {
     .join("");
 
   // ```json フェンス付きで返ってきた場合も剥がす
-  const jsonText = text.replace(/^```(?:json)?\s*/m, "").replace(/```\s*$/m, "").trim();
+  let jsonText = text.replace(/^```(?:json)?\s*/m, "").replace(/```\s*$/m, "").trim();
+  // 「はい、こちらです:」のような前置きが付いても拾えるように、
+  // 最初の { から最後の } までを切り出す（JSON以外で返す事故への保険）
+  if (!jsonText.startsWith("{") && !jsonText.startsWith("[")) {
+    const s = jsonText.indexOf("{");
+    const e = jsonText.lastIndexOf("}");
+    if (s >= 0 && e > s) jsonText = jsonText.slice(s, e + 1);
+  }
+
+  let data: T;
+  try {
+    data = JSON.parse(jsonText) as T;
+  } catch {
+    // JSONがまったく無い＝素の文章で返ってきた場合。呼び出し側が
+    // その文章を活かせるよう、生テキストを添えて投げる
+    throw new LlmJsonError(text);
+  }
 
   return {
-    data: JSON.parse(jsonText) as T,
+    data,
     usage: {
       model,
       inputTokens: res.usage.input_tokens,

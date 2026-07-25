@@ -190,8 +190,22 @@ model Pet {
   fedCount        Int       @default(0)
   favoriteFoundAt DateTime?
   befriendedAt DateTime  @default(now())
+  // 会話（竹）: この子が覚えていること。次に話すとき自分から掘り返す
+  memories     PetMemory[]
 
   @@index([userId])
+}
+
+/// ペットが会話から覚えたこと（1行1件）。会話の終わりにAIが抽出する。
+/// 直近のものだけを次の会話の文脈に渡し、古いものは掃除する（プロンプト肥大の防止）。
+model PetMemory {
+  id        String   @id @default(cuid())
+  pet       Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  petId     String
+  text      String // 「しかくの べんきょうを はじめた」など、その子の言葉で1文
+  createdAt DateTime @default(now())
+
+  @@index([petId, createdAt])
 }
 
 // ごはんの所持数（Issue #23）。ごはんマスタは src/lib/pets/foods.ts のTS定義で、

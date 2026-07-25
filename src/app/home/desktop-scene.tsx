@@ -23,6 +23,8 @@ import { moveGadget, stowGadget, petPet, feedPet } from "./actions";
 import { CareMenu, type FoodStock } from "./care-menu";
 import { PetSpeech } from "./pet-speech";
 import { FoodServe } from "./food-serve";
+import { TalkPanel } from "./talk-panel";
+import { talkRemaining } from "./talk-actions";
 import type { ServeMode } from "@/lib/pets/foods";
 
 export type DeskGadget = Gadget & { x: number; y: number; z: number };
@@ -68,6 +70,9 @@ export function DesktopScene(props: {
   // おせわ（なでなで / ごはん）— リビングと同じ機構をデスクの来客にも
   const [menuOpen, setMenuOpen] = useState(false);
   const [bubble, setBubble] = useState<string | null>(null);
+  // 会話パネル（AI）。デスクに遊びに来ている子ともリビングと同じように話せる
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatLeft, setChatLeft] = useState(0);
   const [stocks, setStocks] = useState(props.stocks);
   const [feedsLeft, setFeedsLeft] = useState(props.visitor?.feedsLeft ?? 0);
   const [pettedToday, setPettedToday] = useState(props.visitor?.pettedToday ?? false);
@@ -456,10 +461,37 @@ export function DesktopScene(props: {
           busy={feeding !== null}
           onPet={onPetVisitor}
           onTalk={onTalkVisitor}
+          onChat={() => {
+            setMenuOpen(false);
+            start(async () => {
+              try {
+                setChatLeft(await talkRemaining());
+              } catch {
+                setChatLeft(0);
+              }
+              setChatOpen(true);
+            });
+          }}
           onFeed={onFeedVisitor}
           onClose={() => setMenuOpen(false)}
         />
       )}
+
+      {chatOpen && props.visitor && (() => {
+        const sp = speciesById(props.visitor.speciesId);
+        if (!sp) return null;
+        return (
+          <TalkPanel
+            petId={props.visitor.id}
+            petName={props.visitor.name}
+            speciesId={props.visitor.speciesId}
+            spriteNormal={sp.sprites.normal}
+            spriteHappy={sp.sprites.happy ?? sp.sprites.normal}
+            initialRemaining={chatLeft}
+            onClose={() => setChatOpen(false)}
+          />
+        );
+      })()}
 
       {/* 収納BOX（ここへドロップでしまう） */}
       <div

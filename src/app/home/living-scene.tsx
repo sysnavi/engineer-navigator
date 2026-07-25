@@ -16,6 +16,8 @@ import { speciesById } from "@/lib/pets/species";
 import { CareMenu, type FoodStock } from "./care-menu";
 import { PetSpeech } from "./pet-speech";
 import { FoodServe } from "./food-serve";
+import { TalkPanel } from "./talk-panel";
+import { talkRemaining } from "./talk-actions";
 
 export type RoomPet = {
   id: string;
@@ -60,6 +62,9 @@ export function LivingScene(props: {
   const [hearts, setHearts] = useState<string | null>(null);
   const [stocks, setStocks] = useState(props.stocks);
   const [menuPetId, setMenuPetId] = useState<string | null>(null);
+  // 会話パネル（AI）。開くときに「きょうあと何回話せるか」を取りに行く
+  const [chatPetId, setChatPetId] = useState<string | null>(null);
+  const [chatLeft, setChatLeft] = useState(0);
   const [serving, setServing] = useState<Serving | null>(null);
   const [log, setLog] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -202,7 +207,22 @@ export function LivingScene(props: {
     });
   };
 
+  /** 会話パネルを開く（残り回数を取ってから） */
+  const onChat = (petId: string) => {
+    setMenuPetId(null);
+    startTransition(async () => {
+      try {
+        setChatLeft(await talkRemaining());
+      } catch {
+        setChatLeft(0);
+      }
+      setChatPetId(petId);
+    });
+  };
+
   const menuPet = pets.find((p) => p.id === menuPetId) ?? null;
+  const chatPet = pets.find((p) => p.id === chatPetId) ?? null;
+  const chatSpecies = chatPet ? speciesById(chatPet.speciesId) : null;
 
   // 3/4見下ろし: ペットは床に散らばって暮らす（座標は匹ごとに決定的・y=奥行きで前後関係）
   const spot = (i: number) => ({
@@ -368,8 +388,21 @@ export function LivingScene(props: {
           busy={serving !== null}
           onPet={() => onPet(menuPet.id)}
           onTalk={() => onTalk(menuPet.id)}
+          onChat={() => onChat(menuPet.id)}
           onFeed={(foodId) => onFeed(menuPet.id, foodId)}
           onClose={() => setMenuPetId(null)}
+        />
+      )}
+
+      {chatPet && chatSpecies && (
+        <TalkPanel
+          petId={chatPet.id}
+          petName={chatPet.name}
+          speciesId={chatPet.speciesId}
+          spriteNormal={chatSpecies.sprites.normal}
+          spriteHappy={chatSpecies.sprites.happy ?? chatSpecies.sprites.normal}
+          initialRemaining={chatLeft}
+          onClose={() => setChatPetId(null)}
         />
       )}
     </div>
