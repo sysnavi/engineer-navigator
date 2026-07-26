@@ -22,6 +22,8 @@ import {
 import { GENES } from "../src/lib/genes";
 import { EXP_WEIGHTS } from "../src/lib/exp";
 import { APPS, DOCK_DEFAULT, DOCK_SLOTS } from "../src/lib/apps";
+import { SEED_QUIZZES } from "../prisma/seed-quizzes";
+import { DOMAINS } from "../src/lib/domains";
 
 const ROOT = join(__dirname, "..");
 const PUBLIC = join(ROOT, "public");
@@ -143,6 +145,36 @@ for (const id of DOCK_DEFAULT) {
   const app = APPS.find((a) => a.id === id);
   if (!app) err(`DOCK_DEFAULT に存在しない機能ID: ${id}`);
   else if (app.roles) err(`DOCK_DEFAULT に権限付き機能: ${id}（全員のデフォルトにできない）`);
+}
+
+// ---------------------------------------------------------------------------
+// 良問バンクのデフォルト問題（Issue #27）
+// ---------------------------------------------------------------------------
+{
+  const topics = new Set(SEED_QUIZZES.map((q) => q.topic));
+  console.log(`デフォルト問題: ${SEED_QUIZZES.length}問 / ${topics.size}カテゴリ`);
+  const domainIds = new Set(DOMAINS.map((d) => d.id));
+  for (const id of dupes(SEED_QUIZZES, (q) => q.id)) err(`問題IDが重複: ${id}`);
+  for (const q of SEED_QUIZZES) {
+    if (q.choices.length !== 4) err(`問題${q.id}: 選択肢が${q.choices.length}個（4つにする）`);
+    if (new Set(q.choices).size !== q.choices.length) err(`問題${q.id}: 選択肢に重複がある`);
+    if (q.answerIndex < 0 || q.answerIndex >= q.choices.length) {
+      err(`問題${q.id}: answerIndexが範囲外（${q.answerIndex}）`);
+    }
+    // 解説は「なぜ他がダメか」まで書く方針。短すぎるものは良問になっていない
+    if (q.explanation.length < 40) warn(`問題${q.id}: 解説が短い（${q.explanation.length}字）`);
+    for (const d of q.domains) {
+      if (!domainIds.has(d)) err(`問題${q.id}: 存在しない領域ID「${d}」`);
+    }
+  }
+  // 正解位置が偏ると「なんとなく2番」で当たってしまう
+  const dist = [0, 1, 2, 3].map(
+    (i) => SEED_QUIZZES.filter((q) => q.answerIndex === i).length
+  );
+  const maxRatio = Math.max(...dist) / SEED_QUIZZES.length;
+  if (maxRatio > 0.5) {
+    warn(`正解位置が偏っている（分布: ${dist.join("/")}）— 選択肢の並びを混ぜる`);
+  }
 }
 
 // ---------------------------------------------------------------------------

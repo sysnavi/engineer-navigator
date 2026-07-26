@@ -2,6 +2,7 @@ import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { mondayOf } from "../src/lib/week";
+import { SEED_QUIZZES } from "./seed-quizzes";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -695,6 +696,24 @@ async function main() {
       ],
     },
   ];
+
+  // Issue #27: デフォルト問題の拡充分（prisma/seed-quizzes.ts の別ファイル管理）。
+  // 作者は engineer2（デフォルトユーザー engineer が腕試しで解けるように）、
+  // 評価者は engineer / engineer3 / admin を順に割り当てる。
+  const raters = [engineer.id, engineer3.id, admin.id];
+  for (const q of SEED_QUIZZES) {
+    quizzes.push({
+      id: q.id,
+      authorId: engineer2.id,
+      topic: q.topic,
+      domains: q.domains,
+      prompt: q.prompt,
+      choices: q.choices,
+      answerIndex: q.answerIndex,
+      explanation: q.explanation,
+      ratings: q.scores.map((score, i) => ({ userId: raters[i % raters.length], score })),
+    });
+  }
 
   for (const q of quizzes) {
     const sum = q.ratings.reduce((s, r) => s + r.score, 0);
