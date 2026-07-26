@@ -7,7 +7,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
+import { GuardedLink } from "@/components/nav-guard";
 import { speciesById, TALK_TREES, type TalkNode } from "@/lib/pets/species";
 import { judgeTalk, aiTalkStep, namePet } from "@/app/home/actions";
 
@@ -280,9 +280,9 @@ export function Visitor(props: {
                   <p className="text-[13px]">
                     <b>{petName}</b> はマイホームに住みはじめた！
                   </p>
-                  <Link href="/home" className="btn8 btn8-start inline-block px-5 py-2 text-[12.5px]" onClick={close}>
+                  <GuardedLink href="/home" className="btn8 btn8-start inline-block px-5 py-2 text-[12.5px]" onClick={close}>
                     ▶ マイホームで会う
-                  </Link>
+                  </GuardedLink>
                 </>
               )}
             </div>

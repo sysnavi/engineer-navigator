@@ -6,7 +6,7 @@
 // スタートメニュー/ドロワーの中身は APPS レジストリから生成（単一ソース）。
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { GuardedLink } from "@/components/nav-guard";
 import { usePathname } from "next/navigation";
 import { APP_GROUPS, type AppDef } from "@/lib/apps";
 import { PixelIcon } from "@/components/pixel-icon";
@@ -90,7 +90,7 @@ export function Taskbar(props: {
               </span>
             </div>
             <div className="px-2.5 py-2">
-              <Link
+              <GuardedLink
                 href="/"
                 onClick={closeMenu}
                 className="mb-1 flex items-center gap-2.5 rounded-lg border-2 border-dashed border-peri px-2 py-1.5 text-[13.5px] font-bold hover:bg-surface"
@@ -101,7 +101,7 @@ export function Taskbar(props: {
                 </span>
                 デスクトップにもどる
                 <i className="ml-auto font-pixel text-[9.5px] not-italic tracking-wide text-inksoft">HOME</i>
-              </Link>
+              </GuardedLink>
               {(Object.keys(APP_GROUPS) as (keyof typeof APP_GROUPS)[]).map((gid) => {
                 const apps = props.apps.filter((a) => a.group === gid);
                 if (apps.length === 0) return null;
@@ -111,7 +111,7 @@ export function Taskbar(props: {
                       {APP_GROUPS[gid]}/
                     </b>
                     {apps.map((a) => (
-                      <Link
+                      <GuardedLink
                         key={a.id}
                         href={a.href}
                         onClick={closeMenu}
@@ -123,7 +123,7 @@ export function Taskbar(props: {
                           {a.id.toUpperCase()}
                           {a.ext}
                         </i>
-                      </Link>
+                      </GuardedLink>
                     ))}
                   </div>
                 );
@@ -146,21 +146,21 @@ export function Taskbar(props: {
         {/* モバイル: ドック（▶スタートの右に選択順で3枠） */}
         <div className="flex flex-1 items-center justify-around sm:hidden">
           {props.dock.map((a) => (
-            <Link key={a.id} href={a.href} className="flex flex-col items-center gap-0.5 rounded-lg px-2 py-0.5 text-[10px] font-bold text-white active:bg-royal2">
+            <GuardedLink key={a.id} href={a.href} className="flex flex-col items-center gap-0.5 rounded-lg px-2 py-0.5 text-[10px] font-bold text-white active:bg-royal2">
               <PixelIcon id={a.id} px={2} />
               {a.name}
-            </Link>
+            </GuardedLink>
           ))}
         </div>
 
         {/* PC: ブランド + 現在地チップ + トレイ */}
         <div className="hidden flex-1 items-center gap-3 sm:flex">
-          <Link
+          <GuardedLink
             href="/"
             className="whitespace-nowrap font-pixel text-[12.5px] tracking-wide text-white hover:text-lemon"
           >
             EngineerNavigator<span className="text-peri">.exe</span>
-          </Link>
+          </GuardedLink>
           {current && (
             <span className="rounded-md border-2 border-line8 bg-win px-2.5 py-1 font-pixel text-[11px] tracking-wide text-ink">
               {current.name}
@@ -170,12 +170,12 @@ export function Taskbar(props: {
         </div>
         <div className="hidden items-center gap-2 sm:flex">
           {props.dungeonOk && (
-            <Link
+            <GuardedLink
               href="/dungeon"
               className="rounded-md border-2 border-peri bg-royal2 px-2 py-0.5 text-[11px] font-bold text-white hover:border-white"
             >
               ⛏ 潜行OK
-            </Link>
+            </GuardedLink>
           )}
           {props.streak >= 2 && (
             <span className="rounded-md border-2 border-peri bg-royal2 px-2 py-0.5 text-[11px] font-bold text-white">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { GuardedLink } from "@/components/nav-guard";
 import { TIPS, ONBOARDING_TIPS, type Tip } from "@/lib/tips";
 
 // サイトTIPSトースト。ページを開いて数秒後に右下へさりげなく出す。状態はlocalStorage。
@@ -143,13 +143,13 @@ export function TipsToast(props: { newcomer?: boolean }) {
             {tip.text}
           </p>
           {tip.href && (
-            <Link
+            <GuardedLink
               href={tip.href}
               onClick={() => setLeaving(true)}
               className="mt-1.5 inline-block font-pixel text-[10.5px] tracking-wide text-royal2 hover:text-pinkhot"
             >
               見にいく →
-            </Link>
+            </GuardedLink>
           )}
         </div>
       </div>
