@@ -241,13 +241,8 @@ body {
     /* フォーカス時にstickyヘッダーの下へ隠れないように */
     scroll-margin-top: 96px;
   }
-  /* タッチ端末は16px固定: iOSは16px未満の入力欄にフォーカスすると画面を自動ズームする。
-     それを無効化する唯一まっとうな方法がこれ（user-scalable=noはアクセシビリティ的にNG） */
-  @media (hover: none) and (pointer: coarse) {
-    .field8 {
-      font-size: 16px;
-    }
-  }
+  /* タッチ端末の16px固定はここではなくファイル末尾（レイヤー外）に置いている。
+     理由はそちらのコメントを参照 */
   textarea.field8 {
     resize: vertical;
     max-height: 50vh;
@@ -1030,5 +1025,26 @@ body {
 @media (prefers-reduced-motion: no-preference) {
   .dg-msg-cursor::after {
     animation: dg-bob 0.8s steps(2) infinite;
+  }
+}
+
+/* =============================================================
+   タッチ端末の入力欄は16px固定（レイヤー外に置くのが要点）
+
+   iOSは16px未満の入力欄にフォーカスすると画面を自動ズームする。それを止める
+   まっとうな方法は「16px以上にする」だけ（user-scalable=no はアクセシビリティ的にNG）。
+
+   ⚠なぜ @layer components の中ではなく、ここ（レイヤー外）なのか:
+   Tailwind v4 のユーティリティは後続レイヤーにあり、**レイヤー順は詳細度より優先される**。
+   そのため layer 内に書くと `text-[12.5px]` のような指定に必ず負け、保護が無効化される。
+   実際 talk-panel / report-button / mypage など5箇所で無効化され、フォーカス時に
+   ズームしていた（実測で 12.5px のままだった）。レイヤー外の宣言は全レイヤーに勝つので、
+   各画面が文字サイズを指定しても保護が外れない。
+   ============================================================= */
+@media (hover: none) and (pointer: coarse) {
+  input.field8,
+  textarea.field8,
+  select.field8 {
+    font-size: 16px;
   }
 }
