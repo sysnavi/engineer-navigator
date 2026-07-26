@@ -9,7 +9,7 @@ import { performDive, type DungeonStep } from "@/lib/dungeon/run";
 export async function dive(): Promise<{
   steps: DungeonStep[];
   depth: number;
-  kind: "daily" | "bonus";
+  kind: "daily" | "bonus" | "earned";
 }> {
   const user = await getCurrentUser();
   const result = await performDive(user.id);

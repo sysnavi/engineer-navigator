@@ -85,7 +85,7 @@ function Gauge(props: { label: string; now: number; max: number; color: string }
 
 export function DivePlayer(props: {
   canDive: boolean;
-  diveKind: "daily" | "bonus" | null;
+  diveKind: "daily" | "bonus" | "earned" | null;
   restingMessage: string | null;
   avatarSprite: string;
   avatarAccent?: string;
@@ -325,6 +325,17 @@ export function DivePlayer(props: {
           >
             🍙 どうぐ{v.items.length > 0 && `(${v.items.length})`}
           </button>
+          {v.charms > 0 && (
+            <button
+              onClick={() => battle("charm")}
+              disabled={busy}
+              title="AIメンターに相談した日だけ持てる。HPが全快する"
+              className="btn8 py-2 text-[12.5px] disabled:opacity-40"
+              style={{ borderColor: "var(--lemon)" }}
+            >
+              ✨ おふだ({v.charms})
+            </button>
+          )}
           <button
             onClick={() => battle("flee")}
             disabled={busy || !v.canFlee}

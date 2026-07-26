@@ -16,16 +16,25 @@ import {
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { DivePlayer } from "./dive-player";
 import { getActiveDive } from "./session-actions";
+import { getDivePrep } from "@/lib/dungeon/prep";
+import { prisma } from "@/lib/db";
+import { PrepPanel } from "./prep-panel";
 
 const RARITY_ORDER: Rarity[] = ["UR", "SSR", "SR", "R", "N"];
 
 export default async function DungeonPage() {
   const user = await getCurrentUser();
-  const [stats, state, collection, activeDive] = await Promise.all([
+  const midnight = (() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  })();
+  const [stats, state, collection, activeDive, prep, divesToday] = await Promise.all([
     getPlayerStats(user.id),
     getDungeonState(user.id),
     getCollection(user.id),
     getActiveDive(), // 途中で閉じても続きから戻れる
+    getDivePrep(user.id), // したく（きょうの活動）
+    prisma.dungeonRun.count({ where: { userId: user.id, createdAt: { gte: midnight } } }),
   ]);
   const geneMod = stats.genes ? GENE_DUNGEON_MODS[stats.genes.dominant.id] : null;
   const ownedIds = new Set(collection.map((g) => g.id));
@@ -53,6 +62,9 @@ export default async function DungeonPage() {
           baseDepth={baseDepthOf(stats)}
           initialView={activeDive}
         />
+        {!activeDive && (
+          <PrepPanel prep={prep} divesToday={divesToday} canDive={state.canDive} />
+        )}
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t-2 border-dashed border-peri pt-3 text-[11.5px] text-inksoft">
           <span>
             探索 {state.totalRuns} 回 ／ 最深 地下{state.maxDepth}階

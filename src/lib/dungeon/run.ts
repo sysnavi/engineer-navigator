@@ -27,6 +27,7 @@ import {
   type Rarity,
 } from "@/lib/dungeon/content";
 import { rollFood, foodById } from "@/lib/pets/foods";
+import { getDivePrep, MAX_DIVES_PER_DAY } from "@/lib/dungeon/prep";
 
 /** 宝箱にごはんが同梱されている確率（Issue #23。ボスは確定なので別扱い） */
 const FOOD_DROP_RATE = 0.45;
@@ -45,7 +46,7 @@ export type DungeonStep = {
 
 export type DungeonState = {
   canDive: boolean;
-  diveKind: "daily" | "bonus" | null; // 次に使う枠
+  diveKind: "daily" | "bonus" | "earned" | null; // 次に使う枠
   restingMessage: string | null; // 今日は潜れない時の表示
   lastRun: { depth: number; createdAt: Date; steps: DungeonStep[] } | null;
   totalRuns: number;
@@ -56,29 +57,50 @@ function dayStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** 今日/今週の枠を判定する。daily未使用→daily、使用済み&週報提出済み&bonus未使用→bonus */
-/** きょう使える潜行枠（日次1回＋週報を出した週のボーナス1回）。
- *  コマンド選択制のセッション（session.ts）からも使うので公開している。 */
+/**
+ * きょう使える潜行枠。優先順に daily → bonus（週報を出した週）→ earned（活動で獲得）。
+ * コマンド選択制のセッション（session.ts）からも使うので公開している。
+ *
+ * 獲得枠は**当日かぎりで持ち越さない**（週末にまとめて潜る、を防ぐ）。
+ * さらに1日の総回数を MAX_DIVES_PER_DAY で頭打ちにする＝「依存させない設計」の担保。
+ * 二重使用は slot の @@unique(userId, slot) が構造で弾く。
+ */
 export async function resolveSlot(userId: string): Promise<{
   slot: string | null;
-  kind: "daily" | "bonus" | null;
+  kind: "daily" | "bonus" | "earned" | null;
 }> {
   const now = new Date();
-  const dailySlot = `d:${dayStr(now)}`;
+  const today = dayStr(now);
+  const dailySlot = `d:${today}`;
   const weekStart = mondayOf(now);
   const bonusSlot = `b:${dayStr(weekStart)}`;
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const [dailyUsed, bonusUsed, reportThisWeek] = await Promise.all([
+  const [dailyUsed, bonusUsed, reportThisWeek, divesToday] = await Promise.all([
     prisma.dungeonRun.findFirst({ where: { userId, slot: dailySlot }, select: { id: true } }),
     prisma.dungeonRun.findFirst({ where: { userId, slot: bonusSlot }, select: { id: true } }),
     prisma.weeklyReport.findFirst({
       where: { userId, weekStart, status: "SUBMITTED" },
       select: { id: true },
     }),
+    // 「きょう何回潜ったか」は枠の種類ではなく実際の潜行日で数えるのが正確
+    prisma.dungeonRun.count({ where: { userId, createdAt: { gte: midnight } } }),
   ]);
 
+  if (divesToday >= MAX_DIVES_PER_DAY) return { slot: null, kind: null };
   if (!dailyUsed) return { slot: dailySlot, kind: "daily" };
   if (!bonusUsed && reportThisWeek) return { slot: bonusSlot, kind: "bonus" };
+
+  // 活動で獲得した枠（したく）
+  const { earnedSlots } = await getDivePrep(userId);
+  for (let i = 1; i <= earnedSlots; i++) {
+    const s = `d:${today}:e${i}`;
+    const used = await prisma.dungeonRun.findFirst({
+      where: { userId, slot: s },
+      select: { id: true },
+    });
+    if (!used) return { slot: s, kind: "earned" };
+  }
   return { slot: null, kind: null };
 }
 
@@ -168,7 +190,7 @@ function rollRarity(depth: number, generation: number, treasureLuck: boolean): G
 export async function performDive(userId: string): Promise<{
   steps: DungeonStep[];
   depth: number;
-  kind: "daily" | "bonus";
+  kind: "daily" | "bonus" | "earned";
 }> {
   const { slot, kind } = await resolveSlot(userId);
   if (!slot || !kind) {

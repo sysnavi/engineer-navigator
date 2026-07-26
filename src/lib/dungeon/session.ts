@@ -55,6 +55,7 @@ export type DiveState = {
   atk: number;
   def: number;
   shieldLeft: number; // 週報の盾（敗走を1回だけ無効化）
+  charms: number; // 知恵の護符（AIメンターに相談した日に持てる・HP全快）
   items: FoodId[]; // 潜行中に使えるごはん
   gotGadgets: string[];
   gotFoods: string[];
@@ -81,6 +82,8 @@ export function createDiveState(params: {
   hasReportShield: boolean;
   firstDive: boolean;
   items: FoodId[];
+  /** したく（その日の活動）で得た知恵の護符 */
+  charms?: number;
 }): DiveState {
   return {
     floor: 0,
@@ -93,6 +96,7 @@ export function createDiveState(params: {
     atk: params.stats.atk,
     def: params.stats.def,
     shieldLeft: (params.hasReportShield ? 1 : 0) + (params.firstDive ? 1 : 0),
+    charms: params.charms ?? 0,
     items: params.items,
     gotGadgets: [],
     gotFoods: [],
@@ -292,6 +296,7 @@ export function doBattle(s: DiveState, command: BattleCommand, rng: Rng): DiveSt
     command,
     rng,
     canFlee: !st.foe.boss,
+    charms: st.charms,
     item: def
       ? { id: def.id, name: def.name, heal: Math.round(st.maxHp * HEAL_RATIO) }
       : undefined,
@@ -301,6 +306,7 @@ export function doBattle(s: DiveState, command: BattleCommand, rng: Rng): DiveSt
   st.sp = r.sp;
   st.foe = r.foe;
   st.logs = r.logs;
+  if (r.usedCharm) st.charms = Math.max(0, st.charms - 1);
   if (r.usedItem) {
     const i = st.items.indexOf(r.usedItem as FoodId);
     if (i >= 0) st.items.splice(i, 1);

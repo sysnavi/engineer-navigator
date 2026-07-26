@@ -38,6 +38,7 @@ export default async function WalkPage() {
         affection: p.affection,
         spriteNormal: sp.sprites.normal,
         spriteWalk: sp.sprites.walk ?? sp.sprites.normal,
+        spriteHappy: sp.sprites.happy ?? sp.sprites.normal,
       };
     })
     .filter((p): p is WalkPet => p !== null);

@@ -22,6 +22,7 @@ import { fetchWeather } from "@/lib/walk/weather";
 import { BIOME_JA, type BiomeId } from "@/lib/walk/world";
 import { WalkCanvas } from "./walk-canvas";
 import { BgmPlayer } from "./bgm-player";
+import { LeaveGuard } from "./leave-guard";
 import { walkAiMutter } from "./actions";
 
 export type WalkPet = {
@@ -31,6 +32,7 @@ export type WalkPet = {
   affection: number;
   spriteNormal: string;
   spriteWalk: string;
+  spriteHappy: string;
 };
 
 // 夕方・夜はうっすら暗幕をかけて全体をなじませる（canvasの上に重ねる）
@@ -240,6 +242,11 @@ export function WalkScene(props: {
             📍 {BIOME_JA[biome]}
           </span>
         )}
+        <LeaveGuard
+          petName={pet.name}
+          spriteNormal={pet.spriteNormal}
+          spriteHappy={pet.spriteHappy}
+        />
         <BgmPlayer />
         {!realWeather && (
           <button

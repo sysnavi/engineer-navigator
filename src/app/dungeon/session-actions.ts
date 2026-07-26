@@ -13,6 +13,7 @@ import { getPlayerStats } from "@/lib/exp";
 import { GADGETS } from "@/lib/dungeon/content";
 import { foodById, type FoodId } from "@/lib/pets/foods";
 import { baseDepthOf, resolveSlot } from "@/lib/dungeon/run";
+import { getDivePrep } from "@/lib/dungeon/prep";
 import { heroStats } from "@/lib/dungeon/battle";
 import type { BattleCommand } from "@/lib/dungeon/battle";
 import {
@@ -41,6 +42,7 @@ export type DiveView = {
   sp: number;
   maxSp: number;
   shieldLeft: number;
+  charms: number;
   items: { id: string; name: string }[];
   foe: { name: string; sprite: string; hp: number; maxHp: number; boss: boolean; charging: boolean } | null;
   logs: DiveState["logs"];
@@ -61,6 +63,7 @@ function toView(runId: string, s: DiveState): DiveView {
     sp: s.sp,
     maxSp: s.maxSp,
     shieldLeft: s.shieldLeft,
+    charms: s.charms ?? 0,
     items: s.items.flatMap((id) => {
       const d = foodById(id);
       return d ? [{ id: String(d.id), name: d.name }] : [];
@@ -115,7 +118,7 @@ export async function startDive(): Promise<
     return { ok: false, error: "きょうの探索はおしまい。休むのも仕事のうち！" };
   }
 
-  const [stats, owned, foods, runCount, shield] = await Promise.all([
+  const [stats, owned, foods, runCount, shield, prep] = await Promise.all([
     getPlayerStats(user.id),
     prisma.ownedGadget.findMany({ where: { userId: user.id }, select: { gadgetId: true } }),
     prisma.foodItem.findMany({ where: { userId: user.id, count: { gt: 0 } } }),
@@ -125,25 +128,34 @@ export async function startDive(): Promise<
       orderBy: { weekStart: "desc" },
       select: { id: true },
     }),
+    // したく: きょうの活動が潜行の質に乗る
+    getDivePrep(user.id),
   ]);
 
   const rarities = owned
     .map((o) => GADGETS.find((g) => g.id === o.gadgetId)?.rarity)
     .filter((r): r is NonNullable<typeof r> => !!r);
 
-  // 手持ちのごはんを1個だけ持ち込める（どうぐコマンド用）
-  const carried = foods.length > 0 ? [foods[0].foodId as FoodId] : [];
+  // どうぐの持ち込み枠は「したく」で増える（学習プランの項目を終えるごとに+1）
+  const carried = foods.slice(0, prep.itemSlots).map((f) => f.foodId as FoodId);
 
+  // したくの効果を素のステータスに乗せる（腕試し→開始深度、スキル承認→ATK/DEF）
+  const base = heroStats({
+    level: stats.level,
+    generation: stats.generation,
+    gadgetRarities: rarities,
+  });
   let state = createDiveState({
-    baseDepth: baseDepthOf(stats),
-    stats: heroStats({
-      level: stats.level,
-      generation: stats.generation,
-      gadgetRarities: rarities,
-    }),
+    baseDepth: baseDepthOf(stats) + prep.startDepthBonus,
+    stats: {
+      ...base,
+      atk: base.atk + prep.atkBonus,
+      def: base.def + prep.defBonus,
+    },
     hasReportShield: !!shield,
     firstDive: runCount === 0,
     items: carried,
+    charms: prep.charms,
   });
   state = enterFloor(state, rng);
 

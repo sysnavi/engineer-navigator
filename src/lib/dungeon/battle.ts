@@ -27,7 +27,7 @@ export type Foe = Fighter & {
   charging?: boolean;
 };
 
-export type BattleCommand = "attack" | "guard" | "special" | "item" | "flee";
+export type BattleCommand = "attack" | "guard" | "special" | "item" | "charm" | "flee";
 
 export const SPECIAL_COST = 3;
 /** まもる中の被ダメージ倍率 */
@@ -111,6 +111,8 @@ export type TurnResult = {
   outcome: "continue" | "win" | "lose" | "fled" | "flee-failed";
   /** どうぐを使った場合、消費したアイテム */
   usedItem?: string;
+  /** 知恵の護符を使ったか（呼び出し側で所持数を減らす） */
+  usedCharm?: boolean;
 };
 
 /**
@@ -126,6 +128,8 @@ export function resolveTurn(params: {
   item?: { id: string; name: string; heal: number };
   /** 逃走可否（ボスからは逃げられない） */
   canFlee?: boolean;
+  /** 知恵の護符の所持数（AIメンターに相談した日だけ持てる） */
+  charms?: number;
 }): TurnResult {
   const { rng } = params;
   const hero = { ...params.hero };
@@ -134,6 +138,7 @@ export function resolveTurn(params: {
   const logs: BattleLog[] = [];
   let guarding = false;
   let usedItem: string | undefined;
+  let usedCharm: boolean | undefined;
 
   // --- プレイヤーの行動 ---
   switch (params.command) {
@@ -182,6 +187,23 @@ export function resolveTurn(params: {
       });
       break;
     }
+    case "charm": {
+      // 知恵の護符（AIメンターに相談した日だけ持てる）。HPを全回復する切り札
+      if (!params.charms || params.charms <= 0) {
+        logs.push({ text: "おふだを もっていない。", fx: "miss" });
+        break;
+      }
+      const before = hero.hp;
+      hero.hp = hero.maxHp;
+      usedCharm = true;
+      logs.push({
+        text: `知恵の護符が 光った！ HPが ${hero.hp - before} かいふく。`,
+        fx: "heal",
+        damage: hero.hp - before,
+        target: "hero",
+      });
+      break;
+    }
     case "flee": {
       if (params.canFlee === false) {
         logs.push({ text: "ボスからは にげられない！", fx: "miss" });
@@ -198,7 +220,7 @@ export function resolveTurn(params: {
 
   if (foe.hp <= 0) {
     logs.push({ text: `${foe.name}を たおした！` });
-    return { hero, foe, sp, logs, outcome: "win", usedItem };
+    return { hero, foe, sp, logs, outcome: "win", usedItem, usedCharm };
   }
 
   // --- 敵の行動 ---
@@ -236,7 +258,7 @@ export function resolveTurn(params: {
   }
 
   if (hero.hp <= 0) {
-    return { hero, foe, sp, logs, outcome: "lose", usedItem };
+    return { hero, foe, sp, logs, outcome: "lose", usedItem, usedCharm };
   }
   return {
     hero,
@@ -245,5 +267,6 @@ export function resolveTurn(params: {
     logs,
     outcome: params.command === "flee" ? "flee-failed" : "continue",
     usedItem,
+    usedCharm,
   };
 }
