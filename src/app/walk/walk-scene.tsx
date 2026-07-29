@@ -1,13 +1,14 @@
 "use client";
 
 // WALK.sav — うちの子とのんびり外を歩くだけのシーン（見る専・低負荷）。
-// 世界はcanvasタイルエンジン（walk-canvas.tsx）: 5ビオーム巡回・視差・イベント。
+// 世界はcanvasタイルエンジン（walk-canvas.tsx）: 9ビオーム巡回（順はセッションごとにシャッフル）・視差・イベント。
 // 1分に1回くらいペットがつぶやく（時刻×天気×場所×きみのコンディション×性格）。
 // つぶやきは基本セリフ辞書（トークン0）。1散歩に1回だけAIの特別な一言が混じる（fail-open）。
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PersonalityId } from "@/lib/pets/species";
 import {
+  chainFollowUp,
   pickMutter,
   timeToBucket,
   seasonBucket,
@@ -19,11 +20,12 @@ import {
   type WalkContext,
 } from "@/lib/walk/mutter";
 import { fetchWeather } from "@/lib/walk/weather";
-import { BIOME_JA, type BiomeId } from "@/lib/walk/world";
+import { BIOME_JA, ENTRY_LINES, type BiomeId } from "@/lib/walk/world";
+import { walkItemById } from "@/lib/walk/items";
 import { WalkCanvas } from "./walk-canvas";
 import { BgmPlayer } from "./bgm-player";
 import { LeaveGuard } from "./leave-guard";
-import { walkAiMutter } from "./actions";
+import { collectWalkItem, walkAiMutter } from "./actions";
 
 export type WalkPet = {
   id: string;
@@ -49,6 +51,27 @@ const WEATHER_EMOJI: Record<WeatherBucket, string> = {
   fog: "🌫",
   storm: "⛈",
 };
+// つぶやきの重複回避履歴。直近40件をlocalStorageに持ち、リロードや日をまたいでも被らない。
+// 読み書きに失敗する環境（プライベートモード等）では黙ってメモリのみで動く（fail-open）
+const RECENT_KEY = "walk-mutter-recent";
+const RECENT_MAX = 40;
+function loadRecent(): string[] {
+  try {
+    const arr: unknown = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+    if (!Array.isArray(arr)) return [];
+    return arr.filter((x): x is string => typeof x === "string").slice(0, RECENT_MAX);
+  } catch {
+    return [];
+  }
+}
+function saveRecent(recent: string[]) {
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(recent));
+  } catch {
+    /* 保存できなくても散歩は続く */
+  }
+}
+
 const WEATHER_JA: Record<WeatherBucket, string> = {
   clear: "はれ",
   cloudy: "くもり",
@@ -62,9 +85,14 @@ export function WalkScene(props: {
   pets: WalkPet[];
   mood: MoodBucket;
   load: LoadBucket;
+  /** カギアイテムで解放済みの行き先ビオーム */
+  unlocked?: BiomeId[];
 }) {
   const [petId, setPetId] = useState(props.pets[0].id);
   const pet = props.pets.find((p) => p.id === petId) ?? props.pets[0];
+  // 解放済みの行き先（散歩中にカギを拾ったら即ふえる）と行き先選択
+  const [unlocked, setUnlocked] = useState<BiomeId[]>(props.unlocked ?? []);
+  const [dest, setDest] = useState<BiomeId | null>(null);
 
   // 時刻・天気はクライアントでしか決まらない。ハイドレーション不一致を避けるため
   // 初期値は固定にして、マウント後の effect で実値に差し替える。
@@ -94,6 +122,38 @@ export function WalkScene(props: {
     if (clearTimer.current) clearTimeout(clearTimer.current);
     clearTimer.current = setTimeout(() => setMutter(null), 7000);
   }, []);
+
+  // イベント発生: セリフを出し、カギアイテム付きなら拾う（fail-open・入手時だけ✨演出）
+  const handleEvent = useCallback(
+    (line: string, item?: string) => {
+      show(line, false);
+      if (!item) return;
+      collectWalkItem(item)
+        .then((res) => {
+          if (!res?.isNew) return;
+          setTimeout(() => show(`『${res.name}』を てにいれた！`, true), 3000);
+          setTimeout(() => show(res.getLine, false), 10500);
+          const def = walkItemById(item);
+          if (def) {
+            setUnlocked((u) =>
+              u.includes(def.unlocksBiome) ? u : [...u, def.unlocksBiome]
+            );
+          }
+        })
+        .catch(() => {});
+    },
+    [show]
+  );
+
+  // レア・特別ビオームに入った瞬間のひとこと
+  const handleBiomeChange = useCallback(
+    (b: BiomeId) => {
+      setBiome(b);
+      const entry = ENTRY_LINES[b];
+      if (entry) show(entry, true);
+    },
+    [show]
+  );
 
   // 時刻bucket（マウント時＋5分ごとに更新）
   useEffect(() => {
@@ -144,7 +204,9 @@ export function WalkScene(props: {
   // つぶやきループ（ペットを変えたら作り直す）。基本は辞書、2回目あたりで1度だけAI特別枠。
   useEffect(() => {
     let alive = true;
-    const recent: string[] = [];
+    const recent: string[] = loadRecent();
+    // 連番小ネタの「続き」。セットされていたら次のtickは辞書を引かずこれを出す
+    let pendingChain: string | null = null;
     let aiUsed = false;
     let tick = 0;
     let timer: ReturnType<typeof setTimeout>;
@@ -169,12 +231,20 @@ export function WalkScene(props: {
         }
       }
       if (!shown) {
-        shown = { text: pickMutter(ctxRef.current, recent), special: false };
+        if (pendingChain) {
+          shown = { text: pendingChain, special: false };
+          pendingChain = null;
+        } else {
+          const text = pickMutter(ctxRef.current, recent);
+          pendingChain = chainFollowUp(text);
+          shown = { text, special: false };
+        }
       }
       if (!alive) return;
 
       recent.unshift(shown.text);
-      if (recent.length > 6) recent.pop();
+      if (recent.length > RECENT_MAX) recent.pop();
+      saveRecent(recent);
       show(shown.text, shown.special);
 
       timer = setTimeout(run, 55000 + Math.random() * 15000);
@@ -190,15 +260,18 @@ export function WalkScene(props: {
   return (
     <div>
       <div className="isolate relative aspect-[16/9] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8 bg-ink">
-        {/* 世界（canvasタイルエンジン） */}
+        {/* 世界（canvasタイルエンジン）。行き先を選んだらそこから歩き直す（keyで作り直し） */}
         <WalkCanvas
+          key={dest ?? "auto"}
           walkSrc={pet.spriteWalk}
           normalSrc={pet.spriteNormal}
           time={time}
           weather={weather}
           speedMul={speedMul}
-          onBiomeChange={setBiome}
-          onEventLine={(line) => show(line, false)}
+          unlocked={unlocked}
+          startBiome={dest}
+          onBiomeChange={handleBiomeChange}
+          onEvent={handleEvent}
         />
 
         {/* つぶやき窓（canvasの上・シーン幅に収める） */}
@@ -230,6 +303,36 @@ export function WalkScene(props: {
           />
         )}
       </div>
+
+      {/* 行き先選択（カギアイテムで解放。見て分かる、が原則なので説明文なし） */}
+      {unlocked.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          <span className="font-pixel text-[10px] tracking-wide text-inksoft">
+            きょうは どこいく？:
+          </span>
+          <button
+            onClick={() => setDest(null)}
+            aria-pressed={dest === null}
+            className={`rounded-md border-2 px-2 py-0.5 text-[11.5px] font-bold ${
+              dest === null ? "border-line8 bg-royal text-white" : "border-line8 bg-surface"
+            }`}
+          >
+            おまかせ
+          </button>
+          {unlocked.map((b) => (
+            <button
+              key={b}
+              onClick={() => setDest(b)}
+              aria-pressed={dest === b}
+              className={`rounded-md border-2 px-2 py-0.5 text-[11.5px] font-bold ${
+                dest === b ? "border-line8 bg-royal text-white" : "border-line8 bg-surface"
+              }`}
+            >
+              {BIOME_JA[b]}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 天気・場所チップ＋ペット切替 */}
       <div className="mt-2.5 flex flex-wrap items-center gap-2">

@@ -86,6 +86,7 @@ model User {
   encounters       Encounter[]
   pets             Pet[]
   foodItems        FoodItem[]
+  walkItems        WalkItem[]
   authIdentities   AuthIdentity[]
   inquiries        Inquiry[]
   authSessions     AuthSession[]
@@ -222,6 +223,18 @@ model FoodItem {
   count  Int    @default(0)
 
   @@unique([userId, foodId])
+}
+
+/// おさんぽで拾ったカギアイテム（所持で特別な行き先ビオームが解放される）。
+/// マスタは src/lib/walk/items.ts（DBにはIDだけ置く方針）
+model WalkItem {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  itemId     String // WALK_ITEMS の id
+  obtainedAt DateTime @default(now())
+
+  @@unique([userId, itemId])
 }
 
 // アバター継承（転生）: 完了した世代の記録。1行 = 家系図の1段（先祖）。

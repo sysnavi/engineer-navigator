@@ -8,6 +8,8 @@ import { prisma } from "@/lib/db";
 import { speciesById } from "@/lib/pets/species";
 import { getConditionSeries, type WeekPoint } from "@/lib/condition";
 import { moodBucket, loadBucket } from "@/lib/walk/mutter";
+import { walkItemById } from "@/lib/walk/items";
+import type { BiomeId } from "@/lib/walk/world";
 import { PixelLabel, Window } from "@/components/retro";
 import { WalkScene, type WalkPet } from "./walk-scene";
 
@@ -19,13 +21,19 @@ export const metadata = {
 export default async function WalkPage() {
   const user = await getCurrentUser();
 
-  const [petRows, series] = await Promise.all([
+  const [petRows, series, walkItems] = await Promise.all([
     prisma.pet.findMany({
       where: { userId: user.id },
       orderBy: { affection: "desc" }, // いちばん仲良しの子が先頭
     }),
     getConditionSeries(user.id, 4).catch((): WeekPoint[] => []),
+    prisma.walkItem.findMany({ where: { userId: user.id } }).catch(() => []),
   ]);
+
+  // カギアイテム所持で解放された行き先（マスタに無いIDは無視＝fail-open）
+  const unlocked = walkItems
+    .map((w) => walkItemById(w.itemId)?.unlocksBiome)
+    .filter((b): b is BiomeId => b != null);
 
   const pets: WalkPet[] = petRows
     .map((p) => {
@@ -66,7 +74,7 @@ export default async function WalkPage() {
           </Link>
         </Window>
       ) : (
-        <WalkScene pets={pets} mood={mood} load={load} />
+        <WalkScene pets={pets} mood={mood} load={load} unlocked={unlocked} />
       )}
     </div>
   );

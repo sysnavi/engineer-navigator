@@ -1,7 +1,8 @@
 "use client";
 
 // おさんぽのタイルエンジン（ファミコン風・内部320x180をCSSで拡大）。
-// 世界の絵は src/lib/walk/world.ts。ここはループ・視差・境界遷移・イベント・ペット描画。
+// 世界の絵は src/lib/walk/world.ts（9ビオーム・巡回順はセッションごとにシャッフル）。
+// ここはループ・視差・境界遷移・イベント・ペット描画。
 //
 // - 進行方向: 背景が右→左に流れ、ペットは前傾＋2コマ歩行＋瞳右向きのwalk差分＋土ぼこり
 // - ビオーム境界: 道標が流れてくる間に遠景・中景をクロスフェード（地面は列単位で自然に交代）
@@ -12,11 +13,18 @@ import { useEffect, useRef } from "react";
 import {
   W,
   H,
+  HORIZON,
+  PATH_TOP,
   PET_X,
   PET_FOOT_Y,
   BIOME_LEN,
+  INDOOR_BIOMES,
+  FORCED_WEATHER,
+  AMBIENT_EVENTS,
   biomeAt,
   nextBoundary,
+  findSegOf,
+  setUnlockedBiomes,
   drawSky,
   drawFar,
   drawMid,
@@ -34,6 +42,172 @@ const BASE_SPEED = 14; // px/s（のんびり歩き。散歩なので急がな�
 const PET_SIZE = 48;
 const EVENT_PAUSE_MS = 4800;
 
+// 環境イベント（流れ星・犬・ホタル…）の発火間隔。最初は早め、以降はゆったり
+const AMBIENT_FIRST_MS = 45000;
+const AMBIENT_GAP_MS = 100000;
+
+/** 画面演出（環境イベント・イベント反応の生き物） */
+type Fx = { kind: string; born: number };
+
+const RAINBOW = ["#ff6b6b", "#ffb347", "#ffd84d", "#6fbf73", "#5dade2", "#8d84c9"];
+
+/** fx をひとつ描く。false を返したら寿命切れ（呼び出し側が捨てる） */
+function drawFx(ctx: CanvasRenderingContext2D, f: Fx, now: number, frame: number): boolean {
+  const age = (now - f.born) / 1000;
+
+  if (f.kind === "ryuusei" || f.kind === "eisei") {
+    const slow = f.kind === "eisei";
+    const dur = slow ? 2.6 : 1.4;
+    if (age > dur) return false;
+    const x = -20 + age * (slow ? 140 : 260);
+    const y = 16 + age * (slow ? 8 : 30);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(Math.round(x), Math.round(y), 3, 2);
+    for (let t = 1; t <= 4; t++) {
+      ctx.fillStyle = `rgba(255,255,255,${0.5 - t * 0.1})`;
+      ctx.fillRect(Math.round(x) - t * 5, Math.round(y) - t * (slow ? 0 : 1), 4, 1);
+    }
+    return true;
+  }
+  if (f.kind === "niji") {
+    const dur = 5;
+    if (age > dur) return false;
+    const a = Math.min(1, age) * (age > dur - 1 ? dur - age : 1) * 0.55;
+    const cx = W / 2;
+    const cy = HORIZON + 46;
+    ctx.globalAlpha = a;
+    RAINBOW.forEach((c, i) => {
+      const r = 118 - i * 4;
+      ctx.fillStyle = c;
+      for (let x = cx - r; x <= cx + r; x += 3) {
+        const dy = Math.sqrt(Math.max(0, r * r - (x - cx) * (x - cx)));
+        const y = cy - dy;
+        if (y < HORIZON + 8) ctx.fillRect(Math.round(x), Math.round(y), 3, 4);
+      }
+    });
+    ctx.globalAlpha = 1;
+    return true;
+  }
+  if (f.kind === "inu") {
+    if (age > 6.5) return false;
+    const x = W + 20 - age * 66;
+    const y = PET_FOOT_Y - 9;
+    const step = frame % 2;
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.fillRect(Math.round(x) - 1, PET_FOOT_Y - 1, 16, 2);
+    ctx.fillStyle = "#8a5a34";
+    ctx.fillRect(Math.round(x), y, 13, 5); // 胴
+    ctx.fillRect(Math.round(x) - 4, y - 3, 6, 5); // 顔（進行方向＝左）
+    ctx.fillRect(Math.round(x) - 4, y - 5, 2, 3); // 耳
+    ctx.fillRect(Math.round(x) + 12, y - 2 + (step ? 1 : 0), 3, 2); // しっぽ
+    ctx.fillStyle = "#6e4426";
+    ctx.fillRect(Math.round(x) + 1 + step, y + 5, 2, 4);
+    ctx.fillRect(Math.round(x) + 9 - step, y + 5, 2, 4);
+    ctx.fillStyle = "#12235f";
+    ctx.fillRect(Math.round(x) - 3, y - 2, 1, 1); // 目
+    return true;
+  }
+  if (f.kind === "tori") {
+    if (age > 7) return false;
+    ctx.fillStyle = "#3a4462";
+    for (let i = 0; i < 5; i++) {
+      const x = W + 30 - age * 58 + i * 15;
+      const y = 26 + (i % 2) * 5 + Math.sin(age * 3 + i) * 3;
+      const flap = (frame + i) % 2;
+      ctx.fillRect(Math.round(x), Math.round(y), 2, 1);
+      ctx.fillRect(Math.round(x) - 2, Math.round(y) - flap, 2, 1);
+      ctx.fillRect(Math.round(x) + 2, Math.round(y) - flap, 2, 1);
+    }
+    return true;
+  }
+  if (f.kind === "hotaru") {
+    if (age > 8) return false;
+    for (let i = 0; i < 6; i++) {
+      const x = 50 + i * 44 + Math.sin(age * 0.9 + i * 2) * 10;
+      const y = PATH_TOP - 16 + Math.cos(age * 1.3 + i) * 9;
+      if (Math.floor(age * 3 + i) % 3 === 2) continue; // 明滅
+      ctx.fillStyle = "rgba(220,255,140,0.25)";
+      ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 4, 4);
+      ctx.fillStyle = "#d8ff7a";
+      ctx.fillRect(Math.round(x), Math.round(y), 2, 2);
+    }
+    return true;
+  }
+  if (f.kind === "chou") {
+    if (age > 8) return false;
+    const colors = ["#ffffff", "#ffd84d", "#f7b2cd"];
+    for (let i = 0; i < 3; i++) {
+      const x = PET_X + 16 + Math.sin(age * 1.4 + i * 2.1) * 30;
+      const y = PATH_TOP - 22 + Math.cos(age * 1.9 + i) * 10;
+      const open = (frame + i) % 2 === 0;
+      ctx.fillStyle = colors[i];
+      ctx.fillRect(Math.round(x) - (open ? 2 : 1), Math.round(y), open ? 2 : 1, 2);
+      ctx.fillRect(Math.round(x) + 1, Math.round(y), open ? 2 : 1, 2);
+    }
+    return true;
+  }
+  if (f.kind === "trig-koumori") {
+    if (age > 2) return false;
+    ctx.fillStyle = "#3a3454";
+    for (let i = 0; i < 4; i++) {
+      const x = PET_X + 30 + (i - 1.5) * age * 46;
+      const y = PATH_TOP - 26 - age * 46 + (i % 2) * 6;
+      const flap = (frame + i) % 2;
+      ctx.fillRect(Math.round(x), Math.round(y), 2, 2);
+      ctx.fillRect(Math.round(x) - 2, Math.round(y) - flap, 2, 1);
+      ctx.fillRect(Math.round(x) + 2, Math.round(y) - flap, 2, 1);
+    }
+    return true;
+  }
+  if (f.kind === "trig-hato") {
+    if (age > 2.5) return false;
+    ctx.fillStyle = "#9aa2b5";
+    for (let i = 0; i < 3; i++) {
+      const x = PET_X + 26 + age * 50 + i * 8;
+      const y = PATH_TOP - 8 - age * 40 - i * 5;
+      const flap = (frame + i) % 2;
+      ctx.fillRect(Math.round(x), Math.round(y), 3, 2);
+      ctx.fillRect(Math.round(x) - 2, Math.round(y) - flap, 2, 1);
+      ctx.fillRect(Math.round(x) + 3, Math.round(y) - flap, 2, 1);
+    }
+    return true;
+  }
+  if (f.kind === "trig-batta") {
+    if (age > 1.6) return false;
+    const x = PET_X + 28 + age * 70;
+    const y = PATH_TOP - 3 - Math.abs(Math.sin(age * 7)) * 13;
+    ctx.fillStyle = "#5f9e4a";
+    ctx.fillRect(Math.round(x), Math.round(y), 3, 2);
+    return true;
+  }
+  if (f.kind === "trig-gyogun") {
+    if (age > 5) return false;
+    const colors = ["#ff9a3e", "#ffd75e", "#6fd8c9"];
+    for (let i = 0; i < 8; i++) {
+      const ang = age * 1.8 + i * 0.785;
+      const x = PET_X + Math.cos(ang) * 34;
+      const y = PET_FOOT_Y - 26 + Math.sin(ang) * 13;
+      ctx.fillStyle = colors[i % 3];
+      ctx.fillRect(Math.round(x), Math.round(y), 5, 2);
+      ctx.fillRect(Math.round(x) + (Math.cos(ang + 1.6) > 0 ? -2 : 5), Math.round(y), 2, 3);
+    }
+    return true;
+  }
+  if (f.kind === "trig-kanketsusen") {
+    if (age > 2.4) return false;
+    const hgt = Math.sin(Math.min(1, age / 0.5) * Math.PI * 0.5) * 46;
+    const x = PET_X + 30;
+    ctx.fillStyle = "rgba(223,230,242,0.85)";
+    ctx.fillRect(x, Math.round(PATH_TOP - hgt), 5, Math.round(hgt));
+    ctx.fillStyle = "rgba(223,230,242,0.55)";
+    ctx.fillRect(x - 3, Math.round(PATH_TOP - hgt * 0.7), 3, Math.round(hgt * 0.7));
+    ctx.fillRect(x + 5, Math.round(PATH_TOP - hgt * 0.8), 3, Math.round(hgt * 0.8));
+    return true;
+  }
+  // 視覚なしイベント（夕焼け・雷宿り・朝もや）は即おわり
+  return false;
+}
+
 export function WalkCanvas(props: {
   walkSrc: string;
   normalSrc: string;
@@ -41,8 +215,13 @@ export function WalkCanvas(props: {
   weather: WeatherBucket;
   /** デバッグ用の早回し（?speed=） */
   speedMul: number;
+  /** カギアイテムで解放済みの特別ビオーム（巡回に混ざる） */
+  unlocked?: BiomeId[];
+  /** この行き先から歩き始める（「きょうは どこいく？」） */
+  startBiome?: BiomeId | null;
   onBiomeChange?: (b: BiomeId) => void;
-  onEventLine?: (line: string) => void;
+  /** イベント発生。item はカギアイテムのid（拾ったらサーバーで付与） */
+  onEvent?: (line: string, item?: string) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   // ループから常に最新のpropsを読むための ref（ループ自体は張り直さない）
@@ -80,12 +259,26 @@ export function WalkCanvas(props: {
     ctx.imageSmoothingEnabled = false;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    let sx = 40; // 草原の途中から歩き出す
+    // 解放済みビオームを巡回に混ぜてから位置を決める
+    setUnlockedBiomes(propsRef.current.unlocked ?? []);
+
+    let sx = 40; // 最初のビオームの途中から歩き出す
+    // ?biome= デバッグ / 行き先選択: 指定ビオームから歩き始める
+    const wantBiome =
+      (new URLSearchParams(window.location.search).get("biome") as BiomeId | null) ??
+      propsRef.current.startBiome ??
+      null;
+    if (wantBiome) {
+      const seg = findSegOf(wantBiome);
+      if (seg != null) sx = seg * BIOME_LEN + 40;
+    }
     let last = performance.now();
     let raf = 0;
     let pausedUntil = 0;
     let lastBiome: BiomeId | null = null;
     let dustAcc = 0;
+    let nextAmbientAt = performance.now() + AMBIENT_FIRST_MS + Math.random() * 30000;
+    const fx: Fx[] = [];
     const dust: { x: number; y: number; vx: number; life: number }[] = [];
     // プロップは区間単位で決定的生成してキャッシュ（イベント消化フラグも持つ）
     const segCache = new Map<number, PropInstance[]>();
@@ -127,9 +320,33 @@ export function WalkCanvas(props: {
             if (pr.event && !pr.done && d <= 40 && d > -40) {
               pr.done = true;
               pausedUntil = now + EVENT_PAUSE_MS;
-              p.onEventLine?.(pr.event.lines[hash(pr.worldX) % pr.event.lines.length]);
+              p.onEvent?.(
+                pr.event.lines[hash(pr.worldX) % pr.event.lines.length],
+                pr.event.item
+              );
+              // 生き物イベントは動きで応える（コウモリ散開・ハト飛び立ち・バッタ跳ね・魚群）
+              if (["koumori", "hato", "batta", "gyogun", "kanketsusen"].includes(pr.event.id)) {
+                fx.push({ kind: `trig-${pr.event.id}`, born: now });
+              }
             }
           }
+        }
+      }
+
+      // 環境イベント（流れ星・虹・犬・鳥・ホタル・ちょうちょ…）
+      if (moving && now > nextAmbientAt) {
+        nextAmbientAt = now + AMBIENT_GAP_MS + Math.random() * 80000;
+        const cands = AMBIENT_EVENTS.filter(
+          (ev) =>
+            ev.biomes.includes(b) &&
+            (!ev.time || ev.time.includes(p.time)) &&
+            (!ev.weather || ev.weather.includes(p.weather))
+        );
+        if (cands.length > 0) {
+          const ev = cands[hash(now | 0) % cands.length];
+          p.onEvent?.(ev.lines[hash((now | 0) * 7) % ev.lines.length]);
+          if (ev.pause) pausedUntil = now + EVENT_PAUSE_MS;
+          fx.push({ kind: ev.id, born: now });
         }
       }
 
@@ -154,19 +371,25 @@ export function WalkCanvas(props: {
       }
 
       // ===== 描画 =====
-      drawSky(ctx, p.time, p.weather, frame, sx);
-
-      // 遠景・中景: 現ビオーム→境界が画面内なら次ビオームをクロスフェード
+      const nowSec = reduced ? 0 : now / 1000;
+      // 空も遠景・中景と同じく境界でクロスフェード（レア・特別ビオームは空ごと変わる）
       const base = biomeAt(sx);
       const nb = nextBoundary(sx);
       const fadeT = nb < sx + W ? Math.min(1, Math.max(0, (sx + W - nb) / W)) : 0;
-      drawFar(ctx, base, sx * 0.25, p.time);
-      drawMid(ctx, base, sx * 0.55, p.time, frame);
+      const nbio = fadeT > 0 ? biomeAt(nb) : base;
+
+      drawSky(ctx, p.time, p.weather, frame, sx, base);
       if (fadeT > 0) {
-        const nbio = biomeAt(nb);
+        ctx.globalAlpha = fadeT;
+        drawSky(ctx, p.time, p.weather, frame, sx, nbio);
+        ctx.globalAlpha = 1;
+      }
+      drawFar(ctx, base, sx * 0.25, p.time);
+      drawMid(ctx, base, sx * 0.55, p.time, frame, nowSec);
+      if (fadeT > 0) {
         ctx.globalAlpha = fadeT;
         drawFar(ctx, nbio, sx * 0.25, p.time);
-        drawMid(ctx, nbio, sx * 0.55, p.time, frame);
+        drawMid(ctx, nbio, sx * 0.55, p.time, frame, nowSec);
         ctx.globalAlpha = 1;
       }
 
@@ -200,8 +423,15 @@ export function WalkCanvas(props: {
         ctx.restore();
       }
 
-      // 天気（雨・雪・霧の粒。世界の一番手前＝吹き出しの奥）
-      drawWeather(ctx, p.weather, reduced ? 0 : now);
+      // 環境イベントの演出（流れ星・虹・生き物たち）
+      for (let i = fx.length - 1; i >= 0; i--) {
+        if (!drawFx(ctx, fx[i], now, frame)) fx.splice(i, 1);
+      }
+
+      // 天気（雨・雪・霧の粒。世界の一番手前＝吹き出しの奥）。屋内では降らせない。
+      // 雪山は天気に関係なく常に雪（FORCED_WEATHER）
+      const wb = FORCED_WEATHER[b] ?? p.weather;
+      if (!INDOOR_BIOMES.has(b)) drawWeather(ctx, wb, reduced ? 0 : now);
     };
 
     raf = requestAnimationFrame(tick);

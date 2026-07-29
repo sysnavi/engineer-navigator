@@ -26,6 +26,7 @@ import {
   type LoadBucket,
 } from "@/lib/walk/mutter";
 import { BIOME_JA, type BiomeId } from "@/lib/walk/world";
+import { walkItemById } from "@/lib/walk/items";
 
 const TIME_JA: Record<TimeBucket, string> = {
   morning: "朝",
@@ -112,6 +113,30 @@ export async function walkAiMutter(input: {
     return { reply: reply.slice(0, 60) };
   } catch (e) {
     console.error("walkAiMutter failed:", e);
+    return null;
+  }
+}
+
+/**
+ * おさんぽ中に拾ったカギアイテムを付与する。すでに持っていたら isNew: false。
+ * 【fail-open】散歩を止めないため、失敗はぜんぶ null（クライアントは黙って続行）。
+ */
+export async function collectWalkItem(
+  itemId: string
+): Promise<{ isNew: boolean; name: string; getLine: string } | null> {
+  try {
+    const def = walkItemById(itemId);
+    if (!def) return null;
+    const user = await getCurrentUser();
+    try {
+      await prisma.walkItem.create({ data: { userId: user.id, itemId: def.id } });
+      return { isNew: true, name: def.name, getLine: def.getLine };
+    } catch {
+      // ユニーク制約違反 = 取得済み
+      return { isNew: false, name: def.name, getLine: def.getLine };
+    }
+  } catch (e) {
+    console.error("collectWalkItem failed:", e);
     return null;
   }
 }
