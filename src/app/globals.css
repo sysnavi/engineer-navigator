@@ -267,6 +267,18 @@ body {
     opacity: 0.7;
   }
 
+  /* チャットの入力ドック: 画面下に貼り付く（メッセージが長くても入力欄が常に見える）。
+     desktopシェルでは固定タスクバー(54px)の上に載せる。ピル(「↓最新へ」等)の
+     絶対配置の基準にもなるので position は sticky 固定。 */
+  .chat-dock {
+    position: sticky;
+    bottom: calc(env(safe-area-inset-bottom) + 8px);
+    z-index: 20;
+  }
+  body[data-shell="desktop"] .chat-dock {
+    bottom: 62px; /* タスクバー54px + 余白8px（safe-areaはタスクバー側が吸収） */
+  }
+
   /* リザルト画面の登場演出（RPGのリザルト風にカクカク拡大） */
   @media (prefers-reduced-motion: no-preference) {
     .result8-pop {

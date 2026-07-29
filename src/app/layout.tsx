@@ -105,7 +105,8 @@ export default async function RootLayout({
       className={`h-full antialiased ${dotGothic.variable}`}
       {...(palette !== "sky" ? { "data-palette": palette } : {})}
     >
-      <body className="min-h-full">
+      {/* data-shell: .chat-dock がタスクバーの有無で下端位置を変えるために参照 */}
+      <body className="min-h-full" data-shell={shell}>
         <RegisterSW />
         <AutosizeTextareas />
         {loggedIn && (

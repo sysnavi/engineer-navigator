@@ -1,69 +1,71 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { MicButton } from "@/components/mic-button";
+import { memo, useEffect, useRef, useState } from "react";
 import { SendingOverlay } from "@/components/sending-overlay";
-
-type Msg = { role: "USER" | "ASSISTANT"; content: string };
+import { type ChatMsg, useStreamChat } from "@/components/chat/use-stream-chat";
+import { useFollowBottom } from "@/components/chat/use-follow-bottom";
+import { ChatComposer } from "@/components/chat/composer";
 
 // メンターのチャット（ストリーミング）。
 // 初期メッセージ列を受け取り、末尾がUSERで返信待ちなら自動で1回ストリームを開始する。
+// 受信/表示の分離とペーシングは useStreamChat、スクロール追従は useFollowBottom 側。
+// ここでは吹き出しをmemo化して、描画更新をストリーミング中の末尾1件に閉じ込める。
+//
+// じっくりモード: 回答を##セクション単位で区切って表示し、「▶ つづき」で読み進める。
+// 「🔁 もう一回」は通常のチャットメッセージとして送るので、どこでつまずいたかが
+// セッション履歴（DB）にそのまま残る。
 
-export function MentorChat(props: { sessionId: string; initial: Msg[] }) {
-  const [messages, setMessages] = useState<Msg[]>(props.initial);
-  const [streaming, setStreaming] = useState(false);
-  // 応答待ち（最初の1文字が届くまで）。オーバーレイはこの間だけ出す。
-  const [waiting, setWaiting] = useState(false);
-  const [input, setInput] = useState("");
-  const bottomRef = useRef<HTMLDivElement>(null);
+const PACE_KEY = "mentor-pace";
+
+const Bubble = memo(function Bubble(props: { msg: ChatMsg; thinking: boolean }) {
+  const { msg, thinking } = props;
+  return (
+    <div className={msg.role === "USER" ? "flex justify-end" : "flex justify-start"}>
+      <div
+        className={`max-w-[85%] whitespace-pre-wrap rounded-lg border-2 border-line8 px-3.5 py-2.5 text-[13.5px] leading-relaxed shadow-hard-sm ${
+          msg.role === "USER" ? "bg-royal text-white" : "bg-surface text-ink"
+        }`}
+      >
+        {msg.content ||
+          (thinking ? (
+            <span className="font-pixel text-[12px] text-royal2">
+              THINKING<span className="blink">_</span>
+            </span>
+          ) : (
+            ""
+          ))}
+      </div>
+    </div>
+  );
+});
+
+export function MentorChat(props: { sessionId: string; initial: ChatMsg[] }) {
+  // じっくりモードはローカル設定（端末ごと）。SSRとの不一致を避けるためマウント後に読む
+  const [pace, setPace] = useState<"flow" | "section">("flow");
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (localStorage.getItem(PACE_KEY) === "section") setPace("section");
+  }, []);
+
+  const {
+    messages,
+    streaming,
+    waiting,
+    gated,
+    received,
+    send,
+    resume,
+    skip,
+    continueGate,
+  } = useStreamChat({
+    endpoint: "/api/mentor",
+    sessionId: props.sessionId,
+    initial: props.initial,
+    errorText: "[通信エラー。もう一度お試しください]",
+    paceMode: pace,
+  });
+  const { bottomRef, away, jumpToBottom } = useFollowBottom(messages);
   const started = useRef(false);
-
-  async function stream(sessionId: string) {
-    setStreaming(true);
-    setWaiting(true);
-    setMessages((m) => [...m, { role: "ASSISTANT", content: "" }]);
-    try {
-      const res = await fetch("/api/mentor", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, content: pendingContentRef.current }),
-      });
-      if (!res.body) throw new Error("no body");
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        // 回答を描き始めたらオーバーレイは消す
-        setWaiting(false);
-        setMessages((m) => {
-          const copy = [...m];
-          copy[copy.length - 1] = {
-            role: "ASSISTANT",
-            content: copy[copy.length - 1].content + chunk,
-          };
-          return copy;
-        });
-      }
-    } catch {
-      setMessages((m) => {
-        const copy = [...m];
-        copy[copy.length - 1] = {
-          role: "ASSISTANT",
-          content:
-            copy[copy.length - 1].content ||
-            "[通信エラー。もう一度お試しください]",
-        };
-        return copy;
-      });
-    } finally {
-      setStreaming(false);
-      setWaiting(false);
-    }
-  }
-
-  const pendingContentRef = useRef("");
 
   // 初期状態: 末尾がUSER（firstMessageのシード等）なら自動でメンターの返信を取りに行く。
   // stream() の同期setStateがeffect内で走らないよう次のtickに逃がす。
@@ -72,82 +74,96 @@ export function MentorChat(props: { sessionId: string; initial: Msg[] }) {
     started.current = true;
     const last = props.initial[props.initial.length - 1];
     if (last && last.role === "USER") {
-      pendingContentRef.current = last.content;
       // setTimeout でeffectの同期実行から外す。started ガードで一度だけ発火するので
       // Strict Mode のクリーンアップでキャンセルはしない（キャンセルすると発火しなくなる）。
-      setTimeout(() => void stream(props.sessionId), 0);
+      setTimeout(() => void resume(last.content), 0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  async function onSend(e: React.FormEvent) {
-    e.preventDefault();
-    const content = input.trim();
-    if (!content || streaming) return;
-    setInput("");
-    setMessages((m) => [...m, { role: "USER", content }]);
-    pendingContentRef.current = content;
-    await stream(props.sessionId);
+  function togglePace() {
+    const next = pace === "flow" ? "section" : "flow";
+    setPace(next);
+    localStorage.setItem(PACE_KEY, next);
   }
+
+  // いま読んでいたセクションの見出しを添えて、かみくだき直しを頼む。
+  // skip()で現在の回答を確定させてから送る（受信完了時のみチップを出すので安全）
+  function askAgain() {
+    const last = messages[messages.length - 1];
+    const heads = [...last.content.matchAll(/^##\s*(.+)$/gm)];
+    const title = heads.length ? heads[heads.length - 1][1].trim() : "";
+    skip();
+    void send(
+      title
+        ? `「${title}」のところが難しかったです。もっとかみくだいて説明してください`
+        : "いまの説明が難しかったです。もっとかみくだいて説明してください"
+    );
+  }
+
+  // 読み戻し中は「↓ 最新へ」、追従中は「▶▶ ぜんぶ表示」（ペーシングの逃げ道）。
+  // ゲート待ちの間はチップ（つづき/もう一回）が主役なのでピルは出さない
+  const notice =
+    streaming && !gated
+      ? away
+        ? { label: "↓ 最新へ", onClick: jumpToBottom }
+        : { label: "▶▶ ぜんぶ表示", onClick: skip }
+      : null;
 
   return (
     <div className="flex flex-col gap-4">
       <SendingOverlay show={waiting} label="送信中" />
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={togglePace}
+          aria-pressed={pace === "section"}
+          title="回答をセクションごとに区切って、自分のペースで読み進める"
+          className={`rounded-md border-2 border-line8 px-2.5 py-1 font-pixel text-[10px] tracking-wide shadow-hard-sm transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+            pace === "section" ? "bg-royal text-white" : "bg-win text-inksoft"
+          }`}
+        >
+          ⏱ じっくりモード{pace === "section" ? " ON" : ""}
+        </button>
+      </div>
       <div className="space-y-3">
         {messages.map((m, i) => (
-          <div
+          <Bubble
             key={i}
-            className={m.role === "USER" ? "flex justify-end" : "flex justify-start"}
-          >
-            <div
-              className={`max-w-[85%] whitespace-pre-wrap rounded-lg border-2 border-line8 px-3.5 py-2.5 text-[13.5px] leading-relaxed shadow-hard-sm ${
-                m.role === "USER"
-                  ? "bg-royal text-white"
-                  : "bg-surface text-ink"
-              }`}
-            >
-              {m.content ||
-                (streaming && i === messages.length - 1 ? (
-                  <span className="font-pixel text-[12px] text-royal2">
-                    THINKING<span className="blink">_</span>
-                  </span>
-                ) : (
-                  ""
-                ))}
-            </div>
-          </div>
+            msg={m}
+            thinking={streaming && i === messages.length - 1}
+          />
         ))}
+        {gated && (
+          <div className="flex gap-2 pl-1">
+            <button
+              type="button"
+              onClick={continueGate}
+              className="btn8 btn8-ok px-3 py-1.5 text-[11px]"
+            >
+              ▶ つづき
+            </button>
+            {received && (
+              <button
+                type="button"
+                onClick={askAgain}
+                className="btn8 px-3 py-1.5 text-[11px]"
+              >
+                🔁 もう一回
+              </button>
+            )}
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
-      <form onSubmit={onSend} className="flex items-end gap-2.5">
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onSend(e);
-          }}
-          rows={2}
-          placeholder="メンターに質問する…"
-          className="field8"
-          disabled={streaming}
-        />
-        <MicButton
-          disabled={streaming}
-          onText={(t) => setInput((v) => (v ? `${v} ${t}` : t))}
-        />
-        <button
-          type="submit"
-          className="btn8 btn8-start shrink-0 text-[12px]"
-          disabled={streaming || !input.trim()}
-        >
-          ▶ 送信
-        </button>
-      </form>
+      <ChatComposer
+        placeholder="メンターに質問する…"
+        sendLabel="送信"
+        disabled={streaming}
+        onSend={(content) => void send(content)}
+        notice={notice}
+      />
     </div>
   );
 }
