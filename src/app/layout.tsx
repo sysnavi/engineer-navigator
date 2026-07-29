@@ -13,7 +13,12 @@ import { Toaster } from "@/components/toast";
 import { Taskbar } from "@/components/shell/taskbar";
 import { GuardedLink } from "@/components/nav-guard";
 import { Visitor } from "@/components/pets/visitor";
-import { ensureTodayEncounter, getPendingVisitor } from "@/lib/pets/encounter";
+import { PresenceHint } from "@/components/pets/presence-hint";
+import {
+  ensureTodayEncounter,
+  getPendingVisitor,
+  getPresenceHint,
+} from "@/lib/pets/encounter";
 import "./globals.css";
 
 const dotGothic = DotGothic16({
@@ -55,15 +60,18 @@ export default async function RootLayout({
   const user = await getOptionalUser();
   const loggedIn = !!user;
   let visitor: Awaited<ReturnType<typeof getPendingVisitor>> = null;
+  let presence: Awaited<ReturnType<typeof getPresenceHint>> = null;
   if (user) {
     palette = user.palette;
     role = user.role;
     // 訪問EXP: 1日1回だけ記録（skipDuplicatesで2回目以降は何もしない・失敗しても画面は出す）
     await recordVisit(user.id);
-    // レアキャラ来訪（Issue #2）: きょうの抽選を確定→PENDINGならフローティング表示
+    // レアキャラ来訪（Issue #2）: きょうの抽選を確定→PENDINGならフローティング表示。
+    // 来訪者がいない日は「気配」（あしあと）で翌日への引きを作る
     try {
       await ensureTodayEncounter(user.id);
       visitor = await getPendingVisitor(user.id);
+      if (!visitor) presence = await getPresenceHint(user.id);
     } catch (e) {
       console.error("encounter check failed:", e);
     }
@@ -176,8 +184,10 @@ export default async function RootLayout({
             encounterId={visitor.encounterId}
             speciesId={visitor.species.id}
             aiEnabled={!!process.env.ANTHROPIC_API_KEY}
+            revisit={visitor.revisit}
           />
         )}
+        {!visitor && presence && <PresenceHint kind={presence} />}
       </body>
     </html>
   );

@@ -25,6 +25,8 @@ export function Visitor(props: {
   encounterId: string;
   speciesId: string;
   aiEnabled: boolean;
+  /** きのう逃した子の再訪（サーバー判定）。演出だけ変える */
+  revisit?: boolean;
 }) {
   const species = speciesById(props.speciesId);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -143,7 +145,7 @@ export function Visitor(props: {
         aria-label={`${species.name}が遊びに来ています。話しかける`}
       >
         <span className="rounded-md border-2 border-line8 bg-win px-1.5 py-0.5 font-pixel text-[9.5px] tracking-wide text-ink shadow-hard-sm">
-          👋 …？
+          {props.revisit ? "👋 また きたよ！" : "👋 …？"}
         </span>
         <span className="alien-patapata block drop-shadow-[3px_3px_0_rgba(18,35,95,0.3)]">
           <Image
@@ -190,6 +192,11 @@ export function Visitor(props: {
 
           {(phase === "first" || phase === "second") && (
             <>
+              {props.revisit && phase === "first" && !reply && (
+                <p className="mb-2 text-center font-pixel text-[10px] tracking-[0.12em] text-royal2">
+                  🐾 きのうの子が また来てくれた…！
+                </p>
+              )}
               <div className="space-y-1 rounded-lg border-2 border-dashed border-peri bg-surface px-3 py-2 text-[13px] leading-relaxed">
                 {/* 1ターン目は種族固有の第一声（性格ツリーの汎用導入とは重複させない） */}
                 {(reply ? [reply] : phase === "first" ? [species.intro] : node.lines).map(

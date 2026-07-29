@@ -38,7 +38,9 @@ export default async function AdminPage() {
   const dayAgo = new Date(new Date().getTime() - 24 * 60 * 60_000);
   const weekAgo = new Date(new Date().getTime() - 7 * 24 * 60 * 60_000);
 
-  const [users, usage24h, activeWeek, invites, openInquiries] = await Promise.all([
+  const monthAgo = new Date(new Date().getTime() - 30 * 24 * 60 * 60_000);
+
+  const [users, usage24h, activeWeek, invites, openInquiries, encounters] = await Promise.all([
     prisma.user.findMany({
       orderBy: [{ suspendedAt: "desc" }, { createdAt: "asc" }],
       select: {
@@ -74,6 +76,12 @@ export default async function AdminPage() {
       include: { user: { select: { name: true, handle: true } } },
     }),
     prisma.inquiry.count({ where: { status: "OPEN" } }),
+    // ペット来訪の30日集計（レート調整をデータで回すための計器盤）
+    prisma.encounter.groupBy({
+      by: ["status"],
+      where: { date: { gte: monthAgo } },
+      _count: { _all: true },
+    }),
   ]);
 
   const usageMap = new Map(usage24h.map((u) => [u.userId, u._count._all]));
@@ -82,6 +90,17 @@ export default async function AdminPage() {
   const totalReports = users.reduce((s, u) => s + u._count.reports, 0);
   const totalRoleplays = users.reduce((s, u) => s + u._count.roleplaySessions, 0);
   const totalMentors = users.reduce((s, u) => s + u._count.mentorSessions, 0);
+
+  // 来訪ファネル: 抽選 → 出現 → 会話 → なつき/逃走（EXPIRED=話しかけずに逃した）
+  const encCount = (s: string) =>
+    encounters.find((e) => e.status === s)?._count._all ?? 0;
+  const encDraws = encounters.reduce((s, e) => s + e._count._all, 0);
+  const encAppeared = encDraws - encCount("NONE");
+  const encBefriended = encCount("BEFRIENDED");
+  const encFled = encCount("FLED");
+  const encExpired = encCount("EXPIRED");
+  const encTalked = encBefriended + encFled;
+  const pct = (n: number, d: number) => (d > 0 ? `${Math.round((n / d) * 100)}%` : "—");
 
   const h = await headers();
   const host = h.get("host") ?? "";
@@ -146,6 +165,36 @@ export default async function AdminPage() {
           hint="役割演習/メンター"
         />
       </div>
+
+      {/* ペット来訪ファネル（直近30日）: 出現率・再訪保証のチューニングはここを見る */}
+      <Window title="ENCOUNTERS" titleEm=".log">
+        <p className="mb-3 text-[12px] text-inksoft">
+          レアキャラ来訪の直近30日。出現率カーブ（0匹40%→3匹〜8%）・確定再訪の
+          効きぐあいを見て src/lib/pets/encounter.ts の定数を調整する。
+        </p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatCard
+            label="出現/抽選"
+            value={`${encAppeared}/${encDraws}`}
+            hint={`出現率 ${pct(encAppeared, encDraws)}`}
+          />
+          <StatCard
+            label="なつき"
+            value={encBefriended}
+            hint={`会話したうち ${pct(encBefriended, encTalked)}`}
+          />
+          <StatCard
+            label="逃走"
+            value={encFled}
+            hint="会話したが逃げられた"
+          />
+          <StatCard
+            label="スルー"
+            value={encExpired}
+            hint={`話しかけず日が変わった（出現の${pct(encExpired, encAppeared)}）`}
+          />
+        </div>
+      </Window>
 
       {/* ユーザー分析 + BAN */}
       <Window title="USERS" titleEm=".db">
