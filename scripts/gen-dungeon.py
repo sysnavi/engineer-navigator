@@ -363,6 +363,452 @@ ICONS["cat-rt"] = pad([
 ], 12, 12)
 
 # ---------------------------------------------------------------------------
+# ガジェット個別スプライト（松: カテゴリ共通絵を卒業）
+# 幅・高さは自由（横長モニタ/縦長ラックなどアスペクト比で個性を出す）。
+# content.ts の sprite: "gad-<id>" と1対1で対応させる。
+# ---------------------------------------------------------------------------
+GADGET_ART = {}
+
+# --- kb ---
+GADGET_ART["gad-cha-kb"] = pad([
+    "kkkkkkkkkkkkkkkkkkkk",
+    "k" + "s" * 18 + "k",
+    "k" + "sww" * 6 + "k",
+    "k" + "sww" * 6 + "k",
+    "k" + "s" * 18 + "k",
+    "k" + "sww" * 6 + "k",
+    "k" + "s" + "n" * 16 + "s" + "k",  # 茶軸カラーのスペース行
+    "kkkkkkkkkkkkkkkkkkkk",
+], 20, 8)
+
+GADGET_ART["gad-split-kb"] = pad([
+    "kkkkkkkkkk..kkkkkkkkkk",
+    "kssssssssk..kssssssssk",
+    "kswwswwssk..ksswwswwsk",
+    "kswwswwssk..ksswwswwsk",
+    "kssssssssk..kssssssssk",
+    "ksnnnnsssk..ksssnnnnsk",
+    "kkkkkkkkkk..kkkkkkkkkk",
+], 22, 7)
+
+GADGET_ART["gad-jisaku-kb-kit"] = pad([
+    "...kk....kk.......",
+    "..kwwk..kwwk......",
+    "..kkkk..kkkk......",
+    ".kkkkkkkkkkkkkk...",
+    ".kGGGGGGGGGGGGk...",
+    ".kGgGoGGgGoGgGk...",
+    ".kGGGGGGGGGGGGk...",
+    ".kkkkkkkkkkkkkk...",
+], 18, 8)
+
+GADGET_ART["gad-capacitive-board"] = pad([
+    "kkkkkkkkkkkkkkkkkk",
+    "k" + "S" * 16 + "k",
+    "k" + "wSS" * 5 + "w" + "k",
+    "k" + "S" * 16 + "k",
+    "k" + "wSS" * 5 + "w" + "k",
+    "k" + "SSS" + "w" * 10 + "SSS" + "k",
+    "kkkkkkkkkkkkkkkkkk",
+], 18, 7)
+
+GADGET_ART["gad-forty-kb"] = pad([
+    "kkkkkkkkkkkk",
+    "kssssssssssk",
+    "kswwswwswwsk",
+    "kssssssssssk",
+    "ksswwwwwwssk",
+    "kkkkkkkkkkkk",
+], 12, 6)
+
+GADGET_ART["gad-legend-enter"] = pad([
+    "..kkkkkkkkkk..",
+    ".kyyyyyyyyyyk.",
+    "kyywyyyyyyyyyk",
+    "kyyyyyyyykyyyk",
+    "kyyykyyyykyyyk",
+    "kyykkkkkkkyyyk",
+    "kyyykyyyyyyyyk",
+    "kyyyyyyyyyyyyk",
+    ".kyyyyyyyyyyk.",
+    "..kkkkkkkkkk..",
+], 14, 10)
+
+# --- pt ---
+GADGET_ART["gad-ergo-mouse"] = pad([
+    "...kkkk...",
+    "..kssssk..",
+    ".kssssssk.",
+    ".kswssssk.",
+    "kssssssssk",
+    "kssssssssk",
+    ".kssssssk.",
+    "..kkkkkk..",
+], 10, 8)
+
+GADGET_ART["gad-trackball"] = pad([
+    "...kkkk.....",
+    "..krrrrk....",
+    "..krwrrk....",
+    ".kkrrrrkkk..",
+    ".kssssssssk.",
+    ".kssssssssk.",
+    "..kssssssk..",
+    "...kkkkkk...",
+], 12, 8)
+
+# --- dp ---
+GADGET_ART["gad-monitor-arm"] = pad([
+    "kkkkkkkk..",
+    "kSSSSSSk..",
+    "kkkkkSSk..",
+    "....kSSk..",
+    "....kSSk..",
+    "....kSSk..",
+    "....kSSk..",
+    "...kkSSkk.",
+    "...kSSSSk.",
+    "...kkkkkk.",
+], 10, 10)
+
+GADGET_ART["gad-tate-monitor"] = pad([
+    "kkkkkkkkkkkk",
+    "kbbbbbbbbbbk",
+    "kbggbbbbbbbk",
+    "kbbbbwwbbbbk",
+    "kbgggbbbbbbk",
+    "kbbbbbbbbbbk",
+    "kbwwbbbbbbbk",
+    "kbbbggbbbbbk",
+    "kbggbbbbbbbk",
+    "kbbbbbbbbbbk",
+    "kbbwwwbbbbbk",
+    "kbbbbbbbbbbk",
+    "kkkkkkkkkkkk",
+    "....kkkk....",
+    "....kSSk....",
+    "...kkkkkk...",
+    "..kkkkkkkk..",
+], 12, 17)
+
+GADGET_ART["gad-ultrawide"] = pad([
+    "k" * 32,
+    "k" + "b" * 30 + "k",
+    "k" + "bggbbbb" + "wwbb" + "bbbbbb" + "gggg" + "bbbbbbbbb" + "k",
+    "k" + "b" * 30 + "k",
+    "k" + "bwwbbb" + "gg" + "bbbbbb" + "gg" + "bbbbbb" + "www" + "bbbbb" + "k",
+    "k" + "b" * 30 + "k",
+    "k" + "bb" + "gggg" + "bbbbb" + "ww" + "bbbb" + "gg" + "bbbbbbbb" + "gg" + "b" + "k",
+    "k" + "b" * 30 + "k",
+    "k" * 32,
+    "." * 13 + "kkkkkk" + "." * 13,
+    "." * 12 + "kkkkkkkk" + "." * 12,
+], 32, 11)
+
+GADGET_ART["gad-curved49"] = pad([
+    "." + "k" * 38 + ".",
+    "k" + "b" * 38 + "k",
+    "k" + "b" * 38 + "k",
+    "k" + "bb" + "w" * 8 + "b" * 14 + "w" * 10 + "bbbb" + "k",
+    "k" + "bb" + "w" + "g" * 6 + "w" + "b" * 14 + "w" + "g" * 8 + "w" + "bbbb" + "k",
+    "k" + "vv" + "w" + "g" * 6 + "w" + "v" * 14 + "w" + "g" * 8 + "w" + "vvvv" + "k",
+    "k" + "vv" + "w" * 8 + "v" * 14 + "w" * 10 + "vvvv" + "k",
+    "k" + "v" * 38 + "k",
+    "." + "k" * 38 + ".",
+    "." * 17 + "kkkkkk" + "." * 17,
+    "." * 15 + "kkkkkkkkkk" + "." * 15,
+], 40, 11)
+
+# --- au ---
+GADGET_ART["gad-nc-headphone"] = pad([
+    "...kkkkkk...",
+    "..kssssssk..",
+    ".kss....ssk.",
+    ".ks......sk.",
+    "kkk......kkk",
+    "kSSk....kSSk",
+    "kSSk....kSSk",
+    "kSSk....kSSk",
+    "kkk......kkk",
+], 12, 9)
+
+GADGET_ART["gad-condenser-mic"] = pad([
+    "..kkkkk...",
+    ".ksssssk..",
+    ".kswsssk..",
+    ".ksssssk..",
+    ".ksssssk..",
+    "..kkkkk...",
+    "....kk....",
+    "....kk....",
+    "...kkkk...",
+    "..kkkkkk..",
+], 10, 10)
+
+# --- dk ---
+GADGET_ART["gad-wrist-rest"] = pad([
+    ".kkkkkkkkkkkk.",
+    "knnnnnnnnnnnnk",
+    "knwnnnnnnnnnnk",
+    ".kkkkkkkkkkkk.",
+], 14, 4)
+
+GADGET_ART["gad-desk-mat"] = pad([
+    "..kkkkkkkkkkkkkkkkkkkkkk..",
+    ".k" + "c" * 22 + "k.",
+    "k" + "c" * 24 + "k",
+    "k" + "c" * 24 + "k",
+    "k" + "c" * 20 + "gggg" + "k",
+    "k" + "c" * 24 + "k",
+    "k" * 26,
+], 26, 7)
+
+GADGET_ART["gad-succulent"] = pad([
+    "....gg....",
+    "..gggggg..",
+    ".gGggggGg.",
+    "..gGggGg..",
+    "...kkkk...",
+    "..knnnnk..",
+    "..knnnnk..",
+    "...kkkk...",
+], 10, 8)
+
+GADGET_ART["gad-elec-desk"] = pad([
+    "k" * 30,
+    "k" + "n" * 28 + "k",
+    "k" + "nn" + "ww" + "n" * 8 + "ww" + "n" * 8 + "ww" + "nnnn" + "k",
+    "k" * 30,
+    "..kSSk" + "." * 18 + "kSSk..",
+    "..kSSk" + "." * 18 + "kSSk..",
+    "..kSSk" + "." * 18 + "kSSk..",
+    "..kSSk" + "." * 18 + "kSSk..",
+    ".kkSSkk" + "." * 16 + "kkSSkk.",
+], 30, 9)
+
+GADGET_ART["gad-balance-ball"] = pad([
+    "....kkkkkk....",
+    "..kkvvvvvvkk..",
+    ".kvvvvvvvvvvk.",
+    ".kvwwvvvvvvvk.",
+    "kvvwwvvvvvvvvk",
+    "kvvvvvvvvvvvvk",
+    "kvvvvvvvvvvvvk",
+    "kvvvvvvvvvvvvk",
+    ".kvvvvvvvvvvk.",
+    "..kkvvvvvvkk..",
+    "....kkkkkk....",
+], 14, 11)
+
+# --- pc ---
+GADGET_ART["gad-ups"] = pad([
+    ".kkkkkkkkkk.",
+    ".kSSSSSSSSk.",
+    ".kSggSSSSSk.",
+    ".kSSSSSSSSk.",
+    ".kSSwwwSSSk.",
+    ".kSSSSSSSSk.",
+    ".kSSSSSSSSk.",
+    ".kSSSSSSSSk.",
+    ".kSSSSSSSSk.",
+    ".kkkkkkkkkk.",
+], 12, 10)
+
+GADGET_ART["gad-raspi-cluster"] = pad([
+    ".kkkkkkkkkkkk.",
+    ".kGGggGGGGggk.",
+    ".kkkkkkkkkkkk.",
+    "..kk......kk..",
+    ".kkkkkkkkkkkk.",
+    ".kGGggGGGGggk.",
+    ".kkkkkkkkkkkk.",
+    "..kk......kk..",
+    ".kkkkkkkkkkkk.",
+    ".kGGggGGGGggk.",
+    ".kkkkkkkkkkkk.",
+], 14, 11)
+
+GADGET_ART["gad-rack-server"] = pad([
+    "kkkkkkkkkkkkkk",
+    "kSSSSSSSSSSSSk",
+    "kSgSSSSSSSSoSk",
+    "kkkkkkkkkkkkkk",
+    "kSSSSSSSSSSSSk",
+    "kSgSSSSSSSSgSk",
+    "kkkkkkkkkkkkkk",
+    "kSSSSSSSSSSSSk",
+    "kSoSSSSSSSSgSk",
+    "kkkkkkkkkkkkkk",
+    "kSSSSSSSSSSSSk",
+    "kSgSSSSSSSSgSk",
+    "kkkkkkkkkkkkkk",
+], 14, 13)
+
+GADGET_ART["gad-rack42u"] = pad([
+    "kkkkkkkkkkkkkkkk",
+    "kSSSSSSSSSSSSSSk",
+    "kSgS" + "s" * 8 + "SoSk",
+    "kkkkkkkkkkkkkkkk",
+    "kSSSSSSSSSSSSSSk",
+    "kSgS" + "s" * 8 + "SgSk",
+    "kkkkkkkkkkkkkkkk",
+    "kSSSSSSSSSSSSSSk",
+    "kSoS" + "s" * 8 + "SgSk",
+    "kkkkkkkkkkkkkkkk",
+    "kSSSSSSSSSSSSSSk",
+    "kSgS" + "s" * 8 + "SgSk",
+    "kkkkkkkkkkkkkkkk",
+    "kSSSSSSSSSSSSSSk",
+    "kSgS" + "s" * 8 + "SoSk",
+    "kkkkkkkkkkkkkkkk",
+    "kSSSSSSSSSSSSSSk",
+    "kSgS" + "s" * 8 + "SgSk",
+    "kkkkkkkkkkkkkkkk",
+    "kk" + "." * 12 + "kk",
+], 16, 20)
+
+# --- tl ---
+GADGET_ART["gad-cable-tray"] = pad([
+    "kkkkkkkkkkkkkkkkkkkk",
+    "k" + "s" * 18 + "k",
+    "k" + "ks" * 9 + "k",
+    "kkkkkkkkkkkkkkkkkkkk",
+    "..b....o......b.....",
+    "..b....o......b.....",
+    "..bb...oo....bb.....",
+], 20, 7)
+
+GADGET_ART["gad-kvm"] = pad([
+    "kkkkkkkkkkkk",
+    "kSSSSSSSSSSk",
+    "kSgSSSSSSoSk",
+    "kSSSwwSSSSSk",
+    "kkkkkkkkkkkk",
+], 12, 5)
+
+GADGET_ART["gad-printer3d"] = pad([
+    "kkkkkkkkkkkkkkkkkk",
+    "kSSk..........kSSk",
+    "kSSk...kkk....kSSk",
+    "kSSk...kok....kSSk",
+    "kSSk....o.....kSSk",
+    "kSSk...ooo....kSSk",
+    "kSSk..ooooo...kSSk",
+    "kkkkkkkkkkkkkkkkkk",
+    ".kSSSSSSSSSSSSSSk.",
+    ".kkkkkkkkkkkkkkkk.",
+], 18, 10)
+
+GADGET_ART["gad-solder-station"] = pad([
+    "kkkkkkkkkk......",
+    "kssssssssk...kk.",
+    "ksrssssssk..kSk.",
+    "kssswwsssk..kSk.",
+    "kssssssssk.kkSkk",
+    "kkkkkkkkkk..knk.",
+    "............knk.",
+    "............kkk.",
+], 16, 8)
+
+GADGET_ART["gad-golden-solder"] = pad([
+    "kkkkkkkkkk....w.",
+    "kyyyyyyyyk...kk.",
+    "kyryyyyyyk..kok.",
+    "kyyywwyyyk..kok.",
+    "kyyyyyyyyk.kkokk",
+    "kkkkkkkkkk..kyk.",
+    "......w.....kyk.",
+    "............kkk.",
+], 16, 8)
+
+GADGET_ART["gad-arcade-stick"] = pad([
+    "......kk..........",
+    ".....krrk.........",
+    "......kk..........",
+    "......kk..........",
+    "kkkkkkkkkkkkkkkkkk",
+    "k" + "ssssssss" + "rr" + "ss" + "rr" + "ss" + "k",
+    "k" + "s" * 16 + "k",
+    "kkkkkkkkkkkkkkkkkk",
+], 18, 8)
+
+GADGET_ART["gad-pedal"] = pad([
+    ".kkkk..kkkk.",
+    "ksssskkssssk",
+    "kswsskkswssk",
+    "kkkkkkkkkkkk",
+], 12, 4)
+
+# --- rt ---
+GADGET_ART["gad-crt"] = pad([
+    ".kkkkkkkkkkkkkk.",
+    ".knnnnnnnnnnnnk.",
+    ".knkkkkkkkkkknk.",
+    ".knkggggggggknk.",
+    ".knkgwwgggggknk.",
+    ".knkggggggggknk.",
+    ".knkggggggggknk.",
+    ".knkkkkkkkkkknk.",
+    ".knnnnnnnnnonnk.",
+    ".kkkkkkkkkkkkkk.",
+    "..kkkkkkkkkkkk..",
+], 16, 11)
+
+GADGET_ART["gad-retro-pc"] = pad([
+    ".kkkkkkkkkkkkkkkk.",
+    ".kwwwwwwwwwwwwwwk.",
+    ".kwkkkkkkkkkkkkwk.",
+    ".kwkbbbbbbbbbbkwk.",
+    ".kwkbwbbbbbbbbkwk.",
+    ".kwkbbbbbbbbbbkwk.",
+    ".kwkkkkkkkkkkkkwk.",
+    ".k" + "wwwwww" + "ss" + "wwwwww" + "k.",
+    ".kwwwwwwwwwwwwwwk.",
+    ".kkkkkkkkkkkkkkkk.",
+], 18, 10)
+
+GADGET_ART["gad-punch-card"] = pad([
+    "kkkkkkkkkk..",
+    "kwwwwwwwwkk.",
+    "kwkwkwwkwwk.",
+    "kwwwwwwwwwk.",
+    "kwkwwkwkwwk.",
+    "kwwwwwwwwwk.",
+    "kkkkkkkkkkk.",
+], 12, 7)
+
+GADGET_ART["gad-acoustic-coupler"] = pad([
+    "..kkkk....kkkk....",
+    ".kmmmmk..kmmmmk...",
+    ".kmmmmk..kmmmmk...",
+    "kkkkkkkkkkkkkkkkkk",
+    "knnnnnnnnnnnnnnnnk",
+    "k" + "nw" + "n" * 12 + "on" + "k",
+    "kkkkkkkkkkkkkkkkkk",
+], 18, 7)
+
+# ネオンサイン "DEPLOY": 3x5フォントから組み立てる（手打ちよりミスが出ない）
+_NEON_FONT = {
+    "D": ["pp.", "p.p", "p.p", "p.p", "pp."],
+    "E": ["ppp", "p..", "pp.", "p..", "ppp"],
+    "P": ["pp.", "p.p", "pp.", "p..", "p.."],
+    "L": ["p..", "p..", "p..", "p..", "ppp"],
+    "O": [".p.", "p.p", "p.p", "p.p", ".p."],
+    "Y": ["p.p", "p.p", ".p.", ".p.", ".p."],
+}
+
+def _neon(word):
+    inner = 4 * len(word) - 1  # 3px文字 + 1px間隔
+    rows = ["k" * (inner + 4), "k" + "m" * (inner + 2) + "k"]
+    for i in range(5):
+        line = "m".join(_NEON_FONT[ch][i] for ch in word)
+        rows.append("k" + "m" + line.replace(".", "m") + "m" + "k")
+    rows += ["k" + "m" * (inner + 2) + "k", "k" * (inner + 4)]
+    return rows
+
+GADGET_ART["gad-neon-deploy"] = pad(_neon("DEPLOY"), 27, 9)
+
+# ---------------------------------------------------------------------------
 # 出力
 # ---------------------------------------------------------------------------
 
@@ -387,7 +833,7 @@ def png_bytes(raw, w, h):
             + chunk(b"IDAT", zlib.compress(raw))
             + chunk(b"IEND", b""))
 
-ALL = {**MONSTERS, **ICONS}
+ALL = {**MONSTERS, **ICONS, **GADGET_ART}
 for name, rows in ALL.items():
     raw, w, h = render(rows, 12)
     (BASE / f"{name}.png").write_bytes(png_bytes(raw, w, h))
@@ -416,5 +862,7 @@ def contact_sheet(items, out, cols=7, cell_px=16, scale=8, pad_px=10):
         raw += b"\x00" + b"".join(struct.pack("4B", *px) for px in line)
     (SHEETS / out).write_bytes(png_bytes(raw, W, H))
 
-contact_sheet(list(ALL.items()), "dungeon-sheet.png")
-print("done:", len(ALL), "sprites + dungeon-sheet.png")
+contact_sheet(list({**MONSTERS, **ICONS}.items()), "dungeon-sheet.png")
+# ガジェットは横長/縦長があるのでセルを大きく取った専用シート
+contact_sheet(list(GADGET_ART.items()), "gadget-sheet.png", cols=6, cell_px=40, scale=6)
+print("done:", len(ALL), "sprites + dungeon-sheet.png + gadget-sheet.png")

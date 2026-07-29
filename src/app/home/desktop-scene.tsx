@@ -8,12 +8,12 @@
 import { useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import type { Gadget, GadgetCategory } from "@/lib/dungeon/content";
-import { RARITY_LABELS } from "@/lib/dungeon/content";
+import { DEKA_SIZE, gadgetSprite, RARITY_LABELS } from "@/lib/dungeon/content";
 import {
   allowedZones,
   clampToZones,
   DESK_GEOM,
-  GADGET_SIZE,
+  gadgetWidth,
   PET_SIZE,
   ZONES,
   type DeskTier,
@@ -241,6 +241,15 @@ export function DesktopScene(props: {
   const depthZ = (y: number) => 10 + Math.round(y * 10);
   const depthScale = (y: number) => 0.88 + (y / 100) * 0.24;
 
+  // でかいディスプレイ（size >= DEKA_SIZE）が飾ってあれば、来客はそのうえでくつろぐ
+  // — 猫がテレビのうえに乗るあれ。いちばん幅の広い1台を選ぶ
+  const perch = items
+    .filter((g) => g.category === "dp" && (g.size ?? 1) >= DEKA_SIZE)
+    .sort((a, b) => gadgetWidth(b) - gadgetWidth(a))[0];
+  // モニタスプライトの上端のおおよその位置（横長モニタは縦横比≒0.35・シーンは16:9）。
+  // 少しだけ重ねて「ちょこんと乗っている」足元にする
+  const perchTop = perch ? perch.y - gadgetWidth(perch) * 0.33 + 3 : null;
+
   return (
     <div
       ref={sceneRef}
@@ -357,7 +366,7 @@ export function DesktopScene(props: {
         ))}
 
       {/* ガジェット（自由配置・yソートで前後関係、奥行きで少し縮む）
-          サイズはカテゴリ別のシーン幅%（モニタは大きくマウスは小さく = 縮尺の核） */}
+          サイズはカテゴリ基準 × 個体倍率（49インチ曲面はデスクを覆い、パンチカードは名刺大） */}
       {items.map((g) => (
         <button
           key={g.id}
@@ -371,14 +380,14 @@ export function DesktopScene(props: {
           style={{
             left: `${g.x}%`,
             top: `${g.y}%`,
-            width: `${GADGET_SIZE[g.category]}%`,
+            width: `${gadgetWidth(g)}%`,
             transform: `translate(-50%, -50%) scale(${depthScale(g.y)})`,
             zIndex: depthZ(g.y),
             touchAction: "none",
           }}
         >
           <Image
-            src={`/dungeon/cat-${g.category}.png`}
+            src={`/dungeon/${gadgetSprite(g)}.png`}
             alt={g.name}
             width={96}
             height={96}
@@ -394,17 +403,30 @@ export function DesktopScene(props: {
         </button>
       ))}
 
-      {/* きょうの来客: デスクのよこ（床）で遊ぶペット */}
+      {/* きょうの来客: でかモニタがあればそのうえ、なければデスクのよこ（床）で遊ぶ */}
       {props.visitor && sp && (
         <button
           onClick={() => setMenuOpen(true)}
-          title={`${props.visitor.name}がデスクのよこで遊んでいる（クリックで おせわメニュー）`}
+          title={
+            perch
+              ? `${props.visitor.name}が${perch.name}のうえでくつろいでいる（クリックで おせわメニュー）`
+              : `${props.visitor.name}がデスクのよこで遊んでいる（クリックで おせわメニュー）`
+          }
           className="absolute -translate-x-1/2 -translate-y-full"
-          style={{ left: "22%", top: "84%", width: `${PET_SIZE}%`, zIndex: depthZ(84) }}
+          style={
+            perch
+              ? {
+                  left: `${perch.x}%`,
+                  top: `${perchTop}%`,
+                  width: `${PET_SIZE * 0.8}%`,
+                  zIndex: depthZ(perch.y) + 1,
+                }
+              : { left: "22%", top: "84%", width: `${PET_SIZE}%`, zIndex: depthZ(84) }
+          }
         >
           <span
-            className={`inline-block w-full ${feeding ? "" : "pet-wander"}`}
-            style={feeding ? undefined : { animationDuration: "6.5s" }}
+            className={`inline-block w-full ${feeding || perch ? "" : "pet-wander"}`}
+            style={feeding || perch ? undefined : { animationDuration: "6.5s" }}
           >
             {visitorHeart && (
               <span className="pet-heart absolute -top-4 left-1/2 font-pixel text-[13px] text-pinkhot">

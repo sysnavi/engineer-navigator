@@ -5,7 +5,7 @@
 
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { GADGETS, GADGET_CATEGORIES, RARITY_LABELS } from "@/lib/dungeon/content";
+import { GADGETS, GADGET_CATEGORIES, gadgetSprite, RARITY_LABELS } from "@/lib/dungeon/content";
 import Image from "next/image";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
@@ -149,11 +149,17 @@ export default async function HomePage() {
                     title={`${g.name} — ${g.flavor}`}
                   >
                     <Image
-                      src={`/dungeon/cat-${g.category}.png`}
+                      src={`/dungeon/${gadgetSprite(g)}.png`}
                       alt=""
                       width={16}
                       height={16}
-                      style={{ imageRendering: "pixelated" }}
+                      style={{
+                        imageRendering: "pixelated",
+                        maxWidth: 20,
+                        maxHeight: 16,
+                        width: "auto",
+                        height: "auto",
+                      }}
                       unoptimized
                     />
                     {g.name}

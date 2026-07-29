@@ -51,6 +51,12 @@ export const GADGET_SIZE: Record<GadgetCategory, number> = {
 /** キャラ（ペット）のシーン幅に対する% — 縮尺の基準になる「ものさし」 */
 export const PET_SIZE = 10;
 
+/** 個体の表示幅（シーン幅%）。カテゴリ基準 × 個体倍率（Gadget.size）。
+ *  49インチ曲面がデスクを覆い、パンチカードが名刺サイズになる縮尺の個体版 */
+export function gadgetWidth(g: Pick<Gadget, "category" | "size">): number {
+  return GADGET_SIZE[g.category] * (g.size ?? 1);
+}
+
 /** 壁に掛けられるカテゴリ（チェアが壁に貼り付く事故だけは構造で防ぐ）。
  *  デスクと床は全カテゴリ可（床置きキーボードはエンジニアのあるある）。 */
 const WALL_OK: ReadonlySet<GadgetCategory> = new Set(["dp", "au", "tl", "rt"]);

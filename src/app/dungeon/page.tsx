@@ -7,8 +7,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { getPlayerStats } from "@/lib/exp";
 import { getDungeonState, getCollection, baseDepthOf } from "@/lib/dungeon/run";
 import {
+  DEKA_SIZE,
   GADGETS,
   GADGET_CATEGORIES,
+  gadgetSprite,
   RARITY_LABELS,
   GENE_DUNGEON_MODS,
   type Rarity,
@@ -106,11 +108,17 @@ export default async function DungeonPage() {
                       >
                         {owned ? (
                           <Image
-                            src={`/dungeon/cat-${g.category}.png`}
+                            src={`/dungeon/${gadgetSprite(g)}.png`}
                             alt=""
                             width={28}
                             height={28}
-                            style={{ imageRendering: "pixelated" }}
+                            style={{
+                              imageRendering: "pixelated",
+                              maxWidth: 30,
+                              maxHeight: 28,
+                              width: "auto",
+                              height: "auto",
+                            }}
                             unoptimized
                           />
                         ) : (
@@ -126,6 +134,9 @@ export default async function DungeonPage() {
                           <span className="ml-1.5 text-inksoft">
                             {GADGET_CATEGORIES[g.category]}
                           </span>
+                          {owned && (g.size ?? 1) >= DEKA_SIZE && (
+                            <span className="ml-1.5 text-pinkhot">⚠でかい</span>
+                          )}
                         </p>
                       </div>
                     </div>

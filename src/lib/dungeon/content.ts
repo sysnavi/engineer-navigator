@@ -27,8 +27,21 @@ export type Gadget = {
   category: GadgetCategory;
   flavor: string; // ギーク度が命
   minGeneration?: number; // UR用: 継承世代限定（周回が最強への道）
+  /** 個別スプライトID（public/dungeon/<sprite>.png）。無ければカテゴリアイコンで描く */
+  sprite?: string;
+  /** カテゴリ基準サイズに対する倍率。デスクを覆う49インチ=2.7 〜 パンチカード=0.6。
+   *  「モニタとマウスが同じ大きさ」問題の個体版 — でかブツはちゃんとでかく描く */
+  size?: number;
   retired?: boolean;
 };
+
+/** 描画に使うスプライトID（個別があれば個別、無ければカテゴリの共通絵） */
+export function gadgetSprite(g: Pick<Gadget, "sprite" | "category">): string {
+  return g.sprite ?? `cat-${g.category}`;
+}
+
+/** でかブツ判定のしきい値（図鑑バッジ・ペットが乗れる演出などで使う） */
+export const DEKA_SIZE = 1.6;
 
 export type Trap = {
   id: string;
@@ -233,41 +246,45 @@ export const MONSTERS: Monster[] = [
 
 export const GADGETS: Gadget[] = [
   // --- N ---
-  { id: "cha-kb", name: "茶軸キーボード", rarity: "N", category: "kb", flavor: "全てはここから始まる。カチャカチャ。" },
-  { id: "ergo-mouse", name: "エルゴマウス", rarity: "N", category: "pt", flavor: "手首の角度、人生の角度。" },
-  { id: "wrist-rest", name: "リストレスト", rarity: "N", category: "dk", flavor: "手首を置く。ただそれだけの幸福。" },
-  { id: "desk-mat", name: "デスクマット", rarity: "N", category: "dk", flavor: "机の上の専用領地。" },
-  { id: "monitor-arm", name: "モニターアーム", rarity: "N", category: "dp", flavor: "画面が宙に浮くと、心も浮く。" },
-  { id: "nc-headphone", name: "ノイキャンヘッドホン", rarity: "N", category: "au", flavor: "世界を消すスイッチ。" },
-  { id: "cable-tray", name: "ケーブルトレー", rarity: "N", category: "tl", flavor: "見えない配線は、存在しない配線。" },
-  { id: "succulent", name: "多肉植物", rarity: "N", category: "dk", flavor: "デスクで唯一、水だけで動く。" },
+  { id: "cha-kb", name: "茶軸キーボード", rarity: "N", category: "kb", sprite: "gad-cha-kb", flavor: "全てはここから始まる。カチャカチャ。" },
+  { id: "ergo-mouse", name: "エルゴマウス", rarity: "N", category: "pt", sprite: "gad-ergo-mouse", flavor: "手首の角度、人生の角度。" },
+  { id: "wrist-rest", name: "リストレスト", rarity: "N", category: "dk", sprite: "gad-wrist-rest", size: 0.7, flavor: "手首を置く。ただそれだけの幸福。" },
+  { id: "desk-mat", name: "デスクマット", rarity: "N", category: "dk", sprite: "gad-desk-mat", size: 1.5, flavor: "机の上の専用領地。" },
+  { id: "monitor-arm", name: "モニターアーム", rarity: "N", category: "dp", sprite: "gad-monitor-arm", size: 0.7, flavor: "画面が宙に浮くと、心も浮く。" },
+  { id: "nc-headphone", name: "ノイキャンヘッドホン", rarity: "N", category: "au", sprite: "gad-nc-headphone", flavor: "世界を消すスイッチ。" },
+  { id: "cable-tray", name: "ケーブルトレー", rarity: "N", category: "tl", sprite: "gad-cable-tray", size: 1.2, flavor: "見えない配線は、存在しない配線。" },
+  { id: "succulent", name: "多肉植物", rarity: "N", category: "dk", sprite: "gad-succulent", size: 0.55, flavor: "デスクで唯一、水だけで動く。" },
   // --- R ---
-  { id: "split-kb", name: "分割キーボード", rarity: "R", category: "kb", flavor: "肩は開いた。心も開いた。" },
-  { id: "trackball", name: "トラックボール", rarity: "R", category: "pt", flavor: "親指だけが世界を回す。" },
-  { id: "tate-monitor", name: "縦置きモニタ", rarity: "R", category: "dp", flavor: "コードは縦に流れるものだから。" },
-  { id: "ultrawide", name: "ウルトラワイドモニタ", rarity: "R", category: "dp", flavor: "視界の端から端まで、全部作業領域。" },
-  { id: "elec-desk", name: "昇降デスク", rarity: "R", category: "dk", flavor: "立つか座るか、それが問題だ。" },
-  { id: "balance-ball", name: "バランスボール", rarity: "R", category: "dk", flavor: "座りながら鍛える、という発明。" },
-  { id: "condenser-mic", name: "コンデンサーマイク", rarity: "R", category: "au", flavor: "会議の声だけ、無駄にいい。" },
-  { id: "arcade-stick", name: "アケコン", rarity: "R", category: "tl", flavor: "昇竜拳は打てる。仕事には使えない。" },
+  { id: "split-kb", name: "分割キーボード", rarity: "R", category: "kb", sprite: "gad-split-kb", size: 1.15, flavor: "肩は開いた。心も開いた。" },
+  { id: "trackball", name: "トラックボール", rarity: "R", category: "pt", sprite: "gad-trackball", size: 1.1, flavor: "親指だけが世界を回す。" },
+  { id: "tate-monitor", name: "縦置きモニタ", rarity: "R", category: "dp", sprite: "gad-tate-monitor", size: 0.75, flavor: "コードは縦に流れるものだから。" },
+  { id: "ultrawide", name: "ウルトラワイドモニタ", rarity: "R", category: "dp", sprite: "gad-ultrawide", size: 1.9, flavor: "視界の端から端まで、全部作業領域。" },
+  { id: "elec-desk", name: "昇降デスク", rarity: "R", category: "dk", sprite: "gad-elec-desk", size: 1.8, flavor: "立つか座るか、それが問題だ。" },
+  { id: "balance-ball", name: "バランスボール", rarity: "R", category: "dk", sprite: "gad-balance-ball", size: 1.25, flavor: "座りながら鍛える、という発明。" },
+  { id: "condenser-mic", name: "コンデンサーマイク", rarity: "R", category: "au", sprite: "gad-condenser-mic", size: 0.9, flavor: "会議の声だけ、無駄にいい。" },
+  { id: "arcade-stick", name: "アケコン", rarity: "R", category: "tl", sprite: "gad-arcade-stick", size: 1.3, flavor: "昇竜拳は打てる。仕事には使えない。" },
+  { id: "pedal", name: "コピペ・フットペダル", rarity: "R", category: "tl", sprite: "gad-pedal", size: 0.6, flavor: "右足がCtrl+C、左足がCtrl+V。両手はコーヒー用。" },
   // --- SR ---
-  { id: "jisaku-kb-kit", name: "自作キーボードキット", rarity: "SR", category: "kb", flavor: "はんだ付けはまだ。夢は膨らむ。" },
-  { id: "capacitive-board", name: "静電容量無接点の板", rarity: "SR", category: "kb", flavor: "打鍵は無音、所有欲は雄弁。" },
-  { id: "forty-kb", name: "40%キーボード", rarity: "SR", category: "kb", flavor: "数字キーは甘え。" },
-  { id: "kvm", name: "KVMスイッチ", rarity: "SR", category: "tl", flavor: "2台のPCを1つの手で統べる。" },
-  { id: "ups", name: "UPS", rarity: "SR", category: "pc", flavor: "停電？知らない子ですね。" },
-  { id: "printer3d", name: "3Dプリンタ", rarity: "SR", category: "tl", flavor: "作れるのは、だいたいプリンタの部品。" },
-  { id: "solder-station", name: "はんだごてステーション", rarity: "SR", category: "tl", flavor: "煙とともに完成する何か。" },
-  { id: "raspi-cluster", name: "ラズパイクラスタ", rarity: "SR", category: "pc", flavor: "手のひらサイズのデータセンター。" },
+  { id: "jisaku-kb-kit", name: "自作キーボードキット", rarity: "SR", category: "kb", sprite: "gad-jisaku-kb-kit", flavor: "はんだ付けはまだ。夢は膨らむ。" },
+  { id: "capacitive-board", name: "静電容量無接点の板", rarity: "SR", category: "kb", sprite: "gad-capacitive-board", flavor: "打鍵は無音、所有欲は雄弁。" },
+  { id: "forty-kb", name: "40%キーボード", rarity: "SR", category: "kb", sprite: "gad-forty-kb", size: 0.65, flavor: "数字キーは甘え。" },
+  { id: "kvm", name: "KVMスイッチ", rarity: "SR", category: "tl", sprite: "gad-kvm", size: 0.9, flavor: "2台のPCを1つの手で統べる。" },
+  { id: "ups", name: "UPS", rarity: "SR", category: "pc", sprite: "gad-ups", size: 0.9, flavor: "停電？知らない子ですね。" },
+  { id: "printer3d", name: "3Dプリンタ", rarity: "SR", category: "tl", sprite: "gad-printer3d", size: 1.4, flavor: "作れるのは、だいたいプリンタの部品。" },
+  { id: "solder-station", name: "はんだごてステーション", rarity: "SR", category: "tl", sprite: "gad-solder-station", flavor: "煙とともに完成する何か。" },
+  { id: "raspi-cluster", name: "ラズパイクラスタ", rarity: "SR", category: "pc", sprite: "gad-raspi-cluster", size: 0.8, flavor: "手のひらサイズのデータセンター。" },
+  { id: "neon-deploy", name: "ネオンサイン“DEPLOY”", rarity: "SR", category: "rt", sprite: "gad-neon-deploy", size: 1.7, flavor: "点灯は金曜17時以降禁止。" },
   // --- SSR（深層限定） ---
-  { id: "crt", name: "ブラウン管モニタ", rarity: "SSR", category: "rt", flavor: "走査線の温もり。" },
-  { id: "retro-pc", name: "いにしえの名機", rarity: "SSR", category: "rt", flavor: "起動音だけで泣ける。" },
-  { id: "rack-server", name: "ラックサーバ", rarity: "SSR", category: "pc", flavor: "リビングを1U占有。家族の理解は2U必要。" },
-  { id: "punch-card", name: "パンチカード", rarity: "SSR", category: "rt", flavor: "先史時代のソースコード。" },
-  { id: "acoustic-coupler", name: "音響カプラ", rarity: "SSR", category: "rt", flavor: "受話器を、置くのだ。" },
+  { id: "crt", name: "ブラウン管モニタ", rarity: "SSR", category: "rt", sprite: "gad-crt", size: 1.1, flavor: "走査線の温もり。" },
+  { id: "retro-pc", name: "いにしえの名機", rarity: "SSR", category: "rt", sprite: "gad-retro-pc", size: 1.2, flavor: "起動音だけで泣ける。" },
+  { id: "rack-server", name: "ラックサーバ", rarity: "SSR", category: "pc", sprite: "gad-rack-server", size: 1.5, flavor: "リビングを1U占有。家族の理解は2U必要。" },
+  { id: "punch-card", name: "パンチカード", rarity: "SSR", category: "rt", sprite: "gad-punch-card", size: 0.6, flavor: "先史時代のソースコード。" },
+  { id: "acoustic-coupler", name: "音響カプラ", rarity: "SSR", category: "rt", sprite: "gad-acoustic-coupler", size: 0.9, flavor: "受話器を、置くのだ。" },
+  { id: "curved49", name: "49インチ曲面モニタ", rarity: "SSR", category: "dp", sprite: "gad-curved49", size: 2.7, flavor: "画面の端を見るには、椅子ごと移動する。" },
+  { id: "rack42u", name: "42Uフルラック", rarity: "SSR", category: "pc", sprite: "gad-rack42u", size: 2.0, flavor: "天井まであと3cm。搬入のとき扉を外した。" },
   // --- UR（継承世代限定・周回の証） ---
-  { id: "golden-solder", name: "金のはんだごて", rarity: "UR", category: "tl", minGeneration: 2, flavor: "二周目の人生でしか握れない熱がある。" },
-  { id: "legend-enter", name: "伝説のEnterキー", rarity: "UR", category: "kb", minGeneration: 2, flavor: "ひと押しで肩こりが治るという。押す機会は、まだない。" },
+  { id: "golden-solder", name: "金のはんだごて", rarity: "UR", category: "tl", minGeneration: 2, sprite: "gad-golden-solder", flavor: "二周目の人生でしか握れない熱がある。" },
+  { id: "legend-enter", name: "伝説のEnterキー", rarity: "UR", category: "kb", minGeneration: 2, sprite: "gad-legend-enter", size: 1.2, flavor: "ひと押しで肩こりが治るという。押す機会は、まだない。" },
 ];
 
 // ---------------------------------------------------------------------------
