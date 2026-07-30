@@ -42,6 +42,67 @@ const BASE_SPEED = 14; // px/s（のんびり歩き。散歩なので急がな�
 const PET_SIZE = 48;
 const EVENT_PAUSE_MS = 4800;
 
+// ペットPNGはドット絵（例: 1ドット=24px・横16ドット）だが、そのまま48x48に
+// 押し込むとドットが非整数・非正方形につぶれて汚くなる。読み込み時に一度だけ
+// 「1ドット=整数px・正方形・アスペクト維持」のオフスクリーンへ焼き直しておく。
+function prerenderPet(img: HTMLImageElement): HTMLCanvasElement {
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+  // ドット格子の検出: w,h の公約数のうち、全ブロックが単色になる最大サイズ
+  const probe = document.createElement("canvas");
+  probe.width = w;
+  probe.height = h;
+  const pcx = probe.getContext("2d");
+  let dot = 1;
+  if (pcx) {
+    pcx.drawImage(img, 0, 0);
+    const d = pcx.getImageData(0, 0, w, h).data;
+    const uniform = (bs: number): boolean => {
+      for (let by = 0; by < h; by += bs) {
+        for (let bx = 0; bx < w; bx += bs) {
+          const i0 = (by * w + bx) * 4;
+          for (let y = by; y < by + bs; y++) {
+            for (let x = bx; x < bx + bs; x++) {
+              const i = (y * w + x) * 4;
+              if (
+                Math.abs(d[i] - d[i0]) > 6 ||
+                Math.abs(d[i + 1] - d[i0 + 1]) > 6 ||
+                Math.abs(d[i + 2] - d[i0 + 2]) > 6 ||
+                Math.abs(d[i + 3] - d[i0 + 3]) > 6
+              )
+                return false;
+            }
+          }
+        }
+      }
+      return true;
+    };
+    for (let bs = 48; bs >= 2; bs--) {
+      if (w % bs === 0 && h % bs === 0 && uniform(bs)) {
+        dot = bs;
+        break;
+      }
+    }
+  }
+  const out = document.createElement("canvas");
+  const ocx = out.getContext("2d");
+  if (dot >= 4) {
+    // ドット絵: 1ドットを整数pxの正方形に（種族ごとの縦横比もそのまま生きる）
+    const n = Math.min(8, Math.max(1, Math.round((PET_SIZE * dot) / h)));
+    out.width = (w / dot) * n;
+    out.height = (h / dot) * n;
+  } else {
+    // 格子が見つからない絵（AA入り等）: アスペクト維持で高さだけ合わせる
+    out.width = Math.max(1, Math.round((w * PET_SIZE) / h));
+    out.height = PET_SIZE;
+  }
+  if (ocx) {
+    ocx.imageSmoothingEnabled = false;
+    ocx.drawImage(img, 0, 0, out.width, out.height);
+  }
+  return out;
+}
+
 // 環境イベント（流れ星・犬・ホタル…）の発火間隔。最初は早め、以降はゆったり
 const AMBIENT_FIRST_MS = 45000;
 const AMBIENT_GAP_MS = 100000;
@@ -230,18 +291,19 @@ export function WalkCanvas(props: {
     propsRef.current = props;
   });
 
-  // ペット画像（walk差分→無ければnormalにフォールバック）。切替中も前の画像で歩き続ける
-  const imgRef = useRef<HTMLImageElement | null>(null);
+  // ペット画像（walk差分→無ければnormalにフォールバック）。切替中も前の画像で歩き続ける。
+  // 読み込んだら prerenderPet でドット整数化した絵に焼き直して持つ
+  const imgRef = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
     let alive = true;
     const img = new Image();
     img.onload = () => {
-      if (alive) imgRef.current = img;
+      if (alive) imgRef.current = prerenderPet(img);
     };
     img.onerror = () => {
       const fb = new Image();
       fb.onload = () => {
-        if (alive) imgRef.current = fb;
+        if (alive) imgRef.current = prerenderPet(fb);
       };
       fb.src = props.normalSrc;
     };
@@ -408,19 +470,26 @@ export function WalkCanvas(props: {
         ctx.fillRect(Math.round(d.x), Math.round(d.y), 2, 2);
       }
 
-      // ペット（影→本体。前傾＋2コマ歩行。立ち止まり中はゆっくり呼吸）
-      const img = imgRef.current;
-      if (img) {
+      // ペット（影→本体。前傾＋2コマ歩行。立ち止まり中はゆっくり呼吸）。
+      // 前傾は rotate だとドット格子が壊れてギザつくので、横スライスを1pxずつ
+      // ずらすシアーで表現する（ピクセルは常に格子に乗ったまま）
+      const spr = imgRef.current;
+      if (spr) {
+        const sw = spr.width;
+        const sh = spr.height;
         ctx.fillStyle = "rgba(0,0,0,0.22)";
-        ctx.fillRect(PET_X - 13, PET_FOOT_Y - 1, 26, 3);
+        ctx.fillRect(PET_X - (sw >> 2), PET_FOOT_Y - 1, sw >> 1, 3);
         const step = moving ? frame % 2 : 0;
         const bob = moving ? step * 2 : frame % 8 < 4 ? 0 : 1;
         const lean = moving ? 0.09 + (step ? 0.03 : -0.03) : 0.02;
-        ctx.save();
-        ctx.translate(PET_X, PET_FOOT_Y - bob);
-        ctx.rotate(lean);
-        ctx.drawImage(img, -PET_SIZE / 2, -PET_SIZE, PET_SIZE, PET_SIZE);
-        ctx.restore();
+        const top = PET_FOOT_Y - bob - sh;
+        const SLICE = 4;
+        for (let y = 0; y < sh; y += SLICE) {
+          const rows = Math.min(SLICE, sh - y);
+          // 足元0・上ほど進行方向へ（rotateと同じ向きの前傾）
+          const off = Math.round(lean * (sh - y - rows / 2));
+          ctx.drawImage(spr, 0, y, sw, rows, PET_X - (sw >> 1) + off, top + y, sw, rows);
+        }
       }
 
       // 環境イベントの演出（流れ星・虹・生き物たち）
