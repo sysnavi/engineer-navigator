@@ -6,6 +6,8 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { requireFullAccountUser } from "@/lib/guest";
 import { isDomainId } from "@/lib/domains";
+import { recordReviewOutcome } from "@/lib/quiz/review";
+import { markDailyAnswered } from "@/lib/quiz/daily";
 
 // 良問バンクのサーバーアクション。四択の採点はここ（サーバー）で行い、正解は
 // クライアントに渡さない。AIは使わないのでトークン消費はゼロ。
@@ -82,6 +84,16 @@ export async function submitQuizAnswer(
   await prisma.quizAttempt.create({
     data: { questionId, userId: user.id, chosenIndex, correct },
   });
+  // 復習ボックス（誤答は寝かせて再出題・正答は1段進める）と、今日の一問の達成記録。
+  // どちらも解答の副作用で、失敗しても解答自体は成立させたいので握りつぶす。
+  await Promise.all([
+    recordReviewOutcome(user.id, questionId, correct).catch((e) =>
+      console.error("recordReviewOutcome failed:", e)
+    ),
+    markDailyAnswered(user.id, questionId, correct).catch((e) =>
+      console.error("markDailyAnswered failed:", e)
+    ),
+  ]);
   // トークンゼロの裏取り経路（Issue #25）: 正解が仮判定スキルの検証になる
   if (correct) {
     await promoteSkillsVerifiedByQuiz(user.id, q.topic).catch((e) =>

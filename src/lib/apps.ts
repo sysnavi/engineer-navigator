@@ -33,7 +33,7 @@ export const APPS: AppDef[] = [
   { id: "resume", href: "/resume", name: "経歴書", ext: ".doc", group: "kiroku", desc: "週報から自動組版。PDF出力" },
   { id: "mentor", href: "/mentor", name: "AIメンター", ext: ".exe", group: "manabu", desc: "資格・技術を現場目線で24時間相談" },
   { id: "plan", href: "/plan", name: "学習プラン", ext: ".sav", group: "manabu", desc: "試験日から逆算した週次カリキュラム" },
-  { id: "quiz", href: "/quiz", name: "腕試し", ext: ".dat", group: "manabu", desc: "良問バンクの四択でスキルチェック" },
+  { id: "quiz", href: "/quiz", name: "腕試し", ext: ".dat", group: "manabu", desc: "今日の一問と復習ボックス。四択でスキルチェック" },
   { id: "roleplay", href: "/roleplay", name: "役割演習", ext: ".sim", group: "manabu", desc: "リーダーの難題をAIとロールプレイ" },
   { id: "dungeon", href: "/dungeon", name: "ダンジョン", ext: ".log", group: "asobu", desc: "育てたアバターがフルオートで探索" },
   { id: "yomoyama", href: "/yomoyama", name: "よもやま", ext: ".log", group: "asobu", desc: "現場の話をハンドル名で共有" },

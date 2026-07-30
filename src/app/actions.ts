@@ -16,6 +16,7 @@ import { isPaletteId } from "@/lib/palettes";
 import { isUiShell } from "@/lib/shell";
 import { appsForRole, DOCK_SLOTS } from "@/lib/apps";
 import { isDomainId } from "@/lib/domains";
+import { findCert } from "@/lib/certifications";
 import { toStance } from "@/lib/ai/stance";
 import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
 import { performRebirth, EXP_WEIGHTS } from "@/lib/exp";
@@ -480,8 +481,13 @@ export async function createStudyPlan(formData: FormData) {
 
   await assertAiAllowed(user.id, "study-plan").catch(throwFriendly);
 
+  // 表記ゆれ（"基本情報技術者試験" 等）はカタログの表示名に寄せて保存する。
+  // 同じ資格のプランが別名で並ぶのを防ぎ、章立ての紐づけも安定する。
+  const cert = findCert(certification);
+  const certName = cert?.label ?? certification.trim();
+
   const items = await generatePlanItems({
-    certification: certification.trim(),
+    certification: certName,
     weeks,
     currentSkills,
     stance: user.mentorStance,
@@ -491,7 +497,7 @@ export async function createStudyPlan(formData: FormData) {
   const plan = await prisma.studyPlan.create({
     data: {
       userId: user.id,
-      certification: certification.trim(),
+      certification: certName,
       examDate,
       items: {
         create: items.map((it, i) => ({
@@ -499,6 +505,7 @@ export async function createStudyPlan(formData: FormData) {
           weekLabel: it.weekLabel,
           title: it.title,
           detail: it.detail,
+          topic: it.topic ?? null,
           // 週次で目安日を割り当て、最後は試験日
           targetDate:
             i === items.length - 1
