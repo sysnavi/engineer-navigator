@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { createStudyPlan } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { SubmitButton } from "@/components/submit-button";
+import { CertPicker } from "@/components/cert-picker";
 
 function daysLeft(examDate: Date, now: number): number {
   return Math.ceil((examDate.getTime() - now) / 86400_000);
@@ -37,16 +38,7 @@ export default async function PlanListPage() {
               <label className="mb-1.5 block text-[12px] font-extrabold">
                 資格 <span className="text-pinkhot">*</span>
               </label>
-              {/* 狭い端末(375px)で末尾が切れないよう短く。例示は下の注記で補う */}
-              <input
-                name="certification"
-                required
-                placeholder="例: AWS SAA"
-                className="field8"
-              />
-              <p className="mt-1 text-[11px] text-inksoft">
-                例: AWS SAA / JSTQB FL / 基本情報 など
-              </p>
+              <CertPicker />
             </div>
             <div>
               <label className="mb-1.5 block text-[12px] font-extrabold">

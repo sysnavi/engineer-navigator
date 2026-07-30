@@ -75,6 +75,8 @@ model User {
   quizRatings      QuizRating[]
   quizAttempts     QuizAttempt[]
   quizHidden       QuizHidden[]
+  quizDailies      QuizDaily[]
+  quizReviews      QuizReview[]
   yomoyamaPosts    YomoyamaPost[]
   yomoyamaLikes    YomoyamaLike[]
   yomoyamaComments YomoyamaComment[]
@@ -359,6 +361,8 @@ model QuizQuestion {
   ratings  QuizRating[]
   attempts QuizAttempt[]
   hiddenBy QuizHidden[]
+  dailies  QuizDaily[]
+  reviews  QuizReview[]
 
   @@index([topic])
 }
@@ -402,6 +406,49 @@ model QuizAttempt {
   createdAt   DateTime     @default(now())
 
   @@index([userId, questionId])
+}
+
+// 今日の一問（デイリー）。「その日どの問題を出したか」を記録して確定させる。
+//
+// 日付シードで毎回選び直す方式にしないのは、問題が増えると過去日の出題が
+// 再現できなくなり、連続日数（ストリーク）が後から変わってしまうため。
+// 1行 = 1人の1日。answeredAt が入っていればその日は達成扱い。
+model QuizDaily {
+  id         String       @id @default(cuid())
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  question   QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId String
+  // ローカル日付（JST）の 0時。日付の境目は src/lib/quiz/daily.ts の localDayStart に合わせる
+  day        DateTime     @db.Date
+  answeredAt DateTime?
+  correct    Boolean?
+  createdAt  DateTime     @default(now())
+
+  @@unique([userId, day])
+  @@index([userId, answeredAt])
+}
+
+// 復習ボックス（間隔反復）。間違えた問題を寝かせてから再出題する。
+//
+// box が段階で、REVIEW_INTERVALS[box] 日後に dueAt が来る（src/lib/quiz/review.ts）。
+// 正解で box を上げ、誤答で box を0に戻す。最終段階を正解したら graduatedAt を入れて卒業。
+model QuizReview {
+  id          String       @id @default(cuid())
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  question    QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId  String
+  box         Int          @default(0)
+  dueAt       DateTime
+  // 卒業した問題は復習対象から外れる（間違え直すと再び box0 で戻ってくる）
+  graduatedAt DateTime?
+  lastResult  Boolean?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([userId, questionId])
+  @@index([userId, graduatedAt, dueAt])
 }
 
 // 招待リンク認証（個人情報を持たない方針）。メール/パスワードの代わりに
@@ -752,6 +799,9 @@ model StudyPlanItem {
   weekLabel  String? // 例: "1週目" "直前1週間"
   title      String // 学習マイルストーン
   detail     String? // 具体的な学習内容
+  // この週に対応する腕試しのお題（src/lib/certifications.ts の CertChapter.topic）。
+  // カタログ外の資格・AIが章を選べなかった週は null（従来どおりチェックリストのみ）。
+  topic      String?
   targetDate DateTime? @db.Date // この項目の目安完了日
   done       Boolean   @default(false)
   doneAt     DateTime?

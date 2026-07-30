@@ -54,6 +54,24 @@ export const ONBOARDING_TIPS: Tip[] = [
 
 export const TIPS: Tip[] = [
   {
+    id: "quiz-daily",
+    emoji: "🔥",
+    text: "腕試しには「今日の一問」があるよ。1日1問だけ、連続で続けるとボーナスEXP",
+    href: "/quiz/daily",
+  },
+  {
+    id: "quiz-review",
+    emoji: "🔁",
+    text: "間違えた問題は復習ボックスに入って、3日後・7日後・30日後にまた出てくるよ",
+    href: "/quiz/review",
+  },
+  {
+    id: "plan-chapter-quiz",
+    emoji: "📚",
+    text: "学習プランの各週から、その章の腕試しへ直接飛べるよ。資格の範囲ごとに問題があるんだ",
+    href: "/plan",
+  },
+  {
     id: "ui-shell",
     emoji: "🖥",
     text: "マイページの「UIモード」で、レトロOSデスクトップ風の画面に切り替えられるよ",

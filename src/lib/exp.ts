@@ -25,6 +25,9 @@ export const EXP_WEIGHTS = {
   quizAuthored: 20, // 問題をつくる
   goodQuestionBonus: 30, // 自作問題が良問（平均7+・2人以上評価）
   quizRated: 3, // 他の人の問題を評価する（良問バンクへの貢献）
+  dailyDone: 10, // 今日の一問に答える（1日1回）
+  dailyStreakBonus: 30, // 今日の一問を7日連続ごとのボーナス
+  reviewGraduated: 15, // 間違えた問題を復習しきって卒業
   mentorSession: 10, // メンターに相談する（セッション作成）
   planCreated: 15, // 学習プランを作る
   planItemDone: 5, // 学習プラン項目を完了
@@ -207,6 +210,8 @@ export const getPlayerStats = cache(async (userId: string): Promise<PlayerStats>
     planDone,
     user,
     visits,
+    dailyDays,
+    reviewGraduated,
     pastGenerations,
     // ---- 今週分 ----
     wReports,
@@ -252,6 +257,12 @@ export const getPlayerStats = cache(async (userId: string): Promise<PlayerStats>
       where: { userId },
       select: { date: true },
     }),
+    // 今日の一問（達成した日）と、復習を卒業した問題数
+    prisma.quizDaily.findMany({
+      where: { userId, answeredAt: { not: null } },
+      select: { day: true, answeredAt: true },
+    }),
+    prisma.quizReview.count({ where: { userId, graduatedAt: { not: null } } }),
     prisma.avatarGeneration.findMany({
       where: { userId },
       orderBy: { gen: "asc" },
@@ -297,6 +308,10 @@ export const getPlayerStats = cache(async (userId: string): Promise<PlayerStats>
   const wCorrects = correctGroups.filter(firstThisWeek).length;
   const visitStats = analyzeVisits(visits.map((v) => v.date));
   const wVisits = visits.filter((v) => v.date >= weekStart).length;
+  const dailyCount = dailyDays.length;
+  const wDaily = dailyDays.filter(
+    (d) => !!d.answeredAt && d.answeredAt >= weekStart
+  ).length;
 
   const W = EXP_WEIGHTS;
   // 生涯のソース別EXP（遺伝子判定・転生時のサマリ確定に使う）
@@ -317,6 +332,11 @@ export const getPlayerStats = cache(async (userId: string): Promise<PlayerStats>
     publicProfile: user.isPublic ? 1 : 0,
     visit: visitStats.days,
     streakWeekBonus: visitStats.weekBonusCount,
+    dailyDone: dailyCount,
+    // 訪問ストリークと同じ方式（7日ぶんごとに1回）。連続の切れ目ではなく
+    // 累計達成日数で数えるので、途切れても積み上げは消えない
+    dailyStreakBonus: Math.floor(dailyCount / 7),
+    reviewGraduated,
   };
   const expBySource = Object.fromEntries(
     Object.entries(activityCounts).map(([k, n]) => [
@@ -378,6 +398,7 @@ export const getPlayerStats = cache(async (userId: string): Promise<PlayerStats>
     `腕試し×${wAttempts}`,
     wAttempts * W.quizAttempt + wCorrects * W.quizCorrectBonus
   );
+  add(wDaily, `今日の一問×${wDaily}`, wDaily * W.dailyDone);
   add(wAuthored, `作問×${wAuthored}`, wAuthored * W.quizAuthored);
   add(wRatings, `問題を評価×${wRatings}`, wRatings * W.quizRated);
   add(wMentorSessions, `相談×${wMentorSessions}`, wMentorSessions * W.mentorSession);

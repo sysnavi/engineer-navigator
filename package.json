@@ -10,6 +10,7 @@
     "postinstall": "prisma generate",
     "db:deploy": "prisma migrate deploy",
     "ingest:knowledge": "tsx scripts/ingest-knowledge.ts",
+    "gen:quiz": "tsx scripts/generate-quiz.ts",
     "check:content": "tsx scripts/check-content.ts",
     "seed:launch": "tsx prisma/seed-launch.ts"
   },

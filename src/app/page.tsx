@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { mondayOf, formatWeek } from "@/lib/week";
 import { getPlayerStats } from "@/lib/exp";
+import { getOrCreateDaily } from "@/lib/quiz/daily";
+import { reviewSummary } from "@/lib/quiz/review";
 import { resolveShell } from "@/lib/shell";
 import { appsForRole, APP_GROUPS, type AppGroup } from "@/lib/apps";
 import { PixelTitle, PixelLabel, Window } from "@/components/retro";
@@ -42,7 +44,7 @@ export default async function Home() {
   const user = await getCurrentUser();
   const weekStart = mondayOf(new Date());
 
-  const [report, pendingSuggestions, skillCount, expCount, player] =
+  const [report, pendingSuggestions, skillCount, expCount, player, daily, review] =
     await Promise.all([
       prisma.weeklyReport.findUnique({
         where: { userId_weekStart: { userId: user.id, weekStart } },
@@ -55,6 +57,8 @@ export default async function Home() {
         where: { userId: user.id, status: "APPROVED", kind: "EXPERIENCE" },
       }),
       getPlayerStats(user.id),
+      getOrCreateDaily(user.id),
+      reviewSummary(user.id),
     ]);
 
   const reportDone = report?.status === "SUBMITTED";
@@ -294,10 +298,18 @@ export default async function Home() {
             titleEm=".dat"
             className="transition-transform group-hover:-translate-y-0.5"
           >
-            <PixelLabel>腕試し</PixelLabel>
+            <PixelLabel className={daily.answered ? "" : "!text-pinkhot"}>
+              {daily.answered
+                ? `${daily.streak}日連続 🔥`
+                : "今日の一問 まだ"}
+            </PixelLabel>
             <p className="mt-1 text-[15px] font-extrabold">良問バンク</p>
             <p className="mt-1 text-[13px] text-inksoft">
-              四択でスキルチェック。良問はみんなで作って育てる
+              {!daily.answered && daily.question
+                ? `今日の1問（${daily.question.topic}）が待っています`
+                : review.due > 0
+                  ? `復習どきの問題が${review.due}問あります`
+                  : "四択でスキルチェック。良問はみんなで作って育てる"}
             </p>
           </Window>
         </Link>

@@ -32,7 +32,7 @@ export const GENES: GeneDef[] = [
     short: "続",
     color: "var(--royal)",
     desc: "週報を書き続けた血統",
-    sources: ["report", "publicReport"],
+    sources: ["report", "publicReport", "dailyDone", "dailyStreakBonus"],
   },
   {
     id: "chie",
@@ -40,7 +40,7 @@ export const GENES: GeneDef[] = [
     short: "知",
     color: "var(--lemon)",
     desc: "腕試しで知識を磨いた血統",
-    sources: ["quizAttempt", "quizCorrectBonus"],
+    sources: ["quizAttempt", "quizCorrectBonus", "reviewGraduated"],
   },
   {
     id: "souzou",

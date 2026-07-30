@@ -7,10 +7,12 @@ import { mondayOf } from "@/lib/week";
 import { getPlayerStats } from "@/lib/exp";
 import { getDungeonState } from "@/lib/dungeon/run";
 import { getPendingVisitor } from "@/lib/pets/encounter";
+import { getOrCreateDaily } from "@/lib/quiz/daily";
+import { reviewSummary } from "@/lib/quiz/review";
 
 export async function TodaySys(props: { userId: string }) {
   const weekStart = mondayOf(new Date());
-  const [report, pendingSuggestions, stats, dungeon, visitor] = await Promise.all([
+  const [report, pendingSuggestions, stats, dungeon, visitor, daily, review] = await Promise.all([
     prisma.weeklyReport.findUnique({
       where: { userId_weekStart: { userId: props.userId, weekStart } },
       select: { status: true },
@@ -21,6 +23,8 @@ export async function TodaySys(props: { userId: string }) {
     getPlayerStats(props.userId),
     getDungeonState(props.userId),
     getPendingVisitor(props.userId),
+    getOrCreateDaily(props.userId),
+    reviewSummary(props.userId),
   ]);
   const reportDone = report?.status === "SUBMITTED";
 
@@ -30,6 +34,28 @@ export async function TodaySys(props: { userId: string }) {
       ? { icon: "✅", text: "今週の週報 — 提出済み" }
       : { icon: "⚠", text: "今週の週報 — 未提出", cta: { href: "/report", label: "▶ 書く" } }
   );
+  // 今日の一問は「1問だけ」が売りなので、未達成なら週報の次に置く（重い順に並べない）
+  if (daily.question) {
+    rows.push(
+      daily.answered
+        ? {
+            icon: "✅",
+            text: `今日の一問 — 達成${daily.streak > 1 ? `（${daily.streak}日連続）` : ""}`,
+          }
+        : {
+            icon: "🎯",
+            text: `今日の一問 — ${daily.question.topic}`,
+            cta: { href: "/quiz/daily", label: "▶ 解く" },
+          }
+    );
+  }
+  if (review.due > 0) {
+    rows.push({
+      icon: "🔁",
+      text: `復習どき — ${review.due}問`,
+      cta: { href: "/quiz/review", label: "▶ やる" },
+    });
+  }
   if (pendingSuggestions > 0) {
     rows.push({
       icon: "⏳",

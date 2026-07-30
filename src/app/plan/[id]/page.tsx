@@ -18,6 +18,17 @@ export default async function PlanDetailPage({
   });
   if (!plan || plan.userId !== user.id) notFound();
 
+  // 各週のお題に、いま何問あるかを数えて出す（0問なら誘導しても空振りになるので出し分ける）。
+  const topics = [...new Set(plan.items.map((i) => i.topic).filter((t): t is string => !!t))];
+  const counts = topics.length
+    ? await prisma.quizQuestion.groupBy({
+        by: ["topic"],
+        where: { topic: { in: topics } },
+        _count: { _all: true },
+      })
+    : [];
+  const countByTopic = new Map(counts.map((c) => [c.topic, c._count._all]));
+
   const total = plan.items.length;
   const done = plan.items.filter((i) => i.done).length;
   const pct = total ? Math.round((done / total) * 100) : 0;
@@ -107,6 +118,19 @@ export default async function PlanDetailPage({
               {it.detail && (
                 <p className="mt-1 text-[12.5px] text-inksoft">{it.detail}</p>
               )}
+              {it.topic &&
+                (countByTopic.get(it.topic) ? (
+                  <Link
+                    href={`/quiz/play?topic=${encodeURIComponent(it.topic)}`}
+                    className="btn8 mt-2 inline-block text-[11.5px]"
+                  >
+                    ▶ この章の腕試し（{it.topic}・{countByTopic.get(it.topic)}問）
+                  </Link>
+                ) : (
+                  <p className="mt-2 text-[11px] text-inksoft">
+                    「{it.topic}」の問題は準備中
+                  </p>
+                ))}
             </div>
           </div>
         ))}
