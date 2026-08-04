@@ -29,12 +29,17 @@ npm run assets              # public/icon-512.png からアイコン・スプラ
 
 ### 0. 前提（1回だけ・Apple Developerサイトでの手動作業）
 
+署名まわりのプロジェクト設定は済んでいる（Team `KFW7UH97T3` / 自動署名 / 縦向き固定 /
+iPhone専用 / 暗号輸出コンプライアンス回答済み）ので、**Apple側にアプリの器を作るだけ**。
+
 1. [Apple Developer](https://developer.apple.com/account) → Identifiers →
    App ID `jp.engnavi.app` を登録（Capabilities は当面デフォルトのまま）。
+   ※ Xcodeのアーカイブ時に自動作成させることもできる（Signing & Capabilities で
+   「Try Again」を押すと登録される）。
 2. [App Store Connect](https://appstoreconnect.apple.com) → マイApp → 新規App:
    - プラットフォーム: iOS / 名前: Engineer Navigator / プライマリ言語: 日本語
    - Bundle ID: `jp.engnavi.app` / SKU: `engnavi`
-3. Xcode → Settings → Accounts に Apple ID を追加（Automatically manage signing を使う）。
+3. Xcode → Settings → Accounts に Apple ID が入っていることを確認。
 
 ### 1. アーカイブ & アップロード（配布のたび）
 
@@ -43,10 +48,17 @@ cd mobile && npm run sync && npm run open:ios
 ```
 
 Xcode 側:
-1. TARGETS → App → Signing & Capabilities → Team を選択（Automatically manage signing: ON）
-2. General → Version（例 1.0.0）/ Build（アップロードごとに+1）
-3. デバイス選択を **Any iOS Device (arm64)** にして Product → Archive
-4. Organizer → Distribute App → **TestFlight & App Store** → Upload
+1. デバイス選択を **Any iOS Device (arm64)** にして Product → Archive
+   （シミュレータが選ばれているとArchiveがグレーアウトする）
+2. Organizer → Distribute App → **TestFlight & App Store** → Upload
+
+バージョンは Xcode の TARGETS → App → General で変更する（`MARKETING_VERSION` = Version /
+`CURRENT_PROJECT_VERSION` = Build）。**同じビルド番号は再アップロードできない**ので、
+2回目以降は Build を +1 すること。
+
+> ⚠️ `agvtool` は使わないこと。Info.plist の `CFBundleVersion` を
+> `$(CURRENT_PROJECT_VERSION)` 参照からハードコード値に書き換えてしまい、
+> ビルド設定との二重管理になる。
 
 ### 2. テスターに配る
 
