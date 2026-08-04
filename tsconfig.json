@@ -30,5 +30,8 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  // mobile/ はCapacitorシェル用の独立プロジェクト（依存も mobile/package.json 側）。
+  // Vercelのビルドでは mobile/node_modules が入らず @capacitor/cli を解決できないため、
+  // Webアプリの型チェック対象から外す
+  "exclude": ["node_modules", "mobile"]
 }

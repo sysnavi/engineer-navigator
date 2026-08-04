@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Capacitorシェル（独立プロジェクト・ネイティブ生成物を含む）
+    "mobile/**",
   ]),
 ]);
 
