@@ -19,6 +19,8 @@ import {
   FLOORS,
 } from "@/lib/home/scene";
 import { FOODS, MAX_FEEDS_PER_DAY } from "@/lib/pets/foods";
+import { shopItemById } from "@/lib/shop/content";
+import { ShopSprite } from "@/components/shop-sprite";
 import { FoodSprite } from "@/components/pets/food-sprite";
 import { DesktopScene, type DeskGadget, type DeskVisitor } from "./desktop-scene";
 import { LivingScene, type RoomPet } from "./living-scene";
@@ -33,12 +35,17 @@ function today(): Date {
 
 export default async function HomePage() {
   const user = await getCurrentUser();
-  const [pets, owned, fledCount, foodRows] = await Promise.all([
+  const [pets, owned, fledCount, foodRows, purchases] = await Promise.all([
     prisma.pet.findMany({ where: { userId: user.id }, orderBy: { befriendedAt: "asc" } }),
     prisma.ownedGadget.findMany({ where: { userId: user.id } }),
     prisma.encounter.count({ where: { userId: user.id, status: "FLED" } }),
     prisma.foodItem.findMany({ where: { userId: user.id } }),
+    prisma.purchase.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } }),
   ]);
+  // おかいもの（SHOP.cat）で買った家具。かざり棚に購入順で並ぶ
+  const furniture = purchases
+    .map((p) => shopItemById(p.itemId))
+    .filter((i): i is NonNullable<typeof i> => !!i);
 
   const ownedDefs = owned
     .map((o) => GADGETS.find((g) => g.id === o.gadgetId))
@@ -190,6 +197,19 @@ export default async function HomePage() {
           awayName={visitor?.name ?? null}
           stocks={stocks}
         />
+        {/* ===== かざり棚（おかいものの家具） ===== */}
+        {furniture.length > 0 && (
+          <div className="mt-3 rounded-lg border-2 border-line8 bg-surface p-3">
+            <PixelLabel className="mb-2">KAZARI — かざり棚（おかいもの）</PixelLabel>
+            <div className="flex flex-wrap items-end gap-3 border-b-4 border-line8 pb-1">
+              {furniture.map((f) => (
+                <span key={f.id} title={`${f.name} — ${f.desc}`}>
+                  <ShopSprite id={f.id} px={4} label={f.name} />
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
         <p className="mt-2.5 text-[11.5px] text-inksoft">
           なかま {pets.length} 匹
           {fledCount > 0 && ` ／ これまで逃げられた回数 ${fledCount} 回（また会えるさ）`}

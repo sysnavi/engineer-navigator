@@ -92,6 +92,11 @@ model User {
   authIdentities   AuthIdentity[]
   inquiries        Inquiry[]
   authSessions     AuthSession[]
+  wallet           Wallet?
+  walletLogs       WalletLog[]
+  genbaContracts   GenbaContract[]
+  genbaSales       GenbaSales?
+  purchases        Purchase[]
 }
 
 // OAuthログインの身元（Issue #8・PIIゼロ設計）。
@@ -860,4 +865,80 @@ model Inquiry {
 
   @@index([status, createdAt])
   @@index([userId, createdAt])
+}
+
+// ---- かせぐ（げんば / おかいもの）----
+
+// 通貨EN（エン）の残高。唯一の正。げんばの精算で増え、おかいもので減る。
+// 増減は必ずWalletLogとセットで行う（server action内でtransaction）。
+model Wallet {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @unique
+  balance   Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+// 入出金履歴（精算・購入の監査用）。reason: "genba:complete" | "genba:failed" | "shop:purchase"
+model WalletLog {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  delta     Int
+  reason    String
+  refId     String? // GenbaContract.id / ShopItemのid 等
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// SES現場シミュレーション（げんば）の契約。進行中は1人1件まで（アプリ側で強制）。
+// 案件・イベントのマスタはDBに持たず src/lib/genba/ のTSマスタをID参照（ダンジョン方式）。
+// 案件提示はseed決定的生成でDB保存しない。応募した瞬間にこの行が生まれる。
+model GenbaContract {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  offerId   String // 生成案件のID（テンプレID:日付:枠。表示再現・重複応募防止用）
+  seed      Int // イベント抽選の種。判定は全てサーバー側（改ざん耐性はダンジョンと同方針）
+  title     String
+  theme     String // src/lib/genba/content.ts の GenbaTheme
+  rate      Int // 単価 EN/現場日
+  totalDays Int // 現場日数（1ヶ月案件=10日/2ヶ月=15日/3ヶ月=20日）
+  day       Int       @default(0) // 消化した現場日数
+  trust     Int       @default(50) // しんらい 0-100
+  stamina   Int       @default(100) // たいりょく 0-100
+  strikes   Int       @default(0) // 連続しくじり。3で途中退場
+  status    String    @default("ACTIVE") // ACTIVE | COMPLETED | FAILED
+  log       Json      @default("[]") // 日ごとの記録（リプレイ表示用）
+  payout    Int? // 精算額（終了時に確定）
+  createdAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  @@index([userId, createdAt])
+}
+
+// 営業ハトリさんの信頼度（なつき度と同型・ユーザーごとに1行）。
+// blocked は面接に落ちた案件の当日ブロック {date: "YYYY-MM-DD", ids: string[]}
+model GenbaSales {
+  id             String   @id @default(cuid())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String   @unique
+  trust          Int      @default(0)
+  completedCount Int      @default(0)
+  failedCount    Int      @default(0)
+  blocked        Json     @default("{}")
+  updatedAt      DateTime @updatedAt
+}
+
+// おかいもの（SHOP）の購入。アイテムマスタは src/lib/shop/content.ts（1種1個）
+model Purchase {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  itemId    String
+  price     Int // 購入時価格（後からマスタの値段を変えても履歴が正しい）
+  createdAt DateTime @default(now())
+
+  @@unique([userId, itemId])
 }

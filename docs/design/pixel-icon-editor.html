@@ -1,0 +1,455 @@
+<meta charset="utf-8">
+<title>アイコン ドット絵エディタ</title>
+<style>
+  /* src/components/pixel-icon.tsx の文字マップを手で描くための道具。
+     おさんぽ試聴室・ダンジョンBGM試聴室と同じ「設計用HTML」の仲間。
+     パレット値は src/app/globals.css の各テーマから写している（ズレたらここを直す）。 */
+  :root {
+    --ink: #12235f;
+    --win: #ffffff;
+    --surface: #f7fbff;
+    --paper: #d7e7f4;
+    --soft: #5a6b93;
+    --line: #12235f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 20px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  h1 { font-size: 16px; margin: 0 0 4px; letter-spacing: .08em; }
+  .lead { color: var(--soft); font-size: 12px; margin: 0 0 18px; }
+  .wrap { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; max-width: 1180px; }
+  .panel {
+    background: var(--win);
+    border: 2px solid var(--line);
+    padding: 12px;
+  }
+  .panel > h2 {
+    font-size: 11px; letter-spacing: .12em; margin: 0 0 9px;
+    background: var(--ink); color: var(--win); padding: 2px 7px; display: inline-block;
+  }
+  label { font-size: 11.5px; color: var(--soft); }
+  input[type=number] {
+    width: 52px; font: inherit; padding: 2px 4px;
+    border: 2px solid var(--line); background: var(--surface); color: var(--ink);
+  }
+  input[type=range] { width: 118px; vertical-align: middle; }
+  select, textarea { font: inherit; border: 2px solid var(--line); background: var(--surface); color: var(--ink); }
+  select { padding: 3px 4px; }
+  button {
+    font: inherit; font-size: 11.5px; padding: 3px 9px; cursor: pointer;
+    border: 2px solid var(--line); background: var(--win); color: var(--ink);
+  }
+  button:hover { background: var(--surface); }
+  button:active { transform: translate(1px, 1px); }
+
+  /* ---- 編集グリッド ---- */
+  #stage { position: relative; display: inline-block; border: 2px solid var(--line); }
+  #ref {
+    position: absolute; inset: 0; background-size: 100% 100%;
+    background-repeat: no-repeat; pointer-events: none; opacity: 0;
+  }
+  #grid { position: relative; display: grid; gap: 0; touch-action: none; }
+  #grid i {
+    display: block; position: relative;
+    box-shadow: inset 0 0 0 1px rgba(128,128,128,.28);
+  }
+  #grid.nogrid i { box-shadow: none; }
+  #grid i.gx { box-shadow: inset 0 0 0 1px rgba(128,128,128,.28), inset -1px 0 0 0 rgba(242,78,156,.75); }
+  #grid i.gy { box-shadow: inset 0 0 0 1px rgba(128,128,128,.28), inset 0 -1px 0 0 rgba(242,78,156,.75); }
+  #grid i.gx.gy { box-shadow: inset 0 0 0 1px rgba(128,128,128,.28), inset -1px -1px 0 0 rgba(242,78,156,.75); }
+
+  /* ---- パレット ---- */
+  .pal { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 5px; }
+  .sw {
+    display: flex; align-items: center; gap: 7px; padding: 3px 5px; cursor: pointer;
+    border: 2px solid transparent; background: var(--surface);
+  }
+  .sw.on { border-color: var(--ink); background: var(--win); }
+  .sw b {
+    width: 20px; height: 20px; border: 1px solid var(--line); flex: none;
+    background-image: linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%),
+                      linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%);
+    background-size: 8px 8px; background-position: 0 0, 4px 4px;
+  }
+  .sw b i { display: block; width: 100%; height: 100%; }
+  .sw span { font-size: 11px; line-height: 1.25; }
+  .sw span em { font-style: normal; font-weight: bold; }
+  .sw span small { display: block; color: var(--soft); font-size: 10px; }
+
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .row:last-child { margin-bottom: 0; }
+  .sep { height: 2px; background: var(--line); opacity: .18; margin: 10px 0; }
+
+  /* ---- プレビュー ---- */
+  .pv { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+  .pv figure { margin: 0; text-align: center; }
+  .pv figcaption { font-size: 10.5px; color: var(--soft); margin-top: 5px; }
+  .pvbox { padding: 9px; border: 2px solid var(--line); display: inline-flex; align-items: center; justify-content: center; }
+  .dots { display: grid; image-rendering: pixelated; }
+  .dots i { display: block; }
+
+  textarea { width: 100%; height: 190px; padding: 8px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; line-height: 1.45; white-space: pre; }
+  .hint { font-size: 11px; color: var(--soft); margin: 6px 0 0; }
+  code { background: var(--surface); padding: 1px 4px; border: 1px solid rgba(128,128,128,.35); font-size: 11px; }
+</style>
+
+<h1>アイコン ドット絵エディタ</h1>
+<p class="lead">
+  <code>src/components/pixel-icon.tsx</code> の文字マップを手で描く道具。左で描いて、下の欄をそのまま貼れば反映される。<br>
+  左クリック＝塗る／右クリック＝消す／ドラッグ可。参照画像を敷けばなぞれる。<kbd>Ctrl+Z</kbd> で戻る。
+</p>
+
+<div class="wrap">
+  <div class="panel">
+    <h2>CANVAS</h2>
+    <div id="stage"><div id="ref"></div><div id="grid"></div></div>
+    <div class="sep"></div>
+    <div class="row">
+      <label>よこ <input type="number" id="cols" min="4" max="32" value="12"></label>
+      <label>たて <input type="number" id="rows" min="4" max="32" value="12"></label>
+      <label><input type="checkbox" id="showgrid" checked> 方眼</label>
+      <label><input type="checkbox" id="showmid"> 中心線</label>
+    </div>
+    <div class="row">
+      <button data-move="up">↑</button><button data-move="down">↓</button>
+      <button data-move="left">←</button><button data-move="right">→</button>
+      <button data-flip="h">左右反転</button><button data-flip="v">上下反転</button>
+      <button id="clear">ぜんぶ消す</button><button id="undo">戻る</button>
+    </div>
+    <div class="sep"></div>
+    <div class="row">
+      <label>下敷き <input type="file" id="reffile" accept="image/*" style="font-size:11px;width:150px"></label>
+      <label>濃さ <input type="range" id="refop" min="0" max="100" value="55"></label>
+      <button id="refclear">外す</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>PALETTE</h2>
+    <div class="pal" id="pal"></div>
+    <div class="sep"></div>
+    <h2>THEME</h2>
+    <div class="row">
+      <select id="theme">
+        <option value="royal">royal（既定）</option>
+        <option value="purple">purple</option>
+        <option value="gameboy">gameboy</option>
+        <option value="dark">dark ← ここで --ink が反転</option>
+        <option value="sepia">sepia</option>
+      </select>
+    </div>
+    <p class="hint">
+      dark テーマだけ <code>--ink</code> が明るい色に反転する。輪郭を <code>k</code> で描いた絵は
+      白地／濃地の両方で見え方が変わるので、切り替えて確かめること。
+    </p>
+    <div class="sep"></div>
+    <h2>PRESET</h2>
+    <div class="row">
+      <select id="preset" style="max-width:200px"></select>
+      <button id="load">よみこむ</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>PREVIEW</h2>
+    <div class="pv" id="pv"></div>
+    <p class="hint">px=3 がクラシックUI、px=2 がデスクトップUIの実サイズ。この2つで潰れないかを見る。</p>
+  </div>
+</div>
+
+<div class="panel" style="max-width:1180px;margin-top:18px">
+  <h2>CODE</h2>
+  <div class="row">
+    <label>id <input type="text" id="mapid" value="genba" style="width:110px;font:inherit;padding:2px 4px;border:2px solid var(--line);background:var(--surface);color:var(--ink)"></label>
+    <button id="copy">コピー</button>
+    <button id="apply">下の内容を読み込む</button>
+  </div>
+  <textarea id="out" spellcheck="false"></textarea>
+  <p class="hint">
+    貼り付け先は <code>src/components/pixel-icon.tsx</code> の <code>MAPS</code>。
+    貼ってから「下の内容を読み込む」を押せば、逆にここへ取り込める（既存アイコンの手直しにも使える）。
+  </p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- パレット: pixel-icon.tsx の COLORS と同じ並び ----
+  // テーマで変わるのは ink / royal-2 / sky8 / peri の4つ。
+  // pink-hot・lemon は globals.css の注記どおり全テーマ共通。good/warn/crit も :root 定義のみ。
+  var THEMES = {
+    royal:   { k:"#12235f", b:"#2a6fd6", s:"#5dade2", e:"#c1dbff", win:"#ffffff", surface:"#f7fbff", paper:"#d7e7f4", soft:"#5a6b93" },
+    purple:  { k:"#3d1a66", b:"#a667dc", s:"#d48fe8", e:"#f3dcff", win:"#ffffff", surface:"#fbf4ff", paper:"#f9ecfd", soft:"#6f4a92" },
+    gameboy: { k:"#0f380f", b:"#4c7c3c", s:"#8bac0f", e:"#cadc9f", win:"#f4f9e4", surface:"#edf5d4", paper:"#e6efc8", soft:"#4c7c3c" },
+    dark:    { k:"#e4ecff", b:"#5da0f0", s:"#7fd1ff", e:"#c1dbff", win:"#131b3e", surface:"#1a2450", paper:"#0b1026", soft:"#8fa3d4" },
+    sepia:   { k:"#5c2a12", b:"#e2703f", s:"#f0a24a", e:"#ffe1c2", win:"#fffaf2", surface:"#fdf4e5", paper:"#fdf0dc", soft:"#8a6647" }
+  };
+  var FIXED = { w:"#ffffff", y:"#ffd84d", p:"#f24e9c", r:"#e5484d", g:"#2e9e5b", n:"#b08050", o:"#e8a013" };
+  var CHARS = [
+    ["k", "--ink", "輪郭・影"],
+    [".", "透明", "背景ぬき"],
+    ["w", "#ffffff", "白・紙・鋼"],
+    ["y", "--lemon", "黄・EN・金"],
+    ["p", "--pink-hot", "桃・行動色"],
+    ["r", "--crit", "赤"],
+    ["g", "--good", "緑"],
+    ["b", "--royal-2", "青"],
+    ["s", "--sky8", "水色"],
+    ["e", "--peri", "淡い青"],
+    ["n", "#b08050", "茶・木"],
+    ["o", "--warn", "橙・濃い金"]
+  ];
+
+  var theme = "royal";
+  function colorOf(ch) {
+    if (ch === "." || ch === undefined) return "transparent";
+    var t = THEMES[theme];
+    if (ch === "k") return t.k;
+    if (ch === "b") return t.b;
+    if (ch === "s") return t.s;
+    if (ch === "e") return t.e;
+    return FIXED[ch] || "transparent";
+  }
+
+  // ---- プリセット: pixel-icon.tsx の現物＋検討中の案 ----
+  var PRESETS = {
+    "げんば（案A ダイヤ）": ["..kkkkkkk...",".ksssssssk..","kssssssssk..","ksskkkkssk..","kssknnkkk...","ksskknnk....",".kkk.knnk...","......knnk..",".......knnk.","........knnk",".........knn","..........kk"],
+    "げんば（案C 金）":   ["..kkkkkkk...",".kyyyyyyyk..","kyyyyyyyyk..","kyykkkkyyk..","kyyknnkkk...","kyykknnk....",".kkk.knnk...","......knnk..",".......knnk.","........knnk",".........knn","..........kk"],
+    "げんば（案E 頭大）": ["..kkkkkkkk..",".kssssssssk.","ksssssssssk.","kssskkkkssk.","ksssknnkkk..","kssskknnk...",".kkkk.knnk..",".......knnk.","........knnk",".........knn","..........kk"],
+    "げんば（現行 かばん）": ["....kkkk....","....k..k....",".kkkkkkkkkk.",".knnnnnnnnk.",".knnnnnnynk.",".kkkkkkkkkk.",".knnnnnnnnk.",".knnnnnnnnk.",".kkkkkkkkkk."],
+    "おかいもの（カート）": ["kkk.........","..k.........","..k.........","..kkkkkkkkkk","..ksssssssk.","...kssssskk.","...kkkkkkk..","....k...k...","...kk..kk...","...kk..kk..."],
+    "おかいもの（現行 かご）": ["..k......k..","...k....k...",".kkkkkkkkkk.",".kyryrbyrbk.","..krbygryk..","..kkkkkkkk..","...k....k...","...kk..kk...","............"],
+    "ダンジョン（現行）": ["...kkkkkk...","..knnnnnnk..",".knnnnnnnnk.",".knnkkkknnk.",".knkkkkkknk.",".knkkkkkknk.",".knkkkkkknk.",".kkkkkkkkkk."],
+    "マイホーム（現行）": [".....kk.....","....kppk....","...kppppk...","..kppppppk..",".kkkkkkkkkk.","..kwkkkkwk..","..kwkyykwk..","..kwkyykwk..","..kkkkkkkk.."],
+    "おさんぽ（現行）": [".....kkkk...","...kkggggkk.","..kggggggggk","s.kgkkggkkgk","..kggggggggk","s.kwwkwwkwwk","...kkkkkkkk.","gggggggggggg","ggyggggggygg"],
+    "からっぽ 12x12": null
+  };
+
+  var grid = [];
+  var cols = 12, rows = 12;
+  var cur = "k";
+  var stack = [];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var elGrid = $("grid"), elRef = $("ref");
+
+  function blank(c, r) {
+    var g = [], y, x, row;
+    for (y = 0; y < r; y++) { row = []; for (x = 0; x < c; x++) row.push("."); g.push(row); }
+    return g;
+  }
+
+  function push() {
+    stack.push(JSON.stringify({ g: grid, c: cols, r: rows }));
+    if (stack.length > 60) stack.shift();
+  }
+
+  function setSize(c, r) {
+    var g = blank(c, r), y, x;
+    for (y = 0; y < Math.min(r, rows); y++)
+      for (x = 0; x < Math.min(c, cols); x++) g[y][x] = grid[y][x];
+    cols = c; rows = r; grid = g;
+  }
+
+  function load(map) {
+    if (!map) { cols = 12; rows = 12; grid = blank(12, 12); return; }
+    rows = map.length;
+    cols = map.reduce(function (m, s) { return Math.max(m, s.length); }, 0);
+    grid = map.map(function (s) {
+      var row = s.split(""), i;
+      for (i = row.length; i < cols; i++) row.push(".");
+      return row;
+    });
+  }
+
+  // ---- 描画 ----
+  var CELL = 26;
+  function render() {
+    var mx = Math.floor((cols - 1) / 2), my = Math.floor((rows - 1) / 2);
+    var midOn = $("showmid").checked;
+    elGrid.style.gridTemplateColumns = "repeat(" + cols + "," + CELL + "px)";
+    elGrid.className = $("showgrid").checked ? "" : "nogrid";
+    var html = "", y, x, cls;
+    for (y = 0; y < rows; y++) for (x = 0; x < cols; x++) {
+      cls = midOn ? ((x === mx ? " gx" : "") + (y === my ? " gy" : "")) : "";
+      html += '<i class="' + cls.trim() + '" data-x="' + x + '" data-y="' + y +
+        '" style="width:' + CELL + 'px;height:' + CELL + 'px;background:' + colorOf(grid[y][x]) + '"></i>';
+    }
+    elGrid.innerHTML = html;
+    elGrid.style.width = cols * CELL + "px";
+    $("cols").value = cols; $("rows").value = rows;
+    renderPreview();
+    renderCode();
+  }
+
+  function dots(px, bg) {
+    var h = '<span class="dots" style="grid-template-columns:repeat(' + cols + ',' + px + 'px)">', y, x;
+    for (y = 0; y < rows; y++) for (x = 0; x < cols; x++)
+      h += '<i style="width:' + px + 'px;height:' + px + 'px;background:' + colorOf(grid[y][x]) + '"></i>';
+    return '<div class="pvbox" style="background:' + bg + '">' + h + "</span></div>";
+  }
+
+  function renderPreview() {
+    var t = THEMES[theme];
+    $("pv").innerHTML =
+      "<figure>" + dots(6, t.win) + "<figcaption>×6 拡大</figcaption></figure>" +
+      "<figure>" + dots(3, t.win) + "<figcaption>px=3 クラシック</figcaption></figure>" +
+      "<figure>" + dots(3, t.surface) + "<figcaption>px=3 surface上</figcaption></figure>" +
+      "<figure>" + dots(2, t.paper) + "<figcaption>px=2 デスクトップ</figcaption></figure>";
+  }
+
+  function renderCode() {
+    var id = $("mapid").value.trim() || "icon";
+    var body = grid.map(function (r) { return '    "' + r.join("") + '",'; }).join("\n");
+    $("out").value = "  " + id + ": [\n" + body + "\n  ],";
+  }
+
+  // ---- 入力 ----
+  var painting = 0;
+  function paint(e) {
+    var t = e.target;
+    if (!t || t.tagName !== "I" || t.dataset.x === undefined) return;
+    var x = +t.dataset.x, y = +t.dataset.y;
+    var ch = painting === 2 ? "." : cur;
+    if (grid[y][x] === ch) return;
+    grid[y][x] = ch;
+    t.style.background = colorOf(ch);
+    renderPreview(); renderCode();
+  }
+  elGrid.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  elGrid.addEventListener("pointerdown", function (e) {
+    push(); painting = e.button === 2 ? 2 : 1; elGrid.setPointerCapture(e.pointerId); paint(e);
+  });
+  elGrid.addEventListener("pointermove", function (e) {
+    if (!painting) return;
+    var t = document.elementFromPoint(e.clientX, e.clientY);
+    if (t) paint({ target: t });
+  });
+  window.addEventListener("pointerup", function () { painting = 0; });
+
+  document.addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); $("undo").click(); }
+  });
+
+  // ---- パレットUI ----
+  (function () {
+    var h = "", i, c;
+    for (i = 0; i < CHARS.length; i++) {
+      c = CHARS[i];
+      h += '<div class="sw' + (c[0] === cur ? " on" : "") + '" data-ch="' + c[0] + '">' +
+        '<b><i data-swatch="' + c[0] + '"></i></b>' +
+        "<span><em>" + (c[0] === "." ? "." : c[0]) + "</em> " + c[2] + "<small>" + c[1] + "</small></span></div>";
+    }
+    $("pal").innerHTML = h;
+  })();
+  function paintSwatches() {
+    var list = document.querySelectorAll("[data-swatch]"), i;
+    for (i = 0; i < list.length; i++) list[i].style.background = colorOf(list[i].dataset.swatch);
+  }
+  $("pal").addEventListener("click", function (e) {
+    var sw = e.target.closest(".sw"); if (!sw) return;
+    cur = sw.dataset.ch;
+    var list = $("pal").querySelectorAll(".sw"), i;
+    for (i = 0; i < list.length; i++) list[i].classList.toggle("on", list[i] === sw);
+  });
+
+  // ---- テーマ ----
+  function applyTheme() {
+    var t = THEMES[theme], root = document.documentElement.style;
+    root.setProperty("--ink", t.k); root.setProperty("--win", t.win);
+    root.setProperty("--surface", t.surface); root.setProperty("--paper", t.paper);
+    root.setProperty("--soft", t.soft); root.setProperty("--line", t.k);
+    paintSwatches(); render();
+  }
+  $("theme").addEventListener("change", function () { theme = this.value; applyTheme(); });
+
+  // ---- ツール ----
+  $("cols").addEventListener("change", function () { push(); setSize(+this.value, rows); render(); });
+  $("rows").addEventListener("change", function () { push(); setSize(cols, +this.value); render(); });
+  $("showgrid").addEventListener("change", render);
+  $("showmid").addEventListener("change", render);
+  $("clear").addEventListener("click", function () { push(); grid = blank(cols, rows); render(); });
+  $("undo").addEventListener("click", function () {
+    var s = stack.pop(); if (!s) return;
+    var o = JSON.parse(s); grid = o.g; cols = o.c; rows = o.r; render();
+  });
+
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-move]"), f = e.target.closest("[data-flip]");
+    if (b) {
+      push();
+      var d = b.dataset.move, g = blank(cols, rows), y, x;
+      for (y = 0; y < rows; y++) for (x = 0; x < cols; x++) {
+        var ny = y + (d === "up" ? -1 : d === "down" ? 1 : 0);
+        var nx = x + (d === "left" ? -1 : d === "right" ? 1 : 0);
+        if (ny >= 0 && ny < rows && nx >= 0 && nx < cols) g[ny][nx] = grid[y][x];
+      }
+      grid = g; render();
+    }
+    if (f) {
+      push();
+      grid = f.dataset.flip === "h"
+        ? grid.map(function (r) { return r.slice().reverse(); })
+        : grid.slice().reverse();
+      render();
+    }
+  });
+
+  // ---- 下敷き画像 ----
+  $("reffile").addEventListener("change", function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function () {
+      elRef.style.backgroundImage = 'url("' + fr.result + '")';
+      elRef.style.opacity = $("refop").value / 100;
+    };
+    fr.readAsDataURL(f);
+  });
+  $("refop").addEventListener("input", function () {
+    if (elRef.style.backgroundImage) elRef.style.opacity = this.value / 100;
+  });
+  $("refclear").addEventListener("click", function () {
+    elRef.style.backgroundImage = ""; elRef.style.opacity = 0; $("reffile").value = "";
+  });
+
+  // ---- プリセット ----
+  (function () {
+    var h = "", k;
+    for (k in PRESETS) if (Object.prototype.hasOwnProperty.call(PRESETS, k)) h += '<option>' + k + "</option>";
+    $("preset").innerHTML = h;
+  })();
+  $("load").addEventListener("click", function () {
+    push(); load(PRESETS[$("preset").value]); render();
+  });
+
+  // ---- コード入出力 ----
+  $("mapid").addEventListener("input", renderCode);
+  $("copy").addEventListener("click", function () {
+    $("out").select(); document.execCommand("copy");
+    this.textContent = "コピーした"; var b = this;
+    setTimeout(function () { b.textContent = "コピー"; }, 1200);
+  });
+  $("apply").addEventListener("click", function () {
+    var m = $("out").value.match(/"([^"]*)"/g);
+    if (!m || !m.length) { alert('"…" で囲まれた行が見つからない'); return; }
+    var id = $("out").value.match(/([A-Za-z0-9_]+)\s*:\s*\[/);
+    if (id) $("mapid").value = id[1];
+    push();
+    load(m.map(function (s) { return s.slice(1, -1); }));
+    render();
+  });
+
+  // ---- 起動 ----
+  load(PRESETS["げんば（案C 金）"]);
+  paintSwatches();
+  applyTheme();
+})();
+</script>

@@ -95,6 +95,36 @@ const MAPS: Record<string, string[]> = {
     "..kwwwwwk...",
     "...kkkkk....",
   ],
+  // げんば: 金のツルハシ。カギ状の頭を左上に置き、柄を45度で右下へ抜く（マイクラ風）。
+  // 頭の黄色は --lemon＝EN残高バッジと同じ色。柄の茶色はダンジョンと同系で「あそぶ」寄りに見えるため、
+  // 頭だけを黄に振って「かせぐ」を見分けさせている。
+  genba: [
+    "kk.kkkk.....",
+    "knkkyykk....",
+    ".knyyyyk....",
+    "kkyyykkk....",
+    "kyyykkk.....",
+    "kyykknnk....",
+    "kykk.knnk...",
+    "kyk...knnk..",
+    "kk.....knnk.",
+    "........knnk",
+    ".........knk",
+    "..........kk",
+  ],
+  // おかいもの: ショッピングカート（左に押し手、下に車輪2つ）
+  shop: [
+    "kkk.........",
+    "..k.........",
+    "..k.........",
+    "..kkkkkkkkkk",
+    "..ksssssssk.",
+    "...kssssskk.",
+    "...kkkkkkk..",
+    "....k...k...",
+    "...kk..kk...",
+    "...kk..kk...",
+  ],
   dungeon: [
     "...kkkkkk...",
     "..knnnnnnk..",

@@ -36,6 +36,7 @@ export const EXP_WEIGHTS = {
   publicReport: 5, // 週報を公開する（学び合いへの貢献）
   visit: 5, // サイトに来る（1日1回）
   streakWeekBonus: 20, // 7日連続訪問ごとのボーナス
+  genbaComplete: 40, // げんばの契約を満了（ゲーム系はEXPを厚くしすぎない・レビュー決定 2026-08-02）
 } as const;
 
 // レベルカーブ: 序盤サクサク・後半じっくりの平方根。Lv n に必要な累計EXP = 50 * (n-1)^2
@@ -223,6 +224,9 @@ export const getPlayerStats = cache(async (userId: string): Promise<PlayerStats>
     wPlans,
     wPosts,
     wPlanDone,
+    // ---- げんば（末尾に追加: 途中の並びを崩さないため） ----
+    genbaCompleted,
+    wGenbaCompleted,
   ] = await Promise.all([
     prisma.weeklyReport.count({ where: { userId, status: "SUBMITTED" } }),
     prisma.weeklyReport.count({ where: { userId, isPublic: true } }),
@@ -295,6 +299,12 @@ export const getPlayerStats = cache(async (userId: string): Promise<PlayerStats>
     prisma.studyPlanItem.count({
       where: { done: true, doneAt: { gte: weekStart }, plan: { userId } },
     }),
+    prisma.genbaContract.count({
+      where: { userId, status: "COMPLETED" },
+    }),
+    prisma.genbaContract.count({
+      where: { userId, status: "COMPLETED", endedAt: { gte: weekStart } },
+    }),
   ]);
 
   const goodCount = goodQuestions.filter(
@@ -337,6 +347,7 @@ export const getPlayerStats = cache(async (userId: string): Promise<PlayerStats>
     // 累計達成日数で数えるので、途切れても積み上げは消えない
     dailyStreakBonus: Math.floor(dailyCount / 7),
     reviewGraduated,
+    genbaComplete: genbaCompleted,
   };
   const expBySource = Object.fromEntries(
     Object.entries(activityCounts).map(([k, n]) => [
@@ -405,6 +416,11 @@ export const getPlayerStats = cache(async (userId: string): Promise<PlayerStats>
   add(wPlans, `プラン作成×${wPlans}`, wPlans * W.planCreated);
   add(wPlanDone, `プラン進行×${wPlanDone}`, wPlanDone * W.planItemDone);
   add(wPosts, `よもやま×${wPosts}`, wPosts * W.yomoyamaPost);
+  add(
+    wGenbaCompleted,
+    `げんば満了×${wGenbaCompleted}`,
+    wGenbaCompleted * W.genbaComplete
+  );
 
   return {
     exp,

@@ -2,7 +2,13 @@
 // 機能を足すときはここに1件追加すれば、クラシックUIとデスクトップUIの両方に生える。
 // アイコンは src/components/pixel-icon.tsx（id と同名の文字マップ）。
 
-export type AppGroup = "kiroku" | "manabu" | "asobu" | "jibun";
+export type AppGroup =
+  | "kiroku"
+  | "manabu"
+  | "kasegu"
+  | "okaimono"
+  | "asobu"
+  | "jibun";
 
 // ゲストに解放するアプリ（Issue #18）。**このファイルはクライアントからも読まれる**ので、
 // prisma等サーバー専用のモジュールに依存させないこと（定数はここに置く）。
@@ -12,6 +18,8 @@ export const GUEST_ALLOWED_APPS = ["quiz", "dungeon", "home", "mypage"];
 export const APP_GROUPS: Record<AppGroup, string> = {
   kiroku: "きろく",
   manabu: "まなぶ",
+  kasegu: "かせぐ",
+  okaimono: "おかいもの",
   asobu: "あそぶ・つながる",
   jibun: "じぶん",
 };
@@ -35,6 +43,8 @@ export const APPS: AppDef[] = [
   { id: "plan", href: "/plan", name: "学習プラン", ext: ".sav", group: "manabu", desc: "試験日から逆算した週次カリキュラム" },
   { id: "quiz", href: "/quiz", name: "腕試し", ext: ".dat", group: "manabu", desc: "今日の一問と復習ボックス。四択でスキルチェック" },
   { id: "roleplay", href: "/roleplay", name: "役割演習", ext: ".sim", group: "manabu", desc: "リーダーの難題をAIとロールプレイ" },
+  { id: "genba", href: "/genba", name: "げんば", ext: ".sim", group: "kasegu", desc: "案件を選び面接を突破、現場を乗り切ってENを稼ぐ" },
+  { id: "shop", href: "/shop", name: "おかいもの", ext: ".cat", group: "okaimono", desc: "稼いだENで家具をそろえて、マイホームを豊かに" },
   { id: "dungeon", href: "/dungeon", name: "ダンジョン", ext: ".log", group: "asobu", desc: "育てたアバターがフルオートで探索" },
   { id: "yomoyama", href: "/yomoyama", name: "よもやま", ext: ".log", group: "asobu", desc: "現場の話をハンドル名で共有" },
   { id: "discover", href: "/discover", name: "発見", ext: ".net", group: "asobu", desc: "みんなの成長の道筋から学ぶ" },
