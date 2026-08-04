@@ -1,5 +1,7 @@
 # デプロイ手順（Vercel + Neon）
 
+> モバイルアプリ（iOS/Android シェル）の配布は [docs/mobile-release.md](docs/mobile-release.md) を参照。
+
 テスト版を他エンジニアに見せるための最小構成。**個人情報は保持しない**方針（招待リンク認証）。
 
 ## 全体像

@@ -1,0 +1,32 @@
+{
+  "name": "mobile",
+  "version": "1.0.0",
+  "description": "Engineer Navigator mobile shell (Capacitor)",
+  "scripts": {
+    "sync": "cap sync",
+    "sync:local": "CAP_SERVER_URL=http://localhost:3000 cap sync",
+    "sync:local-android": "CAP_SERVER_URL=http://10.0.2.2:3000 cap sync",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android",
+    "assets": "capacitor-assets generate"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.0"
+  },
+  "allowScripts": {
+    "sharp@0.32.6": true
+  }
+}
