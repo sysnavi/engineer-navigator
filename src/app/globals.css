@@ -145,6 +145,20 @@ body {
     var(--paper);
   color: var(--ink);
   font-family: var(--font-sans);
+  /* セーフエリア（ノッチ/Dynamic Island）: viewport-fit=cover 時にコンテンツを下げる。
+     通常のブラウザでは env() が 0 になり無効。Capacitorシェル/PWAで効く */
+  padding-top: env(safe-area-inset-top);
+}
+
+/* ステータスバー裏の帯: スクロールした本文が時計・電池アイコンに重ならないよう
+   royal（テーマカラー・きせかえ追従）で塗る。高さ0なら描画されないので通常ブラウザは無影響 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: env(safe-area-inset-top);
+  background: var(--royal);
+  z-index: 40;
 }
 
 @layer components {
@@ -276,7 +290,8 @@ body {
     z-index: 20;
   }
   body[data-shell="desktop"] .chat-dock {
-    bottom: 62px; /* タスクバー54px + 余白8px（safe-areaはタスクバー側が吸収） */
+    /* タスクバー(54px + ホームインジケータ領域) + 余白8px */
+    bottom: calc(62px + env(safe-area-inset-bottom));
   }
 
   /* リザルト画面の登場演出（RPGのリザルト風にカクカク拡大） */

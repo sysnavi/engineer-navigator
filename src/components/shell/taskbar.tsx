@@ -68,7 +68,7 @@ export function Taskbar(props: {
           <nav
             aria-label="スタートメニュー"
             onClick={(e) => e.stopPropagation()}
-            className="fixed inset-x-0 bottom-[54px] max-h-[calc(100dvh-70px)] overflow-y-auto rounded-t-2xl border-t-[2.5px] border-line8 bg-win shadow-hard sm:inset-x-auto sm:bottom-[58px] sm:left-2.5 sm:w-[300px] sm:rounded-xl sm:border-[2.5px]"
+            className="fixed inset-x-0 bottom-[calc(54px+env(safe-area-inset-bottom))] max-h-[calc(100dvh-70px-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-y-auto rounded-t-2xl border-t-[2.5px] border-line8 bg-win shadow-hard sm:inset-x-auto sm:bottom-[58px] sm:left-2.5 sm:w-[300px] sm:rounded-xl sm:border-[2.5px]"
           >
             <div className="flex items-center gap-3 bg-royal px-4 py-3 text-white">
               <span className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-lg border-[2.5px] border-line8 bg-surface">
@@ -134,7 +134,9 @@ export function Taskbar(props: {
       )}
 
       {/* ===== タスクバー（PC）/ ドック（モバイル） ===== */}
-      <div className="no-print fixed inset-x-0 bottom-0 z-30 flex h-[54px] items-center gap-2 border-t-[2.5px] border-line8 bg-royal px-2.5 pb-[env(safe-area-inset-bottom)] sm:px-3">
+      {/* 高さは「中身54px + ホームインジケータ領域」。h-[54px]のままpbを足すと
+          中身が safe-area ぶん潰れてアイコンが帯からはみ出す（実機/シミュレータで発生） */}
+      <div className="no-print fixed inset-x-0 bottom-0 z-30 flex h-[calc(54px+env(safe-area-inset-bottom))] items-center gap-2 border-t-[2.5px] border-line8 bg-royal px-2.5 pb-[env(safe-area-inset-bottom)] sm:px-3">
         <button
           onClick={() => setMenuOpen((v) => !v)}
           aria-expanded={menuOpen}

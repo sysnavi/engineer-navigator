@@ -44,6 +44,9 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#004aad",
+  // Capacitorシェル/PWAでノッチ下まで描画し、env(safe-area-inset-*)を有効化する
+  // （余白の付与は globals.css の body / body::before 側）
+  viewportFit: "cover",
   // キーボード出現時はレイアウトを縮めてリサイズ（Android Chromeのガタつき軽減）
   interactiveWidget: "resizes-content",
 };
@@ -132,7 +135,7 @@ export default async function RootLayout({
           user.tipsEnabled && <TipsToast newcomer={isNewcomer} />}
         <Toaster />{/* 保存/送信結果（右上）。発火は notify / ActionForm */}
         {shell === "classic" && (
-          <header className="no-print sticky top-0 z-10 border-b-[2.5px] border-line8 bg-royal shadow-hard-sm">
+          <header className="no-print sticky top-[env(safe-area-inset-top)] z-10 border-b-[2.5px] border-line8 bg-royal shadow-hard-sm">
             <div className="mx-auto flex max-w-4xl flex-col gap-1.5 px-4 py-2.5 sm:flex-row sm:items-center sm:gap-2">
               <GuardedLink
                 href="/"
@@ -165,7 +168,9 @@ export default async function RootLayout({
         )}
         <main
           className={`mx-auto max-w-4xl px-4 py-6 sm:py-8 ${
-            shell === "desktop" ? "pb-24 sm:pb-24" : ""
+            shell === "desktop"
+              ? "pb-[calc(6rem+env(safe-area-inset-bottom))]"
+              : ""
           }`}
         >
           {children}
