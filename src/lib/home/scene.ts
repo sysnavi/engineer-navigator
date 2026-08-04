@@ -128,7 +128,13 @@ export function deskTier(owned: Gadget[]): DeskTier {
 // きせかえ（壁紙・床）
 // ---------------------------------------------------------------------------
 
-export type ThemeDef = { id: string; name: string; css: string };
+export type ThemeDef = {
+  id: string;
+  name: string;
+  css: string;
+  /** おかいもののシリーズをコンプすると解放される限定きせかえ（未コンプは選べない） */
+  unlockSeries?: string;
+};
 
 export const WALLPAPERS: ThemeDef[] = [
   { id: "cream", name: "クリーム", css: "var(--quote-bg)" },
@@ -148,6 +154,31 @@ export const WALLPAPERS: ThemeDef[] = [
     id: "night",
     name: "よふかし",
     css: "linear-gradient(180deg, #1a2352 0%, #35357a 80%, #4a3d8f 100%)",
+  },
+  // ----- シリーズコンプ限定（おかいもの松） -----
+  {
+    id: "cinema",
+    name: "シネマナイト",
+    css: "radial-gradient(circle at 8px 10px, rgba(255,255,255,0.5) 1.5px, transparent 1.5px) 0 0 / 34px 30px, linear-gradient(180deg, #232338 0%, #3a2b55 100%)",
+    unlockSeries: "kutsurogi",
+  },
+  {
+    id: "gamecenter",
+    name: "ゲームセンター",
+    css: "linear-gradient(rgba(90,209,200,0.35) 1.5px, transparent 1.5px) 0 0 / 30px 30px, linear-gradient(90deg, rgba(233,160,232,0.35) 1.5px, transparent 1.5px) 0 0 / 30px 30px, #16162a",
+    unlockSeries: "retro",
+  },
+  {
+    id: "shoji",
+    name: "しょうじ",
+    css: "linear-gradient(#c9b896 2px, transparent 2px) 0 0 / 48px 48px, linear-gradient(90deg, #c9b896 2px, transparent 2px) 0 0 / 48px 48px, #f4ecd8",
+    unlockSeries: "washitsu",
+  },
+  {
+    id: "botanical",
+    name: "ボタニカル",
+    css: "radial-gradient(circle at 10px 12px, rgba(46,158,79,0.28) 4px, transparent 4px) 0 0 / 36px 32px, radial-gradient(circle at 28px 26px, rgba(46,158,79,0.18) 3px, transparent 3px) 0 0 / 36px 32px, #e7f2dc",
+    unlockSeries: "midori",
   },
 ];
 
@@ -171,6 +202,13 @@ export const FLOORS: ThemeDef[] = [
     id: "tatami",
     name: "たたみ",
     css: "repeating-linear-gradient(0deg, #cfe0a8 0 42px, #bfd394 42px 44px)",
+  },
+  // ----- シリーズコンプ限定（おかいもの松） -----
+  {
+    id: "herringbone",
+    name: "ヘリンボーン",
+    css: "repeating-linear-gradient(45deg, #e8c890 0 14px, #dbb87e 14px 28px), repeating-linear-gradient(-45deg, rgba(125,90,51,0.16) 0 2px, transparent 2px 28px)",
+    unlockSeries: "hajimete",
   },
 ];
 

@@ -1,17 +1,29 @@
 "use client";
 
-// LIVING.sav — ペットが暮らすリビング（Issue #12 松）。
-// 旧 room.tsx から分離してペット専用に。ラグとまど（CSS描き）のうえで
-// ゆらゆら歩き。ペットをクリックすると おせわメニュー（なでなで / ごはん）が開く。
-// デスクに遊びに行っている子はここには居ない。
+// LIVING.sav — ペットが暮らすリビング（Issue #12 松 → おかいもの松で家具対応）。
+// おかいもので買った家具をドラッグで自由配置（DESKTOP.savと同じ機構）。
+// 家具はただの飾りではなくペットの「行き先」: 日替わり（決定的）で
+// ラグやこたつで昼寝したり、キャットタワーのてっぺんに登ったりする。
+// ペットをクリックすると おせわメニュー（なでなで / ごはん）が開く。
 //
 // ごはん（Issue #23）: 器にもりつけて差し出す→もぐもぐ→リアクション、の順で再生。
 // 好物を当てた日は「いっしょに いただきます」（おじぎ付き）に自動で切り替わる。
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Image from "next/image";
-import { petPet, feedPet, type FeedResult } from "./actions";
+import Link from "next/link";
+import { petPet, feedPet, moveFurniture, stowFurniture, type FeedResult } from "./actions";
 import { PET_SIZE } from "@/lib/home/scene";
+import {
+  clampFurniture,
+  furnitureBottomY,
+  LIVING_ZONES,
+  SHELF_BOARD_Y,
+  SHELF_SEGMENTS,
+  petAnchorFor,
+} from "@/lib/home/living";
+import { shopItemById } from "@/lib/shop/content";
+import { ShopSpriteFluid } from "@/components/shop-sprite";
 import { speciesById } from "@/lib/pets/species";
 import { CareMenu, type FoodStock } from "./care-menu";
 import { PetSpeech } from "./pet-speech";
@@ -27,6 +39,8 @@ export type RoomPet = {
   pettedToday: boolean;
   feedsLeft: number; // きょう あと何回ごはんをあげられるか（1日3回まで）
 };
+
+export type LivingFurniture = { itemId: string; x: number; y: number; z: number };
 
 // 演出の尺（ms）。CSSアニメ側と揃えてある
 const SERVE_IN = { dish: 560, hand: 700, together: 620 };
@@ -51,14 +65,32 @@ type Serving = {
   joy: boolean;
 };
 
+/** ペットの居場所（毎レンダー導出）。topPct=足元のシーンy% */
+type PetPose = {
+  xPct: number;
+  topPct: number;
+  scale: number;
+  z: number;
+  mode: "wander" | "sleep" | "sit" | "top" | "watch" | "front";
+  line: string | null; // 家具を使っている子のふるまい文
+};
+
 export function LivingScene(props: {
   pets: RoomPet[];
+  furniture: LivingFurniture[];
+  lodgers: Record<string, string>; // itemId -> petId（きょう家具を使っている子）
+  window: { width: number; curtain: boolean };
   wallpaperCss: string;
   floorCss: string;
   awayName: string | null; // デスクへ遊びに行っている子（表示だけ）
   stocks: FoodStock[];
 }) {
+  const sceneRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
   const [pets, setPets] = useState(props.pets);
+  const [furniture, setFurniture] = useState(props.furniture);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [overBox, setOverBox] = useState(false);
   const [hearts, setHearts] = useState<string | null>(null);
   const [stocks, setStocks] = useState(props.stocks);
   const [menuPetId, setMenuPetId] = useState<string | null>(null);
@@ -68,15 +100,89 @@ export function LivingScene(props: {
   const [serving, setServing] = useState<Serving | null>(null);
   const [log, setLog] = useState<string | null>(null);
   const [, startTransition] = useTransition();
-  // サーバーアクション後の再レンダーで新入りペット等を反映（props→state同期）。
+  // サーバーアクション後の再レンダーで新入りペット・購入家具を反映（props→state同期）。
   // refはrender中に読めない(react-hooks/refs)ため前回キーもstateで持つ
-  const propsKey = JSON.stringify([props.pets, props.stocks]);
+  const propsKey = JSON.stringify([props.pets, props.stocks, props.furniture]);
   const [lastKey, setLastKey] = useState(propsKey);
   if (lastKey !== propsKey) {
     setLastKey(propsKey);
     if (pets !== props.pets) setPets(props.pets);
     if (stocks !== props.stocks) setStocks(props.stocks);
+    if (furniture !== props.furniture && !dragging) setFurniture(props.furniture);
   }
+
+  // ---------------------------------------------------------------------
+  // 家具のドラッグ（DESKTOP.savと同じ Pointer Events 機構）
+  // ---------------------------------------------------------------------
+
+  function toPercent(e: React.PointerEvent): { x: number; y: number } {
+    const r = sceneRef.current!.getBoundingClientRect();
+    return {
+      x: ((e.clientX - r.left) / r.width) * 100,
+      y: ((e.clientY - r.top) / r.height) * 100,
+    };
+  }
+
+  function inStowBox(e: React.PointerEvent): boolean {
+    const b = boxRef.current?.getBoundingClientRect();
+    return !!b && e.clientX >= b.left && e.clientX <= b.right && e.clientY >= b.top && e.clientY <= b.bottom;
+  }
+
+  function onFurnDown(e: React.PointerEvent, itemId: string) {
+    e.preventDefault();
+    try {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      // 合成イベントや既に解放されたポインタでは capture できないことがある。
+      // その場合も要素上の move/up で追従できるので無視してよい
+    }
+    setDragging(itemId);
+    const maxZ = Math.max(0, ...furniture.map((f) => f.z));
+    setFurniture((cur) => cur.map((f) => (f.itemId === itemId ? { ...f, z: maxZ + 1 } : f)));
+  }
+
+  function onFurnMove(e: React.PointerEvent, itemId: string) {
+    if (dragging !== itemId) return;
+    const def = shopItemById(itemId);
+    if (!def) return;
+    const p = toPercent(e);
+    setOverBox(inStowBox(e));
+    setFurniture((cur) =>
+      cur.map((f) => (f.itemId === itemId ? { ...f, ...clampFurniture(def, p.x, p.y) } : f))
+    );
+  }
+
+  function onFurnUp(e: React.PointerEvent, itemId: string) {
+    if (dragging !== itemId) return;
+    setDragging(null);
+    setOverBox(false);
+    if (inStowBox(e)) {
+      setFurniture((cur) => cur.filter((f) => f.itemId !== itemId));
+      startTransition(async () => {
+        try {
+          await stowFurniture(itemId);
+        } catch {
+          setFurniture(props.furniture); // 失敗したらサーバー状態へ戻す
+        }
+      });
+      return;
+    }
+    const item = furniture.find((f) => f.itemId === itemId);
+    if (!item) return;
+    startTransition(async () => {
+      try {
+        await moveFurniture(itemId, item.x, item.y);
+      } catch {
+        setFurniture(props.furniture);
+      }
+    });
+  }
+
+  const dragZone = dragging ? shopItemById(dragging)?.zone : null;
+
+  // ---------------------------------------------------------------------
+  // おせわ（なでなで / ごはん / 会話）— 従来どおり
+  // ---------------------------------------------------------------------
 
   // なでなで。メニューを閉じてペット本体にハート＋にっこりを出す。
   // 何回でも撫でられる（またペットをタップすればメニューが開く）。
@@ -224,27 +330,88 @@ export function LivingScene(props: {
   const chatPet = pets.find((p) => p.id === chatPetId) ?? null;
   const chatSpecies = chatPet ? speciesById(chatPet.speciesId) : null;
 
-  // 3/4見下ろし: ペットは床に散らばって暮らす（座標は匹ごとに決定的・y=奥行きで前後関係）
+  // ---------------------------------------------------------------------
+  // 居場所の導出: 家具を使う子はアンカーへスナップ、ほかは床をそぞろ歩き
+  // ---------------------------------------------------------------------
+
+  // 3/4見下ろし: 散歩座標は匹ごとに決定的（y=奥行きで前後関係）
   const spot = (i: number) => ({
     x: 16 + ((i * 37) % 62),
     y: 42 + ((i * 23) % 46),
   });
+  // 前後関係は「足元・接地線のシーンy%」で家具とペットを同じ土俵に載せる
+  const depthZ = (bottomY: number) => 10 + Math.round(bottomY * 10);
+  const FLAT_Z = 300; // ラグ・ざぶとん（床に敷くもの）は常にペットより奥
+
+  const furnZ = (f: LivingFurniture): number => {
+    const def = shopItemById(f.itemId);
+    if (!def) return FLAT_Z;
+    if (def.flat) return FLAT_Z;
+    return depthZ(furnitureBottomY(def, f.y));
+  };
+
+  // itemId -> petId の割当をペット視点に引き直す
+  const poseOf = (p: RoomPet, i: number): PetPose => {
+    for (const [itemId, petId] of Object.entries(props.lodgers)) {
+      if (petId !== p.id) continue;
+      const f = furniture.find((x) => x.itemId === itemId);
+      const def = shopItemById(itemId);
+      if (!f || !def?.petSpot) break;
+      const a = petAnchorFor(def.petSpot.kind, def, f.x, f.y);
+      return {
+        xPct: a.x,
+        topPct: a.y,
+        scale: a.scale,
+        z: a.behind ? furnZ(f) - 1 : furnZ(f) + 1,
+        mode: def.petSpot.kind,
+        line: def.petSpot.line,
+      };
+    }
+    const pos = spot(i);
+    const topPct = 34 + pos.y * 0.66;
+    return { xPct: pos.x, topPct, scale: 1, z: depthZ(topPct), mode: "wander", line: null };
+  };
+  const poses = new Map(pets.map((p, i) => [p.id, poseOf(p, i)]));
 
   return (
     // isolate: ペットのz-index(奥行き〜900)がヘッダー(z-10)を突き抜けて
     // スクロール中にナビの上へ描画されるのを防ぐ（スタッキングを部屋内に閉じる）
-    <div className="isolate relative aspect-[16/8] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8 sm:aspect-[16/6]">
-      {/* 上部の壁（キャラ2匹ぶんの大きなまど） */}
+    <div
+      ref={sceneRef}
+      className="isolate relative aspect-[16/8] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8 sm:aspect-[16/6]"
+      style={{ touchAction: "none" }}
+    >
+      {/* 上部の壁（まどは へやの進化で立派になる） */}
       <div
         className="absolute inset-x-0 top-0 border-b-[3px] border-line8"
         style={{ height: "34%", background: props.wallpaperCss }}
       >
-        <div className="absolute left-1/2 top-[12%] grid h-[74%] w-[19%] min-w-[96px] -translate-x-1/2 grid-cols-2 overflow-hidden rounded-md border-[2.5px] border-line8 bg-sky8/60">
+        <div
+          className="absolute left-1/2 top-[12%] grid h-[74%] -translate-x-1/2 grid-cols-2 overflow-hidden rounded-md border-[2.5px] border-line8 bg-sky8/60"
+          style={{ width: `${props.window.width}%`, minWidth: 96 }}
+        >
           <i className="border-b-2 border-r-2 border-line8/60" />
           <i className="border-b-2 border-line8/60" />
           <i className="border-r-2 border-line8/60" />
           <i />
         </div>
+        {/* カーテン（tier2で付く。まどの左右にひらり） */}
+        {props.window.curtain && (
+          <>
+            {[-1, 1].map((side) => (
+              <div
+                key={side}
+                className="absolute top-[6%] h-[86%] rounded-sm border-2 border-line8"
+                style={{
+                  left: `calc(50% + ${side} * (${props.window.width / 2}% + 8px) - ${side === 1 ? 0 : 12}px)`,
+                  width: 12,
+                  background:
+                    "repeating-linear-gradient(90deg, var(--crit, #e5484d) 0 4px, #f2848b 4px 8px)",
+                }}
+              />
+            ))}
+          </>
+        )}
       </div>
       {/* 大きな床 + 幅木の影 */}
       <div
@@ -255,14 +422,67 @@ export function LivingScene(props: {
         className="absolute inset-x-0"
         style={{ top: "34%", height: "3%", background: "rgba(0,0,0,0.14)" }}
       />
-      {/* ラグ（キャラ2匹が乗れる広さ・キャラと同じ極太アウトライン） */}
-      <div
-        className="pointer-events-none absolute left-1/2 top-[70%] h-[30%] w-[46%] -translate-x-1/2 -translate-y-1/2 rounded-[18px] border-[2.5px] border-line8"
-        style={{
-          background:
-            "radial-gradient(circle at 3px 3px, rgba(255,255,255,0.5) 1.5px, transparent 1.5px) 0 0 / 10px 10px, rgba(255,255,255,0.45)",
-        }}
-      />
+      {/* かざり棚の板（まどの左右）。shelfゾーンの家具はこのうえに乗る */}
+      {SHELF_SEGMENTS.map(([lo, hi]) => (
+        <div
+          key={lo}
+          className="absolute border-2 border-line8"
+          style={{
+            left: `${lo - 2}%`,
+            width: `${hi - lo + 4}%`,
+            top: `${SHELF_BOARD_Y}%`,
+            height: "3.2%",
+            background: "#b08050",
+            zIndex: 2,
+          }}
+        />
+      ))}
+
+      {/* ドラッグ中の設置可能ゾーンのガイド */}
+      {dragZone &&
+        (dragZone === "shelf" ? SHELF_SEGMENTS : [[3, 97] as [number, number]]).map(
+          ([lo, hi]) => (
+            <div
+              key={`${lo}-${hi}`}
+              className="pointer-events-none absolute z-[1100] rounded-md border-2 border-dashed border-pinkhot/70"
+              style={{
+                left: `${lo - 1}%`,
+                width: `${hi - lo + 2}%`,
+                top: `${LIVING_ZONES[dragZone].y[0] - 3}%`,
+                height: `${LIVING_ZONES[dragZone].y[1] - LIVING_ZONES[dragZone].y[0] + 6}%`,
+              }}
+            />
+          )
+        )}
+
+      {/* 家具（おかいもの・自由配置）。接地線ソートでペットと前後関係を共有 */}
+      {furniture.map((f) => {
+        const def = shopItemById(f.itemId);
+        if (!def) return null;
+        const usedBy = pets.find((p) => p.id === props.lodgers[f.itemId]);
+        return (
+          <button
+            key={f.itemId}
+            onPointerDown={(e) => onFurnDown(e, f.itemId)}
+            onPointerMove={(e) => onFurnMove(e, f.itemId)}
+            onPointerUp={(e) => onFurnUp(e, f.itemId)}
+            title={`${def.name} — ${def.desc}${usedBy ? `｜${usedBy.name}のお気に入り` : ""}｜ドラッグで移動・右下のBOXでしまう`}
+            className={`absolute cursor-grab rounded-md p-0.5 ${
+              dragging === f.itemId ? "cursor-grabbing bg-white/40 ring-2 ring-pinkhot" : ""
+            }`}
+            style={{
+              left: `${f.x}%`,
+              top: `${f.y}%`,
+              width: `${def.size}%`,
+              transform: "translate(-50%, -50%)",
+              zIndex: furnZ(f),
+              touchAction: "none",
+            }}
+          >
+            <ShopSpriteFluid id={f.itemId} label={def.name} />
+          </button>
+        );
+      })}
 
       {/* ペットを1匹も飼っていないときだけ、部屋の中央に案内を出す。
           飼っている子が全員おでかけ中のときは「空のリビング」を見せて、右下の小ラベルに任せる */}
@@ -274,11 +494,12 @@ export function LivingScene(props: {
       {pets.map((p, i) => {
         const sp = speciesById(p.speciesId);
         if (!sp) return null;
+        const pose = poses.get(p.id)!;
         const happy = sp.sprites.happy ?? sp.sprites.normal;
         const serve = serving?.petId === p.id ? serving : null;
         const showHappy = hearts === p.id || serve?.joy === true;
-        const pos = spot(i);
-        // ごはん中は そぞろ歩きを止めて、もぐもぐ/おじぎ/大よろこび に差し替える
+        const sleeping = pose.mode === "sleep" && !serve && !showHappy;
+        // ごはん中は くつろぎポーズをやめて、もぐもぐ/おじぎ/大よろこび に差し替える
         const bodyAnim = serve
           ? serve.joy
             ? "pet-joy"
@@ -289,32 +510,49 @@ export function LivingScene(props: {
                 : ""
           : showHappy
             ? ""
-            : "alien-patapata";
+            : sleeping || pose.mode === "sit" || pose.mode === "watch"
+              ? "pet-snooze"
+              : pose.mode === "wander"
+                ? "alien-patapata"
+                : pose.mode === "front"
+                  ? "alien-patapata"
+                  : ""; // top: てっぺんでは静かにおすまし
+        const sprite = sleeping
+          ? (sp.sprites.sleep ?? sp.sprites.normal)
+          : showHappy
+            ? happy
+            : sp.sprites.normal;
+        const title =
+          pose.line && !serve
+            ? `${p.name}は ${pose.line}（クリックで おせわメニュー）`
+            : `${p.name}（なつき度 ${p.affection}・${affectionTier(p.affection)}）クリックで おせわメニュー`;
         return (
           <button
             key={p.id}
             onClick={() => setMenuPetId(p.id)}
-            title={`${p.name}（なつき度 ${p.affection}・${affectionTier(p.affection)}）クリックで おせわメニュー`}
+            title={title}
             className="absolute -translate-x-1/2 -translate-y-full"
             style={{
-              left: `${pos.x}%`,
-              top: `${34 + pos.y * 0.66}%`,
+              left: `${pose.xPct}%`,
+              top: `${pose.topPct}%`,
               // %指定だけだと狭い端末で30px程度まで縮み、名前が縦に折り返して
               // 背の高い名札になり、スプライト本体が部屋の外へ押し出される。
               // 48pxを下限にしてスプライトの視認性とタップ領域を守る
-              width: `max(${PET_SIZE}%, 48px)`,
-              zIndex: 10 + Math.round(pos.y * 10),
+              width: `max(${PET_SIZE * pose.scale}%, ${Math.round(48 * pose.scale)}px)`,
+              zIndex: pose.z,
             }}
           >
             <span
-              className={`relative flex w-full flex-col items-center ${serve ? "" : "pet-wander"}`}
+              className={`relative flex w-full flex-col items-center ${
+                pose.mode === "wander" && !serve ? "pet-wander" : ""
+              }`}
               style={
-                serve
-                  ? undefined
-                  : {
+                pose.mode === "wander" && !serve
+                  ? {
                       animationDuration: `${5 + (i % 4) * 1.4}s`,
                       animationDelay: `${(i % 5) * -1.3}s`,
                     }
+                  : undefined
               }
             >
               {hearts === p.id && (
@@ -322,9 +560,17 @@ export function LivingScene(props: {
                   ♥
                 </span>
               )}
-              <span className={`w-full ${bodyAnim}`} style={{ animationDuration: "0.9s" }}>
+              {sleeping && (
+                <span className="pet-zzz absolute -top-3 right-1 font-pixel text-[11px] text-royal2">
+                  💤
+                </span>
+              )}
+              <span
+                className={`w-full ${bodyAnim}`}
+                style={{ animationDuration: serve ? "0.9s" : undefined }}
+              >
                 <Image
-                  src={showHappy ? happy : sp.sprites.normal}
+                  src={sprite}
                   alt={p.name}
                   width={96}
                   height={96}
@@ -352,16 +598,15 @@ export function LivingScene(props: {
           「話しかける」だけのときは foodId が空なので器を出さない */}
       {serving?.foodId &&
         (() => {
-          const i = pets.findIndex((p) => p.id === serving.petId);
-          if (i < 0) return null;
-          const pos = spot(i);
+          const pose = poses.get(serving.petId);
+          if (!pose) return null;
           return (
             <FoodServe
               foodId={serving.foodId}
               mode={serving.mode}
               eaten={serving.eaten}
-              left={`calc(${pos.x}% + 26px)`}
-              bottom={`${100 - (34 + pos.y * 0.66)}%`}
+              left={`calc(${pose.xPct}% + 26px)`}
+              bottom={`${100 - pose.topPct}%`}
             />
           );
         })()}
@@ -373,10 +618,31 @@ export function LivingScene(props: {
       )}
 
       {props.awayName && !log && (
-        <p className="absolute bottom-1 right-2 z-[1200] font-pixel text-[9.5px] tracking-wide text-inksoft">
+        <p className="absolute bottom-1 right-2 z-[1200] mr-[76px] font-pixel text-[9.5px] tracking-wide text-inksoft">
           {props.awayName}はデスクへおでかけ中
         </p>
       )}
+
+      {furniture.length === 0 && !log && (
+        <Link
+          href="/shop"
+          className="absolute bottom-1 left-2 z-[1200] font-pixel text-[9.5px] tracking-wide text-royal2 underline"
+        >
+          🛒 おかいもので家具をそろえよう
+        </Link>
+      )}
+
+      {/* 収納BOX（家具をここへドロップでしまう） */}
+      <div
+        ref={boxRef}
+        className={`absolute bottom-1.5 right-1.5 z-[1200] grid h-[46px] w-[64px] place-items-center rounded-md border-2 border-dashed ${
+          overBox ? "border-pinkhot bg-pinkhot/20" : "border-line8/70 bg-white/40"
+        }`}
+      >
+        <span className="font-pixel text-[9px] tracking-wide text-inksoft">
+          📦 しまう
+        </span>
+      </div>
 
       {menuPet && (
         <CareMenu

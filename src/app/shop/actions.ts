@@ -7,7 +7,8 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { shopItemById } from "@/lib/shop/content";
+import { shopItemById, weeklyStock } from "@/lib/shop/content";
+import { defaultLivingPosition } from "@/lib/home/living";
 
 export type BuyResult = { ok: true; balance: number } | { ok: false; reason: string };
 
@@ -17,6 +18,12 @@ export async function buyItem(itemId: string): Promise<BuyResult> {
 
   const item = shopItemById(itemId);
   if (!item) throw new Error("そのしょうひんは ありません");
+
+  // 週替わり入荷のチェック（rotatingシリーズは今週の入荷分だけ買える）
+  const todayISO = new Date().toISOString().slice(0, 10);
+  if (!weeklyStock(todayISO).has(itemId)) {
+    return { ok: false, reason: "いまは入荷していません。来週をおたのしみに" };
+  }
 
   const already = await prisma.purchase.findUnique({
     where: { userId_itemId: { userId: user.id, itemId } },
@@ -30,8 +37,24 @@ export async function buyItem(itemId: string): Promise<BuyResult> {
         data: { balance: { decrement: item.price } },
       });
       if (updated.count === 0) throw new Error("EN_SHORT");
+      // 買った家具はその場でLIVINGへ（かう→部屋が変わる、を即体験させる）
+      const placedCount = await tx.purchase.count({
+        where: { userId: user.id, livingX: { not: null } },
+      });
+      const topZ = await tx.purchase.aggregate({
+        where: { userId: user.id },
+        _max: { livingZ: true },
+      });
+      const pos = defaultLivingPosition(item, placedCount);
       await tx.purchase.create({
-        data: { userId: user.id, itemId, price: item.price },
+        data: {
+          userId: user.id,
+          itemId,
+          price: item.price,
+          livingX: pos.x,
+          livingY: pos.y,
+          livingZ: (topZ._max.livingZ ?? 0) + 1,
+        },
       });
       await tx.walletLog.create({
         data: {

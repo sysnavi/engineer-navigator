@@ -19,14 +19,15 @@ import {
   FLOORS,
 } from "@/lib/home/scene";
 import { FOODS, MAX_FEEDS_PER_DAY } from "@/lib/pets/foods";
-import { shopItemById } from "@/lib/shop/content";
+import { SHOP_SERIES, seriesComplete, seriesById, shopItemById } from "@/lib/shop/content";
+import { furnitureLodgers, ROOM_WINDOW, roomTier } from "@/lib/home/living";
 import { ShopSprite } from "@/components/shop-sprite";
 import { FoodSprite } from "@/components/pets/food-sprite";
 import { DesktopScene, type DeskGadget, type DeskVisitor } from "./desktop-scene";
-import { LivingScene, type RoomPet } from "./living-scene";
+import { LivingScene, type LivingFurniture, type RoomPet } from "./living-scene";
 import type { FoodStock } from "./care-menu";
 import { ActionForm } from "@/components/toast";
-import { namePet, placeGadgetAt, setRoomTheme } from "./actions";
+import { namePet, placeFurniture, placeGadgetAt, setRoomTheme } from "./actions";
 
 function today(): Date {
   const d = new Date();
@@ -42,10 +43,17 @@ export default async function HomePage() {
     prisma.foodItem.findMany({ where: { userId: user.id } }),
     prisma.purchase.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } }),
   ]);
-  // おかいもの（SHOP.cat）で買った家具。かざり棚に購入順で並ぶ
-  const furniture = purchases
+  // おかいもの（SHOP.cat）で買った家具。LIVING.savに自由配置（livingX=null は収納中）
+  const placedFurniture: LivingFurniture[] = purchases
+    .filter((p) => p.livingX !== null && p.livingY !== null && shopItemById(p.itemId))
+    .map((p) => ({ itemId: p.itemId, x: p.livingX!, y: p.livingY!, z: p.livingZ }));
+  const storedFurniture = purchases
+    .filter((p) => p.livingX === null || p.livingY === null)
     .map((p) => shopItemById(p.itemId))
     .filter((i): i is NonNullable<typeof i> => !!i);
+  const ownedItemIds = new Set(purchases.map((p) => p.itemId));
+  const completedSeries = SHOP_SERIES.filter((s) => seriesComplete(ownedItemIds, s.id));
+  const room = roomTier(ownedItemIds.size, completedSeries.length);
 
   const ownedDefs = owned
     .map((o) => GADGETS.find((g) => g.id === o.gadgetId))
@@ -100,6 +108,19 @@ export default async function HomePage() {
       pettedToday: !!p.lastPettedAt && p.lastPettedAt.getTime() >= today().getTime(),
       feedsLeft: feedsLeftOf(p),
     }));
+
+  // きょう家具を使っている子（決定的抽選）。petSpot持ちの配置済み家具が対象
+  const lodgerIdx = furnitureLodgers(
+    today().toISOString().slice(0, 10),
+    user.id,
+    roomPets.length,
+    placedFurniture.filter((f) => shopItemById(f.itemId)?.petSpot).map((f) => f.itemId)
+  );
+  const lodgers: Record<string, string> = {};
+  for (const [itemId, idx] of lodgerIdx) {
+    const pet = roomPets[idx];
+    if (pet) lodgers[itemId] = pet.id;
+  }
 
   // ごはんの在庫（0個も含めて全種返す。おせわメニュー側で持っている分だけ出す）
   const stocks: FoodStock[] = FOODS.map((f) => ({
@@ -187,25 +208,49 @@ export default async function HomePage() {
         )}
       </Window>
 
-      {/* ===== リビング（ペットの生活圏） ===== */}
+      {/* ===== リビング（ペットの生活圏 + 家具の自由配置） ===== */}
       <Window title="LIVING" titleEm=".sav" bodyClass="p-4">
-        <PixelLabel className="mb-2.5">LIVING ROOM — なかまの居場所</PixelLabel>
+        <div className="mb-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <PixelLabel>LIVING ROOM — なかまの居場所・ドラッグで模様替え</PixelLabel>
+          <span className="font-pixel text-[10.5px] tracking-wide text-royal2">
+            🏠 {room.name}
+            <span className="text-inksoft">（{room.hint}）</span>
+          </span>
+        </div>
         <LivingScene
           pets={roomPets}
+          furniture={placedFurniture}
+          lodgers={lodgers}
+          window={ROOM_WINDOW[room.tier]}
           wallpaperCss={wallpaperCss}
           floorCss={floorCss}
           awayName={visitor?.name ?? null}
           stocks={stocks}
         />
-        {/* ===== かざり棚（おかいものの家具） ===== */}
-        {furniture.length > 0 && (
-          <div className="mt-3 rounded-lg border-2 border-line8 bg-surface p-3">
-            <PixelLabel className="mb-2">KAZARI — かざり棚（おかいもの）</PixelLabel>
-            <div className="flex flex-wrap items-end gap-3 border-b-4 border-line8 pb-1">
-              {furniture.map((f) => (
-                <span key={f.id} title={`${f.name} — ${f.desc}`}>
-                  <ShopSprite id={f.id} px={4} label={f.name} />
-                </span>
+        {/* ===== 収納BOX（しまってある家具） ===== */}
+        {storedFurniture.length > 0 && (
+          <div className="mt-3">
+            <PixelLabel className="!text-inksoft">収納BOX — クリックで飾る</PixelLabel>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {storedFurniture.map((f) => (
+                <form
+                  key={f.id}
+                  action={async () => {
+                    "use server";
+                    await placeFurniture(f.id);
+                  }}
+                >
+                  <button
+                    className="flex items-center gap-1.5 rounded-lg border-2 border-line8 bg-win px-2.5 py-1 text-[11.5px] font-bold shadow-hard-sm"
+                    title={`${f.name} — ${f.desc}`}
+                  >
+                    <ShopSprite id={f.id} px={2} />
+                    {f.name}
+                    <span className="font-pixel text-[9px] text-inksoft">
+                      {seriesById(f.series)?.name}
+                    </span>
+                  </button>
+                </form>
               ))}
             </div>
           </div>
@@ -283,31 +328,51 @@ export default async function HomePage() {
             <div key={group.kind}>
               <p className="mb-1.5 text-[12px] font-extrabold">{group.label}</p>
               <div className="flex flex-wrap gap-2">
-                {group.list.map((t) => (
-                  <form
-                    key={t.id}
-                    action={async () => {
-                      "use server";
-                      await setRoomTheme(group.kind, t.id);
-                    }}
-                  >
-                    <button
-                      aria-pressed={group.current === t.id}
-                      className={`flex items-center gap-2 rounded-lg border-2 px-2.5 py-1.5 text-[11.5px] font-bold shadow-hard-sm ${
-                        group.current === t.id
-                          ? "border-line8 bg-royal text-white"
-                          : "border-line8 bg-surface"
-                      }`}
+                {group.list.map((t) => {
+                  const locked =
+                    !!t.unlockSeries && !completedSeries.some((s) => s.id === t.unlockSeries);
+                  if (locked) {
+                    return (
+                      <span
+                        key={t.id}
+                        className="flex items-center gap-2 rounded-lg border-2 border-dashed border-line8/60 bg-surface px-2.5 py-1.5 text-[11.5px] font-bold opacity-60"
+                        title={`「${seriesById(t.unlockSeries!)?.name}」シリーズをコンプリートすると解放`}
+                      >
+                        <i
+                          className="h-5 w-5 rounded border-2 border-line8"
+                          style={{ background: t.css, filter: "grayscale(0.8)" }}
+                        />
+                        🔒 {t.name}
+                      </span>
+                    );
+                  }
+                  return (
+                    <form
+                      key={t.id}
+                      action={async () => {
+                        "use server";
+                        await setRoomTheme(group.kind, t.id);
+                      }}
                     >
-                      <i
-                        className="h-5 w-5 rounded border-2 border-line8"
-                        style={{ background: t.css }}
-                      />
-                      {t.name}
-                      {group.current === t.id && " ★"}
-                    </button>
-                  </form>
-                ))}
+                      <button
+                        aria-pressed={group.current === t.id}
+                        className={`flex items-center gap-2 rounded-lg border-2 px-2.5 py-1.5 text-[11.5px] font-bold shadow-hard-sm ${
+                          group.current === t.id
+                            ? "border-line8 bg-royal text-white"
+                            : "border-line8 bg-surface"
+                        }`}
+                      >
+                        <i
+                          className="h-5 w-5 rounded border-2 border-line8"
+                          style={{ background: t.css }}
+                        />
+                        {t.name}
+                        {t.unlockSeries && " ✨"}
+                        {group.current === t.id && " ★"}
+                      </button>
+                    </form>
+                  );
+                })}
               </div>
             </div>
           ))}

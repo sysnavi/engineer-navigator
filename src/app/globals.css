@@ -635,6 +635,39 @@ body {
       transform: translateY(-18px);
     }
   }
+  /* おかいもの松: 家具を使う子の寝息（ゆっくり膨らむ）と💤（ふわふわ昇る） */
+  @media (prefers-reduced-motion: no-preference) {
+    .pet-snooze {
+      animation: pet-snooze 2.6s steps(2, jump-none) infinite;
+    }
+    .pet-zzz {
+      animation: pet-zzz 2.6s steps(4, jump-none) infinite;
+    }
+  }
+  @keyframes pet-snooze {
+    0%,
+    100% {
+      transform: scale(1, 1);
+    }
+    50% {
+      transform: scale(1.04, 0.95);
+    }
+  }
+  @keyframes pet-zzz {
+    0% {
+      opacity: 0;
+      transform: translateY(2px);
+    }
+    30%,
+    70% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-12px);
+    }
+  }
+
   /* 伝説のバトルステーション（デスク最終進化）のRGBグロー。
      天板は clip-path の台形なので、形に沿う drop-shadow フィルタで光らせる */
   @media (prefers-reduced-motion: no-preference) {

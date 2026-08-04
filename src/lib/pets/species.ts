@@ -34,12 +34,27 @@ export type PetSpecies = {
 };
 
 // 開発者支給の手描きPNG（駄菓子・おばけ・レトロゲームの来訪者たち）。
-// happy は normal から scripts/gen-expressions.py で生成（目を細め口角を上げる差分）。
-// sleep 差分は未整備なので normal で代用される。
+// happy / sleep は normal から scripts/gen-expressions.py で生成した差分。
+// sleep は自動生成が SKIP された子には無い（HAS_SLEEP 外は normal + 💤 で代用）。
+const HAS_SLEEP = new Set([
+  "bluehawaii-ghost",
+  "choco-boy",
+  "choco-slime",
+  "dagashi-mimic",
+  "furuhon-ghost",
+  "game-kerotch",
+  "kero-jockey",
+  "melon-hyozaurus",
+  "sour-obake",
+  "sushinchu-slime",
+  "taro-gaeru",
+  "yurei-boy",
+]);
 const pet = (id: string) => ({
   normal: `/pets/${id}/normal.png`,
   happy: `/pets/${id}/happy.png`,
   walk: `/pets/${id}/walk.png`,
+  ...(HAS_SLEEP.has(id) ? { sleep: `/pets/${id}/sleep.png` } : {}),
 });
 
 export const PET_SPECIES: PetSpecies[] = [

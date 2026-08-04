@@ -22,6 +22,8 @@ import {
   FLOORS,
   WALLPAPERS,
 } from "@/lib/home/scene";
+import { clampFurniture, defaultLivingPosition } from "@/lib/home/living";
+import { seriesComplete, shopItemById } from "@/lib/shop/content";
 import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
 import { completeJson } from "@/lib/ai/client";
 
@@ -300,14 +302,89 @@ export async function stowGadget(gadgetId: string) {
   revalidatePath("/home");
 }
 
-/** 部屋のきせかえ（壁紙 / 床） */
+/** 部屋のきせかえ（壁紙 / 床）。シリーズコンプ限定はコンプしていないと選べない */
 export async function setRoomTheme(kind: "wallpaper" | "floor", id: string) {
   const user = await getCurrentUser();
   const list = kind === "wallpaper" ? WALLPAPERS : FLOORS;
-  if (!list.some((t) => t.id === id)) throw new Error("そのきせかえはありません");
+  const theme = list.find((t) => t.id === id);
+  if (!theme) throw new Error("そのきせかえはありません");
+  if (theme.unlockSeries) {
+    const purchases = await prisma.purchase.findMany({
+      where: { userId: user.id },
+      select: { itemId: true },
+    });
+    const owned = new Set(purchases.map((p) => p.itemId));
+    if (!seriesComplete(owned, theme.unlockSeries)) {
+      throw new Error("このきせかえは シリーズコンプで解放されます");
+    }
+  }
   await prisma.user.update({
     where: { id: user.id },
     data: kind === "wallpaper" ? { homeWallpaper: id } : { homeFloor: id },
+  });
+  revalidatePath("/home");
+}
+
+// ---------------------------------------------------------------------------
+// LIVING.sav 家具の自由配置（おかいもの松）。DESKTOP.savのガジェットと同じ約束:
+// 座標はサーバー側でゾーンにクランプ（authoritative）、動かしたものは最前面へ
+// ---------------------------------------------------------------------------
+
+/** 所持確認つきで家具定義を引く */
+async function ownedFurnitureDef(userId: string, itemId: string) {
+  const def = shopItemById(itemId);
+  const owned = def
+    ? await prisma.purchase.findUnique({
+        where: { userId_itemId: { userId, itemId } },
+      })
+    : null;
+  if (!def || !owned) throw new Error("持っていない家具は飾れません");
+  return def;
+}
+
+async function nextLivingZ(userId: string): Promise<number> {
+  const top = await prisma.purchase.aggregate({
+    where: { userId },
+    _max: { livingZ: true },
+  });
+  return (top._max.livingZ ?? 0) + 1;
+}
+
+/** ドラッグ配置の保存 */
+export async function moveFurniture(itemId: string, x: number, y: number) {
+  const user = await getCurrentUser();
+  const def = await ownedFurnitureDef(user.id, itemId);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error("不正な座標です");
+  const pos = clampFurniture(def, x, y);
+  await prisma.purchase.update({
+    where: { userId_itemId: { userId: user.id, itemId } },
+    data: { livingX: pos.x, livingY: pos.y, livingZ: await nextLivingZ(user.id) },
+  });
+  revalidatePath("/home");
+}
+
+/** 収納から出して飾る（ゾーンごとの定位置 + 所持順の小ズレに置く） */
+export async function placeFurniture(itemId: string) {
+  const user = await getCurrentUser();
+  const def = await ownedFurnitureDef(user.id, itemId);
+  const placedCount = await prisma.purchase.count({
+    where: { userId: user.id, livingX: { not: null } },
+  });
+  const pos = defaultLivingPosition(def, placedCount);
+  await prisma.purchase.update({
+    where: { userId_itemId: { userId: user.id, itemId } },
+    data: { livingX: pos.x, livingY: pos.y, livingZ: await nextLivingZ(user.id) },
+  });
+  revalidatePath("/home");
+}
+
+/** 収納BOXへしまう */
+export async function stowFurniture(itemId: string) {
+  const user = await getCurrentUser();
+  await ownedFurnitureDef(user.id, itemId);
+  await prisma.purchase.update({
+    where: { userId_itemId: { userId: user.id, itemId } },
+    data: { livingX: null, livingY: null },
   });
   revalidatePath("/home");
 }

@@ -939,6 +939,11 @@ model Purchase {
   itemId    String
   price     Int // 購入時価格（後からマスタの値段を変えても履歴が正しい）
   createdAt DateTime @default(now())
+  // LIVING.sav 自由配置（おかいもの松）。null=しまってある。
+  // OwnedGadget.deskX/Y/Z と同型: x/yはシーン内の%座標(0-100)、zは前後関係
+  livingX   Int?
+  livingY   Int?
+  livingZ   Int      @default(0)
 
   @@unique([userId, itemId])
 }
