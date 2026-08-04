@@ -75,48 +75,43 @@ App Store Connect → TestFlight タブ:
 
 ## Android: Firebase App Distribution 配布
 
-### 0. 前提（1回だけ）
+### 0. 前提（セットアップ済み）
 
-1. [Firebase Console](https://console.firebase.google.com) でプロジェクト作成 →
-   Androidアプリを追加（パッケージ名 `jp.engnavi.app`）。
-   `google-services.json` は App Distribution だけなら**不要**（プッシュ通知導入時に追加）。
-2. 左メニュー → App Distribution → 開始。
-3. 署名鍵を作成（アップロード用。**紛失するとPlay移行時に困るので厳重保管**）:
+以下は完了している（2026-08-04・CLIで作成）:
 
-   ```bash
-   keytool -genkeypair -v -keystore mobile/android/release.keystore \
-     -alias engnavi -keyalg RSA -keysize 2048 -validity 10000
-   ```
+- Firebaseプロジェクト **engnavi-app** / Androidアプリ登録済み
+  - App ID: `1:664916758573:android:e844da2a0cbc90d84be8a4`
+  - Console: https://console.firebase.google.com/project/engnavi-app/appdistribution
+- 署名鍵 `mobile/android/release.keystore` + `keystore.properties`（どちらもgitignore）
+  - **この鍵とパスワードは厳重にバックアップすること**（1Password等）。
+    紛失すると既存テスターは新しいAPKに上書きインストールできなくなり、
+    将来のPlay移行時にも困る
+- `google-services.json` は App Distribution だけなら**不要**（プッシュ通知導入時に追加）
 
-   `mobile/android/keystore.properties` に鍵情報を書く（gitignore済み・雛形は
-   `keystore.properties.example`）。
-
-### 1. ビルド（配布のたび）
+### 1. ビルド & 配布（配布のたび）
 
 ```bash
 cd mobile && npm run sync
 cd android
 export JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
 ./gradlew assembleRelease
-# → app/build/outputs/apk/release/app-release.apk
+npx firebase-tools appdistribution:distribute \
+  app/build/outputs/apk/release/app-release.apk \
+  --app 1:664916758573:android:e844da2a0cbc90d84be8a4 \
+  --project engnavi-app \
+  --release-notes "変更点をここに" --groups testers
 ```
 
 > JDKは `brew install openjdk@21` で導入済み。シェルのrcに `JAVA_HOME` を
 > 書いておくと毎回のexportは不要。
 
-### 2. 配布
+### 2. テスターの管理
 
-Firebase Console → App Distribution → 「新しいリリース」に APK をドラッグ&ドロップ →
-テスターのメールアドレス（またはグループ）を指定して配布。
-テスターはメールのリンクから端末に直接インストールできる。
-
-CLIでやる場合（CI組み込み向け）:
-
-```bash
-npx firebase-tools appdistribution:distribute \
-  mobile/android/app/build/outputs/apk/release/app-release.apk \
-  --app <FirebaseのアプリID> --groups testers
-```
+[Console → App Distribution → テスターとグループ](https://console.firebase.google.com/project/engnavi-app/appdistribution)
+でグループ `testers` を作り、メールアドレスを追加する。以後は上のコマンドの
+`--groups testers` で配布するたび全員に招待メールが飛ぶ。
+テスターはメールのリンクから端末に直接インストールできる（Play不要・
+「提供元不明のアプリ」の許可だけ必要）。
 
 ---
 
