@@ -617,19 +617,24 @@ export function LivingScene(props: {
         </p>
       )}
 
-      {props.awayName && !log && (
-        <p className="absolute bottom-1 right-2 z-[1200] mr-[76px] font-pixel text-[9.5px] tracking-wide text-inksoft">
-          {props.awayName}はデスクへおでかけ中
-        </p>
-      )}
-
-      {furniture.length === 0 && !log && (
-        <Link
-          href="/shop"
-          className="absolute bottom-1 left-2 z-[1200] font-pixel text-[9.5px] tracking-wide text-royal2 underline"
-        >
-          🛒 おかいもので家具をそろえよう
-        </Link>
+      {/* 下段ラベル（左: おかいもの誘導 / 右: おでかけ表示）。
+          スマホ幅では1行に並びきらないので、flex-wrapで2行に逃がす */}
+      {!log && (props.awayName || furniture.length === 0) && (
+        <div className="absolute inset-x-2 bottom-1 z-[1200] flex flex-wrap items-center justify-between gap-x-2">
+          {furniture.length === 0 && (
+            <Link
+              href="/shop"
+              className="whitespace-nowrap font-pixel text-[9.5px] tracking-wide text-royal2 underline"
+            >
+              🛒 おかいもので家具をそろえよう
+            </Link>
+          )}
+          {props.awayName && (
+            <p className="ml-auto mr-[76px] whitespace-nowrap font-pixel text-[9.5px] tracking-wide text-inksoft">
+              {props.awayName}はデスクへおでかけ中
+            </p>
+          )}
+        </div>
       )}
 
       {/* 収納BOX（家具をここへドロップでしまう） */}
