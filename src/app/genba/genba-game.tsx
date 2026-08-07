@@ -5,6 +5,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { PixelAvatar } from "@/components/pixel-avatar";
 import { Window } from "@/components/retro";
 import {
@@ -279,6 +280,12 @@ function OfficeView(props: {
           </ul>
         </Window>
       )}
+
+      <p className="text-[12px]">
+        <Link href="/genba/album" className="underline">
+          📔 きおくのアルバム — 消えた現場の記録
+        </Link>
+      </p>
     </div>
   );
 }

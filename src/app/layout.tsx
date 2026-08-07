@@ -167,10 +167,10 @@ export default async function RootLayout({
           </header>
         )}
         <main
-          className={`mx-auto max-w-4xl px-4 py-6 sm:py-8 ${
+          className={`mx-auto max-w-4xl px-4 pt-6 sm:pt-8 ${
             shell === "desktop"
               ? "pb-[calc(6rem+env(safe-area-inset-bottom))]"
-              : ""
+              : "pb-6 sm:pb-8"
           }`}
         >
           {children}

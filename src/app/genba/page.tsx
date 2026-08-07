@@ -2,7 +2,6 @@
 // 営業ハトリさんの案件紹介 → 面接 → 現場の日次イベント → 精算EN、の1画面フェーズ切替。
 // 判定は全て actions.ts（サーバー）。このページは表示に必要な状態を組み立てるだけ。
 
-import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getPlayerStats } from "@/lib/exp";
@@ -130,11 +129,6 @@ export default async function GenbaPage() {
           totalDays: h.totalDays,
         }))}
       />
-      <p className="text-[12px]">
-        <Link href="/genba/album" className="underline">
-          📔 きおくのアルバム — 消えた現場の記録
-        </Link>
-      </p>
     </div>
   );
 }
