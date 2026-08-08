@@ -1,26 +1,43 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
 import { getOptionalUser } from "@/lib/auth";
 import { createAuthSession, AUTH_SESSION_DAYS } from "@/lib/auth-session";
 import { SESSION_COOKIE, OAUTH_STATE_COOKIE } from "@/lib/session";
+import { resolveOAuthLogin } from "@/lib/oauth-login";
+import {
+  MOBILE_DEEPLINK,
+  MOBILE_OAUTH_COOKIE,
+  createMobileLoginTicket,
+} from "@/lib/mobile-login";
 import {
   exchangeCodeForSub,
-  generateHandle,
   isOAuthProvider,
   providerHash,
 } from "@/lib/oauth";
 
 // OAuthコールバック。state検証 → code→sub引換 → ハッシュで身元解決。
-// - 既存の身元          → その人としてログイン
-// - ログイン中（招待等） → 現在のアカウントに連携を追加（乗っ取り防止チェックあり）
-// - まったくの新規       → 匿名ユーザー作成（自動ハンドル・PIIなし）してログイン
+// 身元解決の規則（ログイン/連携追加/新規作成）は src/lib/oauth-login.ts に共通化。
+//
+// モバイルフロー（en_oauth_mobile cookieあり）: この画面はアプリ内ブラウザで
+// 開いており、cookie空間がアプリのWebViewと別。ここではセッションを発行せず、
+// 身元ハッシュを一回使い切りの引換券に載せてディープリンクでアプリへ返す。
+
+function cleanupCookies(res: NextResponse) {
+  res.cookies.delete(OAUTH_STATE_COOKIE);
+  res.cookies.delete(MOBILE_OAUTH_COOKIE);
+  return res;
+}
 
 function fail(req: NextRequest, reason: string) {
-  const url = new URL("/welcome", req.nextUrl);
-  url.searchParams.set("oauth_error", reason);
-  const res = NextResponse.redirect(url);
-  res.cookies.delete(OAUTH_STATE_COOKIE);
-  return res;
+  // モバイルフローの失敗はアプリへ戻す（ブラウザシートに置き去りにしない）
+  const mobile = req.cookies.get(MOBILE_OAUTH_COOKIE)?.value;
+  const dest = mobile
+    ? `${MOBILE_DEEPLINK}?error=${encodeURIComponent(reason)}`
+    : (() => {
+        const url = new URL("/welcome", req.nextUrl);
+        url.searchParams.set("oauth_error", reason);
+        return url.toString();
+      })();
+  return cleanupCookies(NextResponse.redirect(dest));
 }
 
 export async function GET(
@@ -47,57 +64,29 @@ export async function GET(
     return fail(req, "exchange");
   }
 
-  const identity = await prisma.authIdentity.findUnique({
-    where: { providerHash: hash },
-    select: { userId: true },
-  });
-  const current = await getOptionalUser();
-
-  let userId: string;
-  let redirectTo = "/";
-
-  if (identity) {
-    if (current && current.id !== identity.userId) {
-      // ログイン中に、別アカウント所属の身元を連携しようとした → 拒否（乗っ取り防止）
-      const url = new URL("/mypage", req.nextUrl);
-      url.searchParams.set("oauth_error", "already-linked");
-      const res = NextResponse.redirect(url);
-      res.cookies.delete(OAUTH_STATE_COOKIE);
-      return res;
-    }
-    userId = identity.userId; // 既知の人 → ログイン
-  } else if (current) {
-    // ログイン中の連携追加（招待ユーザーがOAuthを後付けするケース）
-    await prisma.authIdentity.create({
-      data: { userId: current.id, providerHash: hash, provider },
-    });
-    // ゲストの昇格（Issue #18）: 同じUser行のまま role を上げるだけ。
-    // 別アカウントへのデータ移行が発生しないので、育てたアバター・戦利品・
-    // ダンジョン履歴はそのまま引き継がれる。
-    if (current.role === "GUEST") {
-      await prisma.user.update({
-        where: { id: current.id },
-        data: { role: "ENGINEER", name: current.handle ?? "ぼうけんしゃ" },
-      });
-    }
-    userId = current.id;
-    redirectTo =
-      current.role === "GUEST" ? "/mypage?promoted=1" : "/mypage?linked=1";
-  } else {
-    // 新規: 匿名ユーザーを作成（メール・氏名なし。自動ハンドルは後から変更可能）
-    const handle = await generateHandle();
-    const user = await prisma.user.create({
-      data: { name: handle, handle, role: "ENGINEER" },
-    });
-    await prisma.authIdentity.create({
-      data: { userId: user.id, providerHash: hash, provider },
-    });
-    userId = user.id;
+  // モバイル: 身元解決はWebView側のexchangeに委ねる（ゲスト昇格等のcookie文脈が
+  // あちらにしかないため）。ここは引換券を発行してアプリへ戻るだけ。
+  const verifierHash = req.cookies.get(MOBILE_OAUTH_COOKIE)?.value;
+  if (verifierHash) {
+    const ticket = await createMobileLoginTicket(provider, hash, verifierHash);
+    return cleanupCookies(
+      NextResponse.redirect(`${MOBILE_DEEPLINK}?token=${ticket}`)
+    );
   }
 
-  const token = await createAuthSession(userId);
-  const res = NextResponse.redirect(new URL(redirectTo, req.nextUrl));
-  res.cookies.delete(OAUTH_STATE_COOKIE);
+  const current = await getOptionalUser();
+  const result = await resolveOAuthLogin(provider, hash, current);
+
+  if (!result.ok) {
+    // ログイン中に、別アカウント所属の身元を連携しようとした → 拒否（乗っ取り防止）
+    const url = new URL("/mypage", req.nextUrl);
+    url.searchParams.set("oauth_error", "already-linked");
+    return cleanupCookies(NextResponse.redirect(url));
+  }
+
+  const token = await createAuthSession(result.userId);
+  const res = NextResponse.redirect(new URL(result.redirectTo, req.nextUrl));
+  cleanupCookies(res);
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",

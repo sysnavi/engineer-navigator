@@ -156,6 +156,7 @@ export default async function WelcomePage({
               <a
                 key={p}
                 href={`/api/auth/${p}/start`}
+                data-oauth-start={p}
                 className="btn8 btn8-start block text-center text-[13px]"
               >
                 ▶ {PROVIDER_LABELS[p]} でログイン / はじめる

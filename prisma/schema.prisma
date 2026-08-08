@@ -126,6 +126,22 @@ model AuthSession {
   @@index([userId])
 }
 
+// モバイルアプリのOAuth引換券（アプリ内ブラウザ→WebViewへのセッション受け渡し）。
+// OAuthはSFSafariViewController等（cookie空間がWebViewと別）で完結するため、
+// 身元ハッシュを一回使い切りの短命チケットに載せてディープリンクでアプリへ返し、
+// WebView側の /api/auth/mobile/exchange で通常のセッションcookieに引き換える。
+// verifierHash はWebViewだけが知る乱数のSHA-256（PKCE相当・スキーム乗っ取り対策）。
+// ユーザー解決前の段階なので User へのリレーションは持たない。
+model MobileLoginTicket {
+  id           String   @id @default(cuid())
+  token        String   @unique
+  provider     String // "google" | "github"
+  providerHash String // AuthIdentity.providerHash と同じ計算のハッシュ
+  verifierHash String
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+}
+
 // ローグライクダンジョン（Issue #3）: フルオート潜行の確定済みログ。
 // コンテンツ（モンスター/ガジェット/罠）はDBに持たず src/lib/dungeon/content.ts の
 // TSマスタをID文字列で参照する（追加=配列に足すだけ・マイグレーション不要）。

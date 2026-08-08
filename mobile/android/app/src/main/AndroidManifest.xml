@@ -19,6 +19,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- OAuthのアプリ内完結用ディープリンク（src/lib/mobile-login.ts の MOBILE_DEEPLINK と揃える） -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="jp.engnavi.app" android:host="auth" />
+            </intent-filter>
         </activity>
 
         <provider

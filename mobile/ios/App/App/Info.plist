@@ -22,6 +22,18 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- OAuthのアプリ内完結用ディープリンク（src/lib/mobile-login.ts の MOBILE_DEEPLINK と揃える） -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>jp.engnavi.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>jp.engnavi.app</string>
+			</array>
+		</dict>
+	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>

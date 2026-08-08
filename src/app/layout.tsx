@@ -6,6 +6,7 @@ import { getDungeonState } from "@/lib/dungeon/run";
 import { resolveShell } from "@/lib/shell";
 import { appsForRole, resolveDock } from "@/lib/apps";
 import { RegisterSW } from "@/components/register-sw";
+import { MobileOAuthBridge } from "@/components/mobile-oauth-bridge";
 import { AutosizeTextareas } from "@/components/autosize-textareas";
 import { Tutorial } from "@/components/tutorial";
 import { TipsToast } from "@/components/tips-toast";
@@ -118,6 +119,9 @@ export default async function RootLayout({
     >
       {/* data-shell: .chat-dock がタスクバーの有無で下端位置を変えるために参照 */}
       <body className="min-h-full" data-shell={shell}>
+        {/* Capacitorアプリ用OAuthブリッジ。ハイドレート待ちのレースを避けるため
+            Reactに依らないインラインスクリプト（通常ブラウザでは何もしない） */}
+        <MobileOAuthBridge />
         <RegisterSW />
         <AutosizeTextareas />
         {loggedIn && (
