@@ -138,6 +138,9 @@ model MobileLoginTicket {
   provider     String // "google" | "github"
   providerHash String // AuthIdentity.providerHash と同じ計算のハッシュ
   verifierHash String
+  // 消費印。行は失効まで残し、正当なverifier持ちの重複リクエストには成功を返す
+  // （ディープリンクの二重配送でエラー画面が成功を上書きする事故の防止）
+  consumedAt   DateTime?
   createdAt    DateTime @default(now())
   expiresAt    DateTime
 }

@@ -97,7 +97,10 @@ export async function createMobileLoginTicket(
   return token;
 }
 
-/** 券を消費して身元を返す。無効・期限切れ・verifier不一致はnull（券は必ず消える）。
+/** 券を検証して身元を返す。不明・期限切れ・verifier不一致は拒否。
+ *  正当なverifier持ちの「2回目」は拒否せず成功を返す（冪等）——ディープリンクの
+ *  二重配送で、成功済みログインの上にエラー画面が被さる事故を防ぐため。
+ *  verifierの生値は本人のWebViewしか持たないので、重複許容でも第三者は引き換え不能。
  *  拒否理由はサーバーログに残す（実機の不具合はここでしか切り分けられない） */
 export async function consumeMobileLoginTicket(
   token: string,
@@ -113,18 +116,30 @@ export async function consumeMobileLoginTicket(
   const ticket = await prisma.mobileLoginTicket.findUnique({
     where: { token },
   });
-  if (!ticket) return reject("not-found-or-used");
-  // 先に消してから検証（一回使い切り）。count=0は並行リクエストに先を越された場合
-  const deleted = await prisma.mobileLoginTicket.deleteMany({
-    where: { id: ticket.id },
-  });
-  if (deleted.count === 0) return reject("raced");
-  if (ticket.expiresAt < new Date()) return reject("expired");
+  if (!ticket) return reject("not-found");
+  if (ticket.expiresAt < new Date()) {
+    await prisma.mobileLoginTicket.deleteMany({ where: { id: ticket.id } });
+    return reject("expired");
+  }
 
   const vh = createHash("sha256").update(verifier).digest();
   const stored = Buffer.from(ticket.verifierHash, "hex");
-  if (vh.length !== stored.length || !timingSafeEqual(vh, stored))
+  if (vh.length !== stored.length || !timingSafeEqual(vh, stored)) {
+    // 不正な引き換え試行。オラクルにしないよう券ごと破棄する
+    await prisma.mobileLoginTicket.deleteMany({ where: { id: ticket.id } });
     return reject("verifier-mismatch");
+  }
 
+  // 消費印を付ける（行は失効まで残す。掃除はcreate時のdeleteMany）。
+  // count=0 = 既に消費済み = 二重配送の後着。verifier検証済みなので成功扱い
+  const claimed = await prisma.mobileLoginTicket.updateMany({
+    where: { id: ticket.id, consumedAt: null },
+    data: { consumedAt: new Date() },
+  });
+  if (claimed.count === 0) {
+    console.log(
+      `[mobile-oauth] duplicate exchange tolerated (token=${token.slice(0, 8)}…)`
+    );
+  }
   return { ok: true, provider: ticket.provider, providerHash: ticket.providerHash };
 }
