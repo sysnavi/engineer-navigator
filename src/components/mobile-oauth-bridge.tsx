@@ -95,6 +95,15 @@ const SCRIPT = `(function () {
     if (app && app.addListener) {
       app.addListener("appUrlOpen", function (data) { handleDeepLink(data.url); });
     }
+    // コールドスタート対応: 認証中にOSがアプリを落としていた場合、ディープリンクは
+    // リスナー登録前に発火済みでappUrlOpenでは受け取れない。ログイン途中の印
+    // （verifier）が残っている時だけ起動URLを拾い直す。verifierは成功・失敗の
+    // どちらでも消えるので、以降の起動で古いURLを再処理することはない
+    if (app && app.getLaunchUrl && localStorage.getItem(VERIFIER_KEY)) {
+      app.getLaunchUrl().then(function (r) {
+        if (r && r.url) handleDeepLink(r.url);
+      }).catch(function () {});
+    }
   }
 })();`;
 
