@@ -24,7 +24,9 @@ export const MOBILE_DEEPLINK = "jp.engnavi.app://auth";
 /** 旧方式の残骸cookie（現在は未使用。callbackで掃除だけする） */
 export const MOBILE_OAUTH_COOKIE = "en_oauth_mobile";
 
-const TICKET_TTL_MS = 2 * 60_000; // ディープリンク往復に十分な短命
+// ディープリンク往復用の短命券。一回使い切り＋verifier拘束があるので、
+// 「開きますか？」ダイアログで迷っても死なないよう余裕を持たせる
+const TICKET_TTL_MS = 10 * 60_000;
 const STATE_TTL_MS = 10 * 60_000; // 認可画面での操作時間（webのstate cookieと同じ）
 
 // 署名鍵はOAuthクライアントシークレット（サーバー限定の秘密）から導出。
@@ -95,25 +97,34 @@ export async function createMobileLoginTicket(
   return token;
 }
 
-/** 券を消費して身元を返す。無効・期限切れ・verifier不一致はnull（券は必ず消える） */
+/** 券を消費して身元を返す。無効・期限切れ・verifier不一致はnull（券は必ず消える）。
+ *  拒否理由はサーバーログに残す（実機の不具合はここでしか切り分けられない） */
 export async function consumeMobileLoginTicket(
   token: string,
   verifier: string
-): Promise<{ provider: string; providerHash: string } | null> {
+): Promise<
+  | { ok: true; provider: string; providerHash: string }
+  | { ok: false; reason: string }
+> {
+  const reject = (reason: string) => {
+    console.warn(`[mobile-oauth] ticket reject: ${reason} (token=${token.slice(0, 8)}…)`);
+    return { ok: false as const, reason };
+  };
   const ticket = await prisma.mobileLoginTicket.findUnique({
     where: { token },
   });
-  if (!ticket) return null;
+  if (!ticket) return reject("not-found-or-used");
   // 先に消してから検証（一回使い切り）。count=0は並行リクエストに先を越された場合
   const deleted = await prisma.mobileLoginTicket.deleteMany({
     where: { id: ticket.id },
   });
-  if (deleted.count === 0) return null;
-  if (ticket.expiresAt < new Date()) return null;
+  if (deleted.count === 0) return reject("raced");
+  if (ticket.expiresAt < new Date()) return reject("expired");
 
   const vh = createHash("sha256").update(verifier).digest();
   const stored = Buffer.from(ticket.verifierHash, "hex");
-  if (vh.length !== stored.length || !timingSafeEqual(vh, stored)) return null;
+  if (vh.length !== stored.length || !timingSafeEqual(vh, stored))
+    return reject("verifier-mismatch");
 
-  return { provider: ticket.provider, providerHash: ticket.providerHash };
+  return { ok: true, provider: ticket.provider, providerHash: ticket.providerHash };
 }

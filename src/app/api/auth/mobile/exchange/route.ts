@@ -23,10 +23,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "bad-request" }, { status: 400 });
   }
 
-  const identity = await consumeMobileLoginTicket(token, verifier);
+  const consumed = await consumeMobileLoginTicket(token, verifier);
+  const identity = consumed.ok ? consumed : null;
   if (!identity || !isOAuthProvider(identity.provider)) {
+    // 失敗理由をエラー画面に小さく出す（実機の不具合はここでしか切り分けられない）
+    const reason = consumed.ok ? "provider" : consumed.reason;
     return NextResponse.json(
-      { error: "invalid-ticket", redirectTo: "/welcome?oauth_error=ticket" },
+      {
+        error: "invalid-ticket",
+        redirectTo: `/welcome?oauth_error=ticket&tr=${encodeURIComponent(reason)}`,
+      },
       { status: 401 }
     );
   }

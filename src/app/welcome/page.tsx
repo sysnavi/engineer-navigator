@@ -66,9 +66,10 @@ export default async function WelcomePage({
     invalid?: string;
     oauth_error?: string;
     guest?: string;
+    tr?: string;
   }>;
 }) {
-  const { invalid, oauth_error, guest } = await searchParams;
+  const { invalid, oauth_error, guest, tr } = await searchParams;
   const providers = enabledProviders();
 
   return (
@@ -121,6 +122,12 @@ export default async function WelcomePage({
           <p className="mt-1 text-[12.5px] text-ink">
             {OAUTH_ERRORS[oauth_error] ?? OAUTH_ERRORS.exchange}
           </p>
+          {/* モバイルOAuthの失敗理由コード（不具合報告用） */}
+          {tr && (
+            <p className="mt-1 font-pixel text-[10px] tracking-wide text-inksoft">
+              code: {tr}
+            </p>
+          )}
         </div>
       )}
 
