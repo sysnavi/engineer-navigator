@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 
 // モバイルアプリのOAuth引換券（設計はprisma/schema.prismaのMobileLoginTicket参照）。
@@ -11,14 +11,63 @@ import { prisma } from "@/lib/db";
 //    検証OKなら通常のセッションcookieがWebViewに発行される
 // verifierの生値はWebViewの外に出ないので、スキームを乗っ取った他アプリが
 // tokenを拾ってもセッションに引き換えられない。
+//
+// 重要: モバイルフローはcookieを一切使わない。SFSafariViewController等の
+// cookie jarはOAuthのリダイレクト連鎖でcookieを保持しないことがあり
+// （ITP/バウンストラッキング対策）、cookie頼みのstate検証は実機で必ず壊れた。
+// 代わりにOAuthのstateパラメータ自体を署名付きトークン（signMobileState）にして
+// プロバイダと往復させ、callbackでは署名検証だけで完結させる。
 
 /** アプリへ戻るディープリンク（iOS/Androidのネイティブ設定と揃えること） */
 export const MOBILE_DEEPLINK = "jp.engnavi.app://auth";
 
-/** OAuth開始→callback間で「モバイルフロー」を伝えるcookie名（値=verifierHash） */
+/** 旧方式の残骸cookie（現在は未使用。callbackで掃除だけする） */
 export const MOBILE_OAUTH_COOKIE = "en_oauth_mobile";
 
 const TICKET_TTL_MS = 2 * 60_000; // ディープリンク往復に十分な短命
+const STATE_TTL_MS = 10 * 60_000; // 認可画面での操作時間（webのstate cookieと同じ）
+
+// 署名鍵はOAuthクライアントシークレット（サーバー限定の秘密）から導出。
+// 専用のenv追加なしで、シークレットが変われば発行済みstateも自然に失効する。
+function mobileStateKey(): Buffer {
+  const material = `en-mobile-state:${process.env.GOOGLE_CLIENT_SECRET ?? ""}:${process.env.GITHUB_CLIENT_SECRET ?? ""}`;
+  return createHash("sha256").update(material).digest();
+}
+
+/** モバイル用のstate値。形式: m.<verifierHash>.<失効epoch>.<HMAC> */
+export function signMobileState(verifierHash: string): string {
+  const exp = Date.now() + STATE_TTL_MS;
+  const mac = createHmac("sha256", mobileStateKey())
+    .update(`${verifierHash}.${exp}`)
+    .digest("base64url");
+  return `m.${verifierHash}.${exp}.${mac}`;
+}
+
+/** stateがモバイル形式か（callbackのフロー分岐に使う。検証はverifyMobileState） */
+export function isMobileState(state: string | null): boolean {
+  return !!state && state.startsWith("m.");
+}
+
+/** 署名・期限を検証してverifierHashを返す。不正はnull */
+export function verifyMobileState(state: string): string | null {
+  const parts = state.split(".");
+  if (parts.length !== 4 || parts[0] !== "m") return null;
+  const [, vh, expStr, mac] = parts;
+  if (!isVerifierHash(vh)) return null;
+  const exp = Number(expStr);
+  if (!Number.isFinite(exp) || exp < Date.now()) return null;
+  const expect = createHmac("sha256", mobileStateKey())
+    .update(`${vh}.${exp}`)
+    .digest();
+  let got: Buffer;
+  try {
+    got = Buffer.from(mac, "base64url");
+  } catch {
+    return null;
+  }
+  if (expect.length !== got.length || !timingSafeEqual(expect, got)) return null;
+  return vh;
+}
 
 export function isVerifierHash(v: string): boolean {
   return /^[0-9a-f]{64}$/.test(v);

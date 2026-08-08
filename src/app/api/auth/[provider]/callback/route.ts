@@ -7,6 +7,8 @@ import {
   MOBILE_DEEPLINK,
   MOBILE_OAUTH_COOKIE,
   createMobileLoginTicket,
+  isMobileState,
+  verifyMobileState,
 } from "@/lib/mobile-login";
 import {
   exchangeCodeForSub,
@@ -17,20 +19,22 @@ import {
 // OAuthコールバック。state検証 → code→sub引換 → ハッシュで身元解決。
 // 身元解決の規則（ログイン/連携追加/新規作成）は src/lib/oauth-login.ts に共通化。
 //
-// モバイルフロー（en_oauth_mobile cookieあり）: この画面はアプリ内ブラウザで
-// 開いており、cookie空間がアプリのWebViewと別。ここではセッションを発行せず、
+// モバイルフロー（stateが署名付きの m.〜 形式）: この画面はアプリ内ブラウザで
+// 開いており、cookieはWebViewと別世界なうえOAuthリダイレクト連鎖では保持すら
+// 保証されない。cookieには一切依存せず、stateの署名検証だけで正当性を確認し、
 // 身元ハッシュを一回使い切りの引換券に載せてディープリンクでアプリへ返す。
 
 function cleanupCookies(res: NextResponse) {
   res.cookies.delete(OAUTH_STATE_COOKIE);
-  res.cookies.delete(MOBILE_OAUTH_COOKIE);
+  res.cookies.delete(MOBILE_OAUTH_COOKIE); // 旧方式の残骸掃除
   return res;
 }
 
 function fail(req: NextRequest, reason: string) {
-  // モバイルフローの失敗はアプリへ戻す（ブラウザシートに置き去りにしない）
-  const mobile = req.cookies.get(MOBILE_OAUTH_COOKIE)?.value;
-  const dest = mobile
+  // モバイルフローの失敗はアプリへ戻す（ブラウザシートに置き去りにしない）。
+  // 判定はstateパラメータの形式で行う（cookieに依存しない）
+  const state = req.nextUrl.searchParams.get("state");
+  const dest = isMobileState(state)
     ? `${MOBILE_DEEPLINK}?error=${encodeURIComponent(reason)}`
     : (() => {
         const url = new URL("/welcome", req.nextUrl);
@@ -47,10 +51,17 @@ export async function GET(
   const { provider } = await ctx.params;
   if (!isOAuthProvider(provider)) return fail(req, "provider");
 
-  // CSRF対策: 開始時に置いたstateと一致しなければ拒否
   const state = req.nextUrl.searchParams.get("state");
-  const saved = req.cookies.get(OAUTH_STATE_COOKIE)?.value;
-  if (!state || !saved || state !== saved) return fail(req, "state");
+
+  // state検証。モバイルは署名・期限の検証、Webは開始時に置いたcookieとの一致
+  let mobileVerifierHash: string | null = null;
+  if (isMobileState(state)) {
+    mobileVerifierHash = state ? verifyMobileState(state) : null;
+    if (!mobileVerifierHash) return fail(req, "state");
+  } else {
+    const saved = req.cookies.get(OAUTH_STATE_COOKIE)?.value;
+    if (!state || !saved || state !== saved) return fail(req, "state");
+  }
 
   const code = req.nextUrl.searchParams.get("code");
   if (!code) return fail(req, "denied"); // ユーザーが認可画面でキャンセル等
@@ -66,9 +77,12 @@ export async function GET(
 
   // モバイル: 身元解決はWebView側のexchangeに委ねる（ゲスト昇格等のcookie文脈が
   // あちらにしかないため）。ここは引換券を発行してアプリへ戻るだけ。
-  const verifierHash = req.cookies.get(MOBILE_OAUTH_COOKIE)?.value;
-  if (verifierHash) {
-    const ticket = await createMobileLoginTicket(provider, hash, verifierHash);
+  if (mobileVerifierHash) {
+    const ticket = await createMobileLoginTicket(
+      provider,
+      hash,
+      mobileVerifierHash
+    );
     return cleanupCookies(
       NextResponse.redirect(`${MOBILE_DEEPLINK}?token=${ticket}`)
     );

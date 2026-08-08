@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const identity = await consumeMobileLoginTicket(token, verifier);
   if (!identity || !isOAuthProvider(identity.provider)) {
     return NextResponse.json(
-      { error: "invalid-ticket", redirectTo: "/welcome?oauth_error=state" },
+      { error: "invalid-ticket", redirectTo: "/welcome?oauth_error=ticket" },
       { status: 401 }
     );
   }

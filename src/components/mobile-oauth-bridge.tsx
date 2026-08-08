@@ -25,13 +25,15 @@ const SCRIPT = `(function () {
     }).join("");
   }
 
+  // localStorage採用: WebViewのプロセスがOAuth中に再起動しても生き残るように
+  // （認証完了後すぐ消す。端末外には出ない値）
   var VERIFIER_KEY = "en_mobile_login_verifier";
 
   function start(provider) {
     var bytes = new Uint8Array(32);
     crypto.getRandomValues(bytes);
     var verifier = toHex(bytes.buffer);
-    sessionStorage.setItem(VERIFIER_KEY, verifier);
+    localStorage.setItem(VERIFIER_KEY, verifier);
     crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)).then(function (d) {
       cap().Plugins.Browser.open({
         url: location.origin + "/api/auth/" + provider + "/start?client=mobile&vh=" + toHex(d)
@@ -41,6 +43,9 @@ const SCRIPT = `(function () {
 
   function handleDeepLink(url) {
     if (url.indexOf("jp.engnavi.app://auth") !== 0) return;
+    // 二重着火ガード（イベントが重複しても最初の1回だけ処理する）
+    if (window.__enMobileOAuthHandling) return;
+    window.__enMobileOAuthHandling = true;
     var params = new URLSearchParams(url.split("?")[1] || "");
     try {
       var browser = cap().Plugins.Browser;
@@ -53,10 +58,10 @@ const SCRIPT = `(function () {
       return;
     }
     var token = params.get("token");
-    var verifier = sessionStorage.getItem(VERIFIER_KEY);
-    sessionStorage.removeItem(VERIFIER_KEY);
+    var verifier = localStorage.getItem(VERIFIER_KEY);
+    localStorage.removeItem(VERIFIER_KEY);
     if (!token || !verifier) {
-      location.href = "/welcome?oauth_error=state";
+      location.href = "/welcome?oauth_error=verifier";
       return;
     }
     fetch("/api/auth/mobile/exchange", {
