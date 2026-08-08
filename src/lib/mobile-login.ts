@@ -97,7 +97,59 @@ export async function createMobileLoginTicket(
   return token;
 }
 
-/** 券を検証して身元を返す。不明・期限切れ・verifier不一致は拒否。
+/** 自己完結型の引換トークン（DB行なし）。形式: t.<provider>.<hash>.<vh>.<exp>.<mac>
+ *  実機で「callbackが書いた行がexchangeで見つからない」not-foundが発生したため、
+ *  状態をDBに置くのをやめてトークン自体に署名して持たせる。exchangeは署名・期限・
+ *  verifier検証だけで完結し、「DBに無い」という故障モードが構造的に存在しない。
+ *  再送（重複配送）はverifier持ち＝本人にしか成立しないので冪等性も自動で満たす */
+export function signMobileTicket(
+  provider: string,
+  providerHash: string,
+  verifierHash: string
+): string {
+  const exp = Date.now() + TICKET_TTL_MS;
+  const payload = `${provider}.${providerHash}.${verifierHash}.${exp}`;
+  const mac = createHmac("sha256", mobileStateKey())
+    .update(`ticket:${payload}`)
+    .digest("base64url");
+  return `t.${payload}.${mac}`;
+}
+
+export function verifyMobileTicket(
+  token: string,
+  verifier: string
+): { ok: true; provider: string; providerHash: string } | { ok: false; reason: string } {
+  const reject = (reason: string) => {
+    console.warn(`[mobile-oauth] ticket reject: ${reason} (token=${token.slice(0, 12)}…)`);
+    return { ok: false as const, reason };
+  };
+  const parts = token.split(".");
+  if (parts.length !== 6 || parts[0] !== "t") return reject("format");
+  const [, provider, providerHash, vhStored, expStr, mac] = parts;
+  const exp = Number(expStr);
+  if (!Number.isFinite(exp)) return reject("format");
+  const expect = createHmac("sha256", mobileStateKey())
+    .update(`ticket:${provider}.${providerHash}.${vhStored}.${expStr}`)
+    .digest();
+  let got: Buffer;
+  try {
+    got = Buffer.from(mac, "base64url");
+  } catch {
+    return reject("bad-signature");
+  }
+  if (expect.length !== got.length || !timingSafeEqual(expect, got))
+    return reject("bad-signature");
+  if (exp < Date.now()) return reject("expired");
+
+  const vh = createHash("sha256").update(verifier).digest();
+  const stored = Buffer.from(vhStored, "hex");
+  if (vh.length !== stored.length || !timingSafeEqual(vh, stored))
+    return reject("verifier-mismatch");
+
+  return { ok: true, provider, providerHash };
+}
+
+/** 【旧方式・移行期間の互換用】DB行の券を検証して身元を返す。不明・期限切れ・verifier不一致は拒否。
  *  正当なverifier持ちの「2回目」は拒否せず成功を返す（冪等）——ディープリンクの
  *  二重配送で、成功済みログインの上にエラー画面が被さる事故を防ぐため。
  *  verifierの生値は本人のWebViewしか持たないので、重複許容でも第三者は引き換え不能。

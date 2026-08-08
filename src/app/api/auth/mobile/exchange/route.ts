@@ -3,7 +3,10 @@ import { getOptionalUser } from "@/lib/auth";
 import { createAuthSession, AUTH_SESSION_DAYS } from "@/lib/auth-session";
 import { SESSION_COOKIE } from "@/lib/session";
 import { resolveOAuthLogin } from "@/lib/oauth-login";
-import { consumeMobileLoginTicket } from "@/lib/mobile-login";
+import {
+  consumeMobileLoginTicket,
+  verifyMobileTicket,
+} from "@/lib/mobile-login";
 import { isOAuthProvider } from "@/lib/oauth";
 
 // モバイルOAuthの最終段: アプリのWebViewが引換券(token)とverifier生値をPOSTし、
@@ -23,7 +26,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "bad-request" }, { status: 400 });
   }
 
-  const consumed = await consumeMobileLoginTicket(token, verifier);
+  // 新方式（t.〜）は署名検証のみで完結。それ以外はDB券の旧方式（移行期間の互換）
+  const consumed = token.startsWith("t.")
+    ? verifyMobileTicket(token, verifier)
+    : await consumeMobileLoginTicket(token, verifier);
   const identity = consumed.ok ? consumed : null;
   if (!identity || !isOAuthProvider(identity.provider)) {
     // 失敗理由をエラー画面に小さく出す（実機の不具合はここでしか切り分けられない）

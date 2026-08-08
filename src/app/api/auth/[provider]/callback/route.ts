@@ -6,7 +6,7 @@ import { resolveOAuthLogin } from "@/lib/oauth-login";
 import {
   MOBILE_DEEPLINK,
   MOBILE_OAUTH_COOKIE,
-  createMobileLoginTicket,
+  signMobileTicket,
   isMobileState,
   verifyMobileState,
 } from "@/lib/mobile-login";
@@ -76,13 +76,10 @@ export async function GET(
   }
 
   // モバイル: 身元解決はWebView側のexchangeに委ねる（ゲスト昇格等のcookie文脈が
-  // あちらにしかないため）。ここは引換券を発行してアプリへ戻るだけ。
+  // あちらにしかないため）。ここは署名付き引換トークン（自己完結・DB行なし）を
+  // 発行してアプリへ戻るだけ。
   if (mobileVerifierHash) {
-    const ticket = await createMobileLoginTicket(
-      provider,
-      hash,
-      mobileVerifierHash
-    );
+    const ticket = signMobileTicket(provider, hash, mobileVerifierHash);
     return cleanupCookies(
       NextResponse.redirect(`${MOBILE_DEEPLINK}?token=${ticket}`)
     );
