@@ -26,6 +26,10 @@ npm run test:e2e          # E2Eスモーク（Playwright）。DB起動が前提
 npm run check:release     # check + E2E。リリース（mainへのpush）前に必ず通すこと
 ```
 
+## Skills（.claude/skills/・コミット対象）
+- /feature — 依頼→実装→検証→コミットの標準手順。コード変更タスクはこれ経由
+- /release — mainへのpush（=本番リリース）とCI見届け。push作業はこれ経由
+
 ## テストの決まりごと
 - ユニットテストは `src/**/*.test.ts` に併置。DBに触らない純ロジックのみ（vitest.config.ts）
 - E2Eは tests/e2e/。専用DB `engineer_navigator_e2e` を毎回リセットして使う（開発DBには触らない）

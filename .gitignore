@@ -17,6 +17,7 @@
 
 # next.js
 /.next/
+/.next-e2e/
 /out/
 
 # production
@@ -36,7 +37,9 @@ yarn-error.log*
 .env*
 
 # local agent / editor tooling (machine-specific paths)
-.claude/
+# skills はチーム/クラウドセッション共有の資産なのでコミットする
+.claude/*
+!.claude/skills/
 
 # vercel
 .vercel

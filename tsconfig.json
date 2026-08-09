@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -19,7 +23,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
   "include": [
@@ -28,10 +34,15 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    ".next-e2e/types/**/*.ts",
+    ".next-e2e/dev/types/**/*.ts"
   ],
   // mobile/ はCapacitorシェル用の独立プロジェクト（依存も mobile/package.json 側）。
   // Vercelのビルドでは mobile/node_modules が入らず @capacitor/cli を解決できないため、
   // Webアプリの型チェック対象から外す
-  "exclude": ["node_modules", "mobile"]
+  "exclude": [
+    "node_modules",
+    "mobile"
+  ]
 }

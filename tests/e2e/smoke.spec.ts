@@ -18,7 +18,7 @@ async function closeTutorialIfShown(page: Page) {
 // DBは global-setup が毎回リセットするので、各テストはseed直後の状態を前提にできる。
 // （デモユーザーは過去8週の週報あり・今週は未提出、seedクイズあり）
 
-test("ホーム: デモユーザーでヒーローとプレイヤーカードが出る", async ({
+test("ホーム: デモユーザーでヒーローとプレイヤーカードが出る @mobile", async ({
   page,
 }) => {
   await page.goto("/");
@@ -64,14 +64,14 @@ test("今日の一問: 選択肢を選ぶと正誤フィードバックが出る
   await expect(page.getByText(/◎ 正解！|✕ 不正解/)).toBeVisible();
 });
 
-test("スキルマップ: ページが表示される", async ({ page }) => {
+test("スキルマップ: ページが表示される @mobile", async ({ page }) => {
   await page.goto("/skills");
   await expect(
     page.getByRole("heading", { name: "スキルマップ" })
   ).toBeVisible();
 });
 
-test("ウェルカム: 公開ページが表示される", async ({ page }) => {
+test("ウェルカム: 公開ページが表示される @mobile", async ({ page }) => {
   await page.goto("/welcome");
   await expect(
     page.getByRole("heading", { name: /ぜんぶ経験値になる/ })

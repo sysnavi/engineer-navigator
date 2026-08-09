@@ -76,6 +76,39 @@ sequenceDiagram
 
 スモークの5本: ホーム表示 / 週報の入力→自動保存→提出→リザルト /
 今日の一問に解答→採点 / スキルマップ / ウェルカム（公開ページ）。
+うち描画系3本（`@mobile` タグ）は **iPhoneビューポートでも再実行**され、
+スマホ表示の崩れをCIで検知する。
+
+補足: Next 16 は同一 distDir での多重 dev 起動をロックで拒否するため、
+E2E は `NEXT_DIST_DIR=.next-e2e` でビルドディレクトリも分離している
+（`npm run dev` と同時に実行できるのはこのため）。
+
+## スマホ（外出先）からの修正フロー
+
+外出先で不備に気づいたら、スマホの claude.ai/code からクラウドセッションで修正する。
+クラウドにはローカルDBがないので、E2Eの実行は push 後の CI が担う——
+このフローの品質ゲートは CI（だから push 後の見届けが /release の必須手順）。
+
+```mermaid
+flowchart LR
+    phone["スマホで不備に気づく"] --> cloud["claude.ai/code<br/>クラウドセッション"]
+    cloud --> feature["/feature<br/>実装 + npm run check<br/>（E2EはCIに委任）"]
+    feature --> release["/release<br/>push + CI見届け"]
+    release --> ci["GitHub Actions CI<br/>check + E2E（モバイル含む）"]
+    ci -- 失敗 --> fix["fix-forward か revert<br/>（放置は禁止）"]
+    release --> deploy["Vercel 本番デプロイ"]
+```
+
+デザインの微調整（目視必須のもの）はローカル作業に切り替える。
+クラウドで対応するのは挙動バグ・明白なCSS崩れ・文言などまで。
+
+## Skills（.claude/skills/・コミット対象）
+
+手順の標準化。クラウドセッションでも同じ手順が読まれるようリポジトリに含める。
+
+- **/feature** — 依頼→分類→実装（AGENTS.mdの決まりごとチェックリスト）→検証→コミット。
+  環境検知（DBの有無）でフル検証/クラウドモードを分岐
+- **/release** — push前ゲート→push→CI見届け→失敗時の巻き取り（fix-forward / revert）
 
 ## 決まりごと（テスト設計）
 
