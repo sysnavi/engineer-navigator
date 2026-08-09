@@ -10,6 +10,7 @@ SESエンジニアの成長をデータ化するアプリ。構想・設計は d
 - docs/roadmap.md — フェーズ計画（何をどの順で作るか）
 - docs/weekly-report.md — 週報テンプレの設計思想（フォームを変える前に読む）
 - docs/data-model.md — スキーマの設計判断（AI提案→本人承認フローは構造で強制）
+- docs/dev-infra.md — 開発・テスト・リリース基盤の図解（E2EのDB分離・CIの構成）
 
 ## スタック
 Next.js 16 (App Router / Server Actions) + Prisma 7 + PostgreSQL 16 (pgvector, port 5433) + Claude API
