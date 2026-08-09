@@ -120,6 +120,29 @@ DATABASE_URL="<neon-direct-url>" VOYAGE_API_KEY="<key>" npm run ingest:knowledge
 
 ---
 
+## CI とリリースゲート
+
+**CI（GitHub Actions・`.github/workflows/ci.yml`）**: mainへのpushとPRで
+`check`（型+lint+ユニット）+ E2Eスモークが自動で走る。ローカルの
+`npm run check:release` と同じ内容。失敗時はPlaywrightのトレースが
+Artifactsに残る（7日）。
+
+**リリースゲートの現状**: Vercelは push と同時にビルドを始めるため、
+CIの結果は本番デプロイを**ブロックしない**（事後の安全網）。
+ゲートの本体はローカルの決まりごと:
+
+```bash
+npm run check:release   # これが通ってから main に push する
+```
+
+**将来ハードゲートにしたくなったら**（チームが増えたら）どちらか:
+
+1. **PRフロー化**: GitHubのブランチ保護で main への直接pushを禁止し、
+   PR必須 + CI必須にする。Vercelは PRごとにプレビューを作り、
+   マージでのみ本番デプロイされる（Vercel側の設定変更は不要）。
+2. **CLIデプロイ化**: VercelのGit連携の自動デプロイを止め、CI成功後に
+   Actions から `vercel deploy --prod` を実行する（`VERCEL_TOKEN` が必要）。
+
 ## 運用メモ
 
 - **個人情報**: DBが持つのはハンドル（ペンネーム）・自己記入の作業メモ・招待トークンのみ。メール/氏名は保持しない。テスターには「本名・客先実名を書かない」旨をトップ(/welcome)でも案内済み。

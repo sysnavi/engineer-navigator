@@ -1,0 +1,68 @@
+# CI: mainへのpushとPRで check（型+lint+ユニット）+ E2Eスモークを回す。
+# ローカルの npm run check:release と同じ内容（リリースゲートの二重化）。
+# DBは docker-compose と同じ pgvector/pg16 をサービスコンテナで起動し、
+# ローカルと同じ 5433 に割り当てるので接続設定は共通のまま動く。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: navi
+          POSTGRES_PASSWORD: navi
+          POSTGRES_DB: engineer_navigator
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U navi"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+
+      # postinstall で prisma generate が走る
+      - run: npm ci
+
+      # 型 + lint + ユニットテスト（DB不要・数秒）
+      - run: npm run check
+
+      - name: Playwrightブラウザのキャッシュ
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Playwrightブラウザの準備
+        run: npx playwright install --with-deps chromium
+
+      # E2Eスモーク（tests/e2e/prepare-db.ts が engineer_navigator_e2e を作成・リセット）
+      - run: npm run test:e2e
+
+      # 失敗時の調査用にトレースを残す
+      - name: 失敗時のトレースを保存
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7
