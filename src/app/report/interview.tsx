@@ -1,107 +1,71 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { summarizeInterview } from "@/app/actions";
+import { useEffect, useRef, useState } from "react";
 import { MicButton } from "@/components/mic-button";
+import { resolveEngine, type SpeechEngine } from "@/lib/speech/recognition";
+import { unlockSpeech } from "@/lib/speech/tts";
+import { useInterview } from "./use-interview";
+import { VoiceInterview } from "./voice-interview";
 
-type Msg = { role: "user" | "assistant"; content: string };
-
-const READY_MARKER = "[READY]";
-
-// 最初の質問は固定（ラウンドトリップ節約 + 安定した導入）。
-// 2問目以降はAIが会話とプロフィール（前週のnextText等）を踏まえて聞く。
-const OPENING =
-  "おつかれさま！今週の週報、話すだけでまとめるよ。\nまず、今週の調子はどうだった？ ☀️好調 / 🌤普通 / ☁️モヤモヤ / 🌧しんどい でいうと？";
-
-function stripMarker(text: string): string {
-  return text.replace(READY_MARKER, "").trimEnd();
-}
+// インタビューのチャットモード。会話状態は useInterview に委譲し、
+// ハンズフリーモード（voice-interview.tsx）と共有する。
 
 export function InterviewChat() {
-  const router = useRouter();
-  const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: OPENING },
-  ]);
+  const itv = useInterview();
   const [input, setInput] = useState("");
-  const [streaming, setStreaming] = useState(false);
-  const [ready, setReady] = useState(false);
-  const [summarizing, startSummarize] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [engine, setEngine] = useState<SpeechEngine>("none");
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const answeredCount = messages.filter((m) => m.role === "user").length;
+  useEffect(() => {
+    let alive = true;
+    resolveEngine().then((e) => {
+      if (alive) setEngine(e);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, ready]);
+  }, [itv.messages, itv.ready]);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
     const content = input.trim();
-    if (!content || streaming || summarizing) return;
+    if (!content || itv.streaming || itv.summarizing) return;
     setInput("");
-    const nextTranscript: Msg[] = [...messages, { role: "user", content }];
-    setMessages([...nextTranscript, { role: "assistant", content: "" }]);
-    setStreaming(true);
-    try {
-      const res = await fetch("/api/interview", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextTranscript }),
-      });
-      if (!res.body) throw new Error("no body");
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let full = "";
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        full += decoder.decode(value, { stream: true });
-        const display = stripMarker(full);
-        setMessages((m) => {
-          const copy = [...m];
-          copy[copy.length - 1] = { role: "assistant", content: display };
-          return copy;
-        });
-      }
-      if (full.includes(READY_MARKER)) setReady(true);
-    } catch {
-      setMessages((m) => {
-        const copy = [...m];
-        copy[copy.length - 1] = {
-          role: "assistant",
-          content: copy[copy.length - 1].content || "[通信エラー。もう一度どうぞ]",
-        };
-        return copy;
-      });
-    } finally {
-      setStreaming(false);
-    }
+    await itv.send(content);
   }
 
-  function summarize() {
-    setError(null);
-    startSummarize(async () => {
-      try {
-        // 空のassistantバブルは除いて送る
-        const transcript = messages.filter((m) => m.content.trim() !== "");
-        await summarizeInterview(transcript);
-        // ドラフトが保存されたのでフォームモードへ（プレフィルを確認して提出）
-        router.push("/report");
-        router.refresh();
-      } catch (e) {
-        setError(
-          e instanceof Error ? e.message : "まとめに失敗しました。もう一度どうぞ"
-        );
-      }
-    });
+  function openVoice() {
+    // iOS系のTTS自動再生制限は「ユーザー操作の同期処理内」でしか解除できない
+    unlockSpeech();
+    setVoiceOpen(true);
   }
 
   return (
     <div className="flex flex-col gap-4">
+      {/* ハンズフリー: 話すだけで進むモード（音声入力が使える環境のみ） */}
+      {engine !== "none" && (
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={openVoice}
+            className="btn8 btn8-ok text-[12px]"
+            disabled={itv.summarizing}
+          >
+            🎙 ハンズフリーで話す
+          </button>
+          <span className="text-[11.5px] text-inksoft">
+            読み上げ→話すだけで進みます。歩きながらでもOK
+          </span>
+        </div>
+      )}
+
       <div className="space-y-3">
-        {messages.map((m, i) => (
+        {itv.messages.map((m, i) => (
           <div
             key={i}
             className={m.role === "user" ? "flex justify-end" : "flex justify-start"}
@@ -112,7 +76,7 @@ export function InterviewChat() {
               }`}
             >
               {m.content ||
-                (streaming && i === messages.length - 1 ? (
+                (itv.streaming && i === itv.messages.length - 1 ? (
                   <span className="font-pixel text-[12px] text-royal2">
                     …<span className="blink">_</span>
                   </span>
@@ -125,12 +89,12 @@ export function InterviewChat() {
         <div ref={bottomRef} />
       </div>
 
-      {ready && (
+      {itv.ready && (
         <p className="font-pixel text-[12px] tracking-[0.1em] text-pinkhot">
           ★ 材料がそろいました — まとめて週報のドラフトにできます
         </p>
       )}
-      {error && <p className="text-[12.5px] text-crit">{error}</p>}
+      {itv.error && <p className="text-[12.5px] text-crit">{itv.error}</p>}
 
       <form onSubmit={send} className="flex items-end gap-2.5">
         <textarea
@@ -142,16 +106,16 @@ export function InterviewChat() {
           rows={2}
           placeholder="話し言葉でOK。答えを入力…"
           className="field8"
-          disabled={streaming || summarizing}
+          disabled={itv.streaming || itv.summarizing}
         />
         <MicButton
-          disabled={streaming || summarizing}
+          disabled={itv.streaming || itv.summarizing}
           onText={(t) => setInput((v) => (v ? `${v} ${t}` : t))}
         />
         <button
           type="submit"
           className="btn8 btn8-ok shrink-0 text-[12px]"
-          disabled={streaming || summarizing || !input.trim()}
+          disabled={itv.streaming || itv.summarizing || !input.trim()}
         >
           ▶ 答える
         </button>
@@ -159,16 +123,24 @@ export function InterviewChat() {
 
       <div className="flex items-center gap-3">
         <button
-          onClick={summarize}
-          disabled={answeredCount < 2 || streaming || summarizing}
-          className={`btn8 text-[12px] ${ready ? "btn8-start" : ""}`}
+          onClick={itv.summarize}
+          disabled={itv.answeredCount < 2 || itv.streaming || itv.summarizing}
+          className={`btn8 text-[12px] ${itv.ready ? "btn8-start" : ""}`}
         >
-          {summarizing ? "MAKING…" : "▶ ここまでで週報にまとめる"}
+          {itv.summarizing ? "MAKING…" : "▶ ここまでで週報にまとめる"}
         </button>
         <span className="text-[11.5px] text-inksoft">
           まとめたあとフォームで確認・編集してから提出できます
         </span>
       </div>
+
+      {voiceOpen && (
+        <VoiceInterview
+          interview={itv}
+          engine={engine}
+          onClose={() => setVoiceOpen(false)}
+        />
+      )}
     </div>
   );
 }

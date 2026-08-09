@@ -135,6 +135,13 @@ WebViewだけのアプリは App Store 審査（ガイドライン4.2 Minimum Fu
 
 ## 補足メモ
 
+- **音声認識（ボイスインタビュー）**: iOSは**アプリ内カスタムプラグイン**
+  （`ios/App/App/SpeechRecognitionPlugin.swift`、登録は `AppViewController.swift`）。
+  `@capacitor-community/speech-recognition` のiOS実装はCocoaPodsレイアウトでSPMに
+  取り込めないため自前実装にした。**Androidは同プラグインをそのまま使う**
+  （JSインターフェースは両OS共通: `window.Capacitor.Plugins.SpeechRecognition`、
+  web側の呼び出しは `src/lib/speech/recognition.ts`）。
+  Info.plist のマイク・音声認識の利用目的キーは審査必須なので消さないこと。
 - **サービスワーカー**: WKWebView内ではSW登録が失敗するが、`public/sw.js` は静的アセットの
   cache-firstのみなので実害なし（ページは常にネットワーク取得）。
 - **cookieセッション**: シェルは本番ドメインをそのまま読み込むためファーストパーティcookieとして

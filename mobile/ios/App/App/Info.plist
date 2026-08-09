@@ -36,6 +36,11 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<!-- ボイスインタビュー（週報のハンズフリー音声入力）。審査必須の利用目的説明 -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>週報インタビューで、話した内容を音声入力するためにマイクを使用します。</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>話した内容をその場でテキストに変換するために音声認識を使用します。音声は端末のOSが処理し、アプリが録音を保存することはありません。</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

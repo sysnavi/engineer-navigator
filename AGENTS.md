@@ -37,6 +37,8 @@ npm run check:release     # check + E2E。リリース（mainへのpush）前に
 
 ## 決まりごと
 - LLM呼び出しは必ず src/lib/ai/client.ts 経由（モデル名・トークン記録を一元管理）
+- 音声入力・読み上げは必ず src/lib/speech/ 経由（native/web/サーバーSTTのエンジン切替を一元管理。
+  WKWebViewはWeb Speech APIが「存在するのに動かない」ため直接触らない）
 - AIがEngineerSkillを直接書き換えるのは禁止。必ずSkillSuggestion → 本人承認を経由
 - 顧客実名をDBに入れない（Project.clientAlias のみ）
 - 認証は開発用cookie方式（src/lib/auth.ts）。本番はGoogle Workspace SSOに置換予定
