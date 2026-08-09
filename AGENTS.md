@@ -20,7 +20,15 @@ docker compose up -d      # DB起動（port 5433）
 npx prisma migrate dev    # マイグレーション
 npx prisma db seed        # スキルマスタ・デモユーザー投入
 npm run dev               # http://localhost:3000
+npm run check             # 型 + lint + ユニットテスト。コード変更後は必ず通すこと
+npm run test:e2e          # E2Eスモーク（Playwright）。DB起動が前提
+npm run check:release     # check + E2E。リリース（mainへのpush）前に必ず通すこと
 ```
+
+## テストの決まりごと
+- ユニットテストは `src/**/*.test.ts` に併置。DBに触らない純ロジックのみ（vitest.config.ts）
+- E2Eは tests/e2e/。専用DB `engineer_navigator_e2e` を毎回リセットして使う（開発DBには触らない）
+- E2Eは ANTHROPIC_API_KEY を空にして実行する（AI解析はFAILEDになるが提出は成功する仕様を利用。実APIは呼ばない）
 
 ## 決まりごと
 - LLM呼び出しは必ず src/lib/ai/client.ts 経由（モデル名・トークン記録を一元管理）
