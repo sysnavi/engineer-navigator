@@ -8,8 +8,10 @@ import { TIPS, ONBOARDING_TIPS, type Tip } from "@/lib/tips";
 // - 通常: 1日1回まで・未読からランダム。
 // - 新規期間（登録3日以内・newcomer prop）: 1日3回まで、まずオンボーディングキューを
 //   優先度順に流し、消化しきったら通常のランダムに合流する（Issue #20）。
-// 配置: 左下はレアキャラ来訪(Visitor)の指定席なので右下。タスクバー(desktopシェル)を
-// 避けるため bottom-16。モーダル類(z-50〜60)より下の z-30。
+// 配置: 左下はレアキャラ来訪(Visitor)の指定席なので右下。タスクバー(desktopシェル)は
+// 54px + safe-area の高さなので、bottom にも safe-area を足して重なりを避ける
+// （Capacitorシェルは viewport-fit=cover でフッターがホームバー領域まで伸びる）。
+// モーダル類(z-50〜60)より下の z-30。
 
 const STORAGE_KEY = "en_tips";
 const SHOW_DELAY_MS = 4000;
@@ -119,7 +121,7 @@ export function TipsToast(props: { newcomer?: boolean }) {
   return (
     <div
       role="status"
-      className={`no-print fixed bottom-16 right-3 z-30 w-[280px] transition-all duration-300 sm:bottom-20 sm:w-[320px] ${
+      className={`no-print fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] right-3 z-30 w-[280px] transition-all duration-300 sm:bottom-[calc(5rem+env(safe-area-inset-bottom))] sm:w-[320px] ${
         leaving ? "translate-y-2 opacity-0" : "translate-y-0 opacity-100"
       }`}
     >

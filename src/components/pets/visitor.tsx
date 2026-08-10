@@ -141,7 +141,7 @@ export function Visitor(props: {
     return (
       <button
         onClick={() => setPhase("first")}
-        className="no-print fixed bottom-16 left-3 z-20 flex flex-col items-center gap-0.5 sm:bottom-20"
+        className="no-print fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-3 z-20 flex flex-col items-center gap-0.5 sm:bottom-[calc(5rem+env(safe-area-inset-bottom))]"
         aria-label={`${species.name}が遊びに来ています。話しかける`}
       >
         <span className="rounded-md border-2 border-line8 bg-win px-1.5 py-0.5 font-pixel text-[9.5px] tracking-wide text-ink shadow-hard-sm">
