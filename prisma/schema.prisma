@@ -216,7 +216,7 @@ model Pet {
   affection    Int       @default(0)
   lastPettedAt DateTime? @db.Date
   // ごはん（Issue #23）: 1日3回/匹。lastFedAt=最後にあげた日（回数リセット判定）、
-  // fedCount=その日の給餌回数、favoriteFoundAt=好物を見つけた記録（ごはん図鑑用）
+  // fedCount=その日の給餌回数、favoriteFoundAt=好物を見つけた記録（初回発見判定とおせわメニューの♥表示用）
   lastFedAt       DateTime? @db.Date
   fedCount        Int       @default(0)
   favoriteFoundAt DateTime?

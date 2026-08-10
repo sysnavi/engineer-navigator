@@ -22,7 +22,6 @@ import { FOODS, MAX_FEEDS_PER_DAY } from "@/lib/pets/foods";
 import { SHOP_SERIES, seriesComplete, seriesById, shopItemById } from "@/lib/shop/content";
 import { furnitureLodgers, ROOM_WINDOW, roomTier } from "@/lib/home/living";
 import { ShopSprite } from "@/components/shop-sprite";
-import { FoodSprite } from "@/components/pets/food-sprite";
 import { DesktopScene, type DeskGadget, type DeskVisitor } from "./desktop-scene";
 import { LivingScene, type LivingFurniture, type RoomPet } from "./living-scene";
 import type { FoodStock } from "./care-menu";
@@ -95,6 +94,7 @@ export default async function HomePage() {
           !!visitorPet.lastPettedAt &&
           visitorPet.lastPettedAt.getTime() >= today().getTime(),
         feedsLeft: feedsLeftOf(visitorPet),
+        favoriteFound: !!visitorPet.favoriteFoundAt,
       }
     : null;
 
@@ -107,6 +107,7 @@ export default async function HomePage() {
       affection: p.affection,
       pettedToday: !!p.lastPettedAt && p.lastPettedAt.getTime() >= today().getTime(),
       feedsLeft: feedsLeftOf(p),
+      favoriteFound: !!p.favoriteFoundAt,
     }));
 
   // きょう家具を使っている子（決定的抽選）。petSpot持ちの配置済み家具が対象
@@ -267,52 +268,6 @@ export default async function HomePage() {
           </Link>
         )}
 
-        {/* ===== ごはん図鑑 ===== */}
-        <div className="mt-4 rounded-lg border-2 border-line8 bg-surface p-3">
-          <PixelLabel className="mb-2">GOHAN — ごはん図鑑</PixelLabel>
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            {FOODS.map((f) => {
-              const count = stocks.find((s) => s.foodId === f.id)?.count ?? 0;
-              // 好物を見つけた子だけ名前を出す（見つけるまでは ？？？）
-              const lovers = pets
-                .filter(
-                  (p) =>
-                    p.favoriteFoundAt &&
-                    speciesById(p.speciesId)?.favoriteFoodId === f.id
-                )
-                .map((p) => p.name);
-              return (
-                <div
-                  key={f.id}
-                  className="flex items-start gap-2.5 rounded-lg border-2 border-line8 bg-win px-2.5 py-2"
-                >
-                  <span className="shrink-0 pt-0.5">
-                    <FoodSprite id={f.id} px={3} label={f.name} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[12.5px] font-extrabold">
-                      {f.name}
-                      <span className="ml-1.5 font-pixel text-[10px] text-lemon">
-                        {"★".repeat(f.rarity)}
-                      </span>
-                      <span className="ml-1.5 font-pixel text-[10px] text-royal2">
-                        x{count}
-                      </span>
-                    </p>
-                    <p className="text-[11px] leading-snug text-inksoft">{f.desc}</p>
-                    <p className="mt-0.5 text-[10.5px] font-bold text-inksoft">
-                      {f.semiFavorite
-                        ? "みんなの ごちそう（+2）"
-                        : lovers.length > 0
-                          ? `好物: ${lovers.join("・")} ♥`
-                          : "好物: ？？？"}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
       </Window>
 
       {/* ===== きせかえ（壁紙・床は2部屋共通） ===== */}

@@ -38,6 +38,7 @@ export type RoomPet = {
   affection: number;
   pettedToday: boolean;
   feedsLeft: number; // きょう あと何回ごはんをあげられるか（1日3回まで）
+  favoriteFound: boolean; // 好物を見つけた子か（おせわメニューの♥表示用）
 };
 
 export type LivingFurniture = { itemId: string; x: number; y: number; z: number };
@@ -294,7 +295,12 @@ export function LivingScene(props: {
         setPets((ps) =>
           ps.map((p) =>
             p.id === petId
-              ? { ...p, affection: r.affection, feedsLeft: r.feedsLeft }
+              ? {
+                  ...p,
+                  affection: r.affection,
+                  feedsLeft: r.feedsLeft,
+                  favoriteFound: p.favoriteFound || r.discovered,
+                }
               : p
           )
         );
@@ -303,7 +309,7 @@ export function LivingScene(props: {
         );
         setLog(
           r.discovered
-            ? `${r.message} 好物を見つけた！（ごはん図鑑に記録した）`
+            ? `${r.message} 好物を見つけた！（おせわメニューに♥で記録した）`
             : `${r.message} なつき度 +${r.gain}`
         );
         playServe(petId, foodId, r);
@@ -655,6 +661,11 @@ export function LivingScene(props: {
           affection={menuPet.affection}
           pettedToday={menuPet.pettedToday}
           feedsLeft={menuPet.feedsLeft}
+          favoriteFoodId={
+            menuPet.favoriteFound
+              ? (speciesById(menuPet.speciesId)?.favoriteFoodId ?? null)
+              : null
+          }
           stocks={stocks}
           busy={serving !== null}
           onPet={() => onPet(menuPet.id)}
