@@ -19,7 +19,7 @@ export function PresenceHint(props: { kind: "return" | "rumor" }) {
   return (
     <button
       onClick={() => setOpen((o) => !o)}
-      className="no-print fixed bottom-16 left-3 z-20 flex flex-col items-start gap-0.5 sm:bottom-20"
+      className="no-print fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-3 z-20 flex flex-col items-start gap-0.5 sm:bottom-[calc(5rem+env(safe-area-inset-bottom))]"
       aria-label="なにかの気配がする"
     >
       {open && (
