@@ -157,7 +157,7 @@ export type FeedResult = {
   /** 演出の出し分け。favorite=大好物 / semi=レア（全種族の準好物） / normal */
   reaction: "favorite" | "semi" | "normal";
   serveMode: ServeMode;
-  /** この一口で好物を初めて当てたか（ごはん図鑑に記録された） */
+  /** この一口で好物を初めて当てたか（favoriteFoundAt に初回記録。おせわメニューの♥表示に使う） */
   discovered: boolean;
   remaining: number; // そのごはんの残り所持数
   feedsLeft: number; // きょう この子に あと何回あげられるか

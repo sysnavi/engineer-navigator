@@ -23,6 +23,7 @@ export function CareMenu(props: {
   affection: number;
   pettedToday: boolean;
   feedsLeft: number; // きょう あと何回あげられるか（1日3回まで）
+  favoriteFoodId: string | null; // この子の発見済みの好物（未発見は null）
   stocks: FoodStock[];
   busy: boolean;
   onPet: () => void;
@@ -121,26 +122,38 @@ export function CareMenu(props: {
               // ごはんが増えても縦に伸びないよう横スクロールの一列にする。
               // pb-1.5 は影のぶんの逃がし（overflow-x-auto は縦もクリップするため）
               <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1.5">
-                {owned.map(({ def, count }) => (
-                  <button
-                    key={def.id}
-                    onClick={() => props.onFeed(def.id)}
-                    disabled={fedUp || props.busy}
-                    title={`${def.name}（のこり${count}）`}
-                    aria-label={`${def.name}をもりつける。のこり${count}`}
-                    className="relative flex w-[68px] shrink-0 flex-col items-center gap-1 rounded-lg border-2 border-line8 bg-surface px-1 pb-2 pt-3 shadow-hard-sm transition-transform hover:bg-quotebg active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-45"
-                  >
-                    <FoodSprite id={def.id} px={3} />
-                    <span className="text-center text-[9.5px] font-bold leading-tight">
-                      {def.name}
-                    </span>
-                    {/* 個数はスロットの内側に置く。はみ出させると
-                        横スクロール（overflow-x-auto）で角が切れる */}
-                    <span className="absolute right-0.5 top-0.5 rounded border-2 border-line8 bg-royal px-1 font-pixel text-[9.5px] leading-tight text-white">
-                      x{count}
-                    </span>
-                  </button>
-                ))}
+                {owned.map(({ def, count }) => {
+                  const isFavorite = def.id === props.favoriteFoodId;
+                  return (
+                    <button
+                      key={def.id}
+                      onClick={() => props.onFeed(def.id)}
+                      disabled={fedUp || props.busy}
+                      title={`${def.name}（のこり${count}）${isFavorite ? " ♥この子の好物" : ""}`}
+                      aria-label={`${def.name}をもりつける。のこり${count}${isFavorite ? "。この子の好物" : ""}`}
+                      className="relative flex w-[68px] shrink-0 flex-col items-center gap-1 rounded-lg border-2 border-line8 bg-surface px-1 pb-2 pt-3 shadow-hard-sm transition-transform hover:bg-quotebg active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-45"
+                    >
+                      <FoodSprite id={def.id} px={3} />
+                      <span className="text-center text-[9.5px] font-bold leading-tight">
+                        {def.name}
+                      </span>
+                      {/* 個数はスロットの内側に置く。はみ出させると
+                          横スクロール（overflow-x-auto）で角が切れる */}
+                      <span className="absolute right-0.5 top-0.5 rounded border-2 border-line8 bg-royal px-1 font-pixel text-[9.5px] leading-tight text-white">
+                        x{count}
+                      </span>
+                      {/* 発見済みの好物マーク（旧ごはん図鑑の記録の引き継ぎ先） */}
+                      {isFavorite && (
+                        <span
+                          aria-hidden="true"
+                          className="absolute left-0.5 top-0.5 rounded border-2 border-line8 bg-win px-1 text-[9.5px] leading-tight text-pinkhot"
+                        >
+                          ♥
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
