@@ -48,6 +48,14 @@ test("週報: 入力→自動保存→提出でリザルトが出る（AI解析F
   });
 });
 
+// 音声入力の導線が環境判定で「黙って消える」事故の回帰テスト。
+// エンジンが使えない環境でもボタンは残り、押すと理由が出るのが仕様。
+test("週報インタビュー: 音声入力ボタンが必ず出る @mobile", async ({ page }) => {
+  await page.goto("/report?mode=interview");
+  await closeTutorialIfShown(page);
+  await expect(page.getByRole("button", { name: "音声入力" })).toBeVisible();
+});
+
 test("今日の一問: 選択肢を選ぶと正誤フィードバックが出る", async ({
   page,
 }) => {

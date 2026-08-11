@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MicButton } from "@/components/mic-button";
-import { resolveEngine, type SpeechEngine } from "@/lib/speech/recognition";
+import {
+  resolveEngineInfo,
+  unavailableMessage,
+  type EngineInfo,
+} from "@/lib/speech/recognition";
 import { unlockSpeech } from "@/lib/speech/tts";
 import { useInterview } from "./use-interview";
 import { VoiceInterview } from "./voice-interview";
@@ -14,13 +18,13 @@ export function InterviewChat() {
   const itv = useInterview();
   const [input, setInput] = useState("");
   const [voiceOpen, setVoiceOpen] = useState(false);
-  const [engine, setEngine] = useState<SpeechEngine>("none");
+  const [engineInfo, setEngineInfo] = useState<EngineInfo | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let alive = true;
-    resolveEngine().then((e) => {
-      if (alive) setEngine(e);
+    resolveEngineInfo().then((i) => {
+      if (alive) setEngineInfo(i);
     });
     return () => {
       alive = false;
@@ -47,22 +51,30 @@ export function InterviewChat() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* ハンズフリー: 話すだけで進むモード（音声入力が使える環境のみ） */}
-      {engine !== "none" && (
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            onClick={openVoice}
-            className="btn8 btn8-ok text-[12px]"
-            disabled={itv.summarizing}
-          >
-            🎙 ハンズフリーで話す
-          </button>
-          <span className="text-[11.5px] text-inksoft">
-            読み上げ→話すだけで進みます。歩きながらでもOK
-          </span>
-        </div>
-      )}
+      {/* ハンズフリー: 話すだけで進むモード。
+          使えない環境ではボタンごと消さず、理由を出す（黙って消えると
+          「音声入力が無くなった」と受け取られる） */}
+      {engineInfo &&
+        (engineInfo.engine !== "none" ? (
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={openVoice}
+              className="btn8 btn8-ok text-[12px]"
+              disabled={itv.summarizing}
+            >
+              🎙 ハンズフリーで話す
+            </button>
+            <span className="text-[11.5px] text-inksoft">
+              読み上げ→話すだけで進みます。歩きながらでもOK
+            </span>
+          </div>
+        ) : (
+          <p className="rounded-lg border-2 border-line8 bg-surface px-3 py-2 text-[11.5px] leading-snug text-inksoft shadow-hard-sm">
+            🎙 いまこの環境では音声入力を使えません —{" "}
+            {unavailableMessage(engineInfo.reason)}
+          </p>
+        ))}
 
       <div className="space-y-3">
         {itv.messages.map((m, i) => (
@@ -134,10 +146,10 @@ export function InterviewChat() {
         </span>
       </div>
 
-      {voiceOpen && (
+      {voiceOpen && engineInfo && (
         <VoiceInterview
           interview={itv}
-          engine={engine}
+          engine={engineInfo.engine}
           onClose={() => setVoiceOpen(false)}
         />
       )}

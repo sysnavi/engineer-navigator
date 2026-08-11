@@ -142,6 +142,16 @@ WebViewだけのアプリは App Store 審査（ガイドライン4.2 Minimum Fu
   （JSインターフェースは両OS共通: `window.Capacitor.Plugins.SpeechRecognition`、
   web側の呼び出しは `src/lib/speech/recognition.ts`）。
   Info.plist のマイク・音声認識の利用目的キーは審査必須なので消さないこと。
+  Androidは `AndroidManifest.xml` の `<queries>`（`android.speech.RecognitionService`）も必須。
+  Android 11+ のパッケージ可視性で、これが無いと端末に音声認識があっても
+  `available()` が false になる。
+- **「アプリで音声入力が出ない」とき**: 音声入力はネイティブ側の機能なので、
+  **Webをデプロイしても既存インストールには入らない**（プラグインを足したときは
+  必ず新ビルドを配布する）。プラグインの無い古いアプリでは、Web側は
+  「アプリを最新版に更新すると音声入力が使えます」と表示して理由を出す
+  （`src/lib/speech/recognition.ts` の `chooseEngine`）。
+  サーバーに `OPENAI_API_KEY` を設定しておくと、古いアプリでも録音→サーバーSTTの
+  フォールバックで音声入力が使える。
 - **サービスワーカー**: WKWebView内ではSW登録が失敗するが、`public/sw.js` は静的アセットの
   cache-firstのみなので実害なし（ページは常にネットワーク取得）。
 - **cookieセッション**: シェルは本番ドメインをそのまま読み込むためファーストパーティcookieとして
