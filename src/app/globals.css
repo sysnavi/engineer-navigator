@@ -170,6 +170,17 @@ body::before {
     box-shadow: 5px 5px 0 var(--hard);
     overflow: hidden;
   }
+  /* チャット画面用: .chat-dock の sticky をビューポート基準で効かせるためクリップを外す。
+     .win8 の overflow: hidden が最近傍のオーバーフロー祖先になると、stickyが
+     スクロールしないウィンドウ枠に対して解決されてドックが本文に被さる。
+     クリップを失うタイトルバーには自前で角丸を付ける（外側10px − 枠2.5px ≒ 7px） */
+  .win8-flow {
+    overflow: visible;
+  }
+  .win8-flow > .win8-bar {
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+  }
   .win8-bar {
     background: var(--royal);
     display: flex;

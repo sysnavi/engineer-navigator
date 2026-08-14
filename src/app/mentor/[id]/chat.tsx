@@ -5,6 +5,7 @@ import { SendingOverlay } from "@/components/sending-overlay";
 import { type ChatMsg, useStreamChat } from "@/components/chat/use-stream-chat";
 import { useFollowBottom } from "@/components/chat/use-follow-bottom";
 import { ChatComposer } from "@/components/chat/composer";
+import { ChatMarkdown } from "@/components/chat/markdown";
 
 // メンターのチャット（ストリーミング）。
 // 初期メッセージ列を受け取り、末尾がUSERで返信待ちなら自動で1回ストリームを開始する。
@@ -19,21 +20,30 @@ const PACE_KEY = "mentor-pace";
 
 const Bubble = memo(function Bubble(props: { msg: ChatMsg; thinking: boolean }) {
   const { msg, thinking } = props;
+  // メンター回答はMarkdown（##見出し・太字等）で届くので描画する。
+  // USER発言は平文なので pre-wrap のまま（ブロック要素と併用すると余白が二重になる）
   return (
     <div className={msg.role === "USER" ? "flex justify-end" : "flex justify-start"}>
       <div
-        className={`max-w-[85%] whitespace-pre-wrap rounded-lg border-2 border-line8 px-3.5 py-2.5 text-[13.5px] leading-relaxed shadow-hard-sm ${
-          msg.role === "USER" ? "bg-royal text-white" : "bg-surface text-ink"
+        className={`max-w-[85%] rounded-lg border-2 border-line8 px-3.5 py-2.5 text-[13.5px] leading-relaxed shadow-hard-sm ${
+          msg.role === "USER"
+            ? "whitespace-pre-wrap bg-royal text-white"
+            : "bg-surface text-ink"
         }`}
       >
-        {msg.content ||
-          (thinking ? (
-            <span className="font-pixel text-[12px] text-royal2">
-              THINKING<span className="blink">_</span>
-            </span>
+        {msg.content ? (
+          msg.role === "USER" ? (
+            msg.content
           ) : (
-            ""
-          ))}
+            <ChatMarkdown text={msg.content} />
+          )
+        ) : thinking ? (
+          <span className="font-pixel text-[12px] text-royal2">
+            THINKING<span className="blink">_</span>
+          </span>
+        ) : (
+          ""
+        )}
       </div>
     </div>
   );
@@ -53,6 +63,7 @@ export function MentorChat(props: { sessionId: string; initial: ChatMsg[] }) {
     waiting,
     gated,
     received,
+    skipped,
     send,
     resume,
     skip,
@@ -102,12 +113,15 @@ export function MentorChat(props: { sessionId: string; initial: ChatMsg[] }) {
   }
 
   // 読み戻し中は「↓ 最新へ」、追従中は「▶▶ ぜんぶ表示」（ペーシングの逃げ道）。
-  // ゲート待ちの間はチップ（つづき/もう一回）が主役なのでピルは出さない
+  // ゲート待ちの間はチップ（つづき/もう一回）が主役なのでピルは出さない。
+  // skip後は即ピルを消す（押した手応え）。1文字も届いていない間もskipは無意味なので出さない
   const notice =
     streaming && !gated
       ? away
         ? { label: "↓ 最新へ", onClick: jumpToBottom }
-        : { label: "▶▶ ぜんぶ表示", onClick: skip }
+        : !skipped && !waiting
+          ? { label: "▶▶ ぜんぶ表示", onClick: skip }
+          : null
       : null;
 
   return (
@@ -154,7 +168,8 @@ export function MentorChat(props: { sessionId: string; initial: ChatMsg[] }) {
             )}
           </div>
         )}
-        <div ref={bottomRef} />
+        {/* scroll-mb: 追従スクロール時に最終行がドック（+desktopシェルのタスクバー）に隠れないための下マージン */}
+        <div ref={bottomRef} className="scroll-mb-36" />
       </div>
 
       <ChatComposer

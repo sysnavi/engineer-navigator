@@ -34,7 +34,8 @@ export default async function MentorSessionPage({
         </Link>
       </div>
 
-      <Window title="MENTOR" titleEm=".chat" bodyClass="p-4 sm:p-5">
+      {/* win8-flow: 入力ドックのsticky（ビューポート基準）を効かせるためクリップを外す */}
+      <Window title="MENTOR" titleEm=".chat" className="win8-flow" bodyClass="p-4 sm:p-5">
         <MentorChat
           sessionId={session.id}
           initial={session.messages.map((m) => ({
