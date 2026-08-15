@@ -52,6 +52,8 @@ export function useStreamChat(props: {
   const [gated, setGated] = useState(false);
   // 受信は完了した（表示が追いついていなくても良い）。「もう一回」チップの安全条件
   const [received, setReceived] = useState(false);
+  // skip()済み（このレスポンスのペーシングを放棄した）。「ぜんぶ表示」ピルを即座に消すためのstate
+  const [skipped, setSkipped] = useState(false);
   const bufferRef = useRef(""); // 受信済み全文
   const shownRef = useRef(0); // 表示済み文字数
   const doneRef = useRef(false); // 受信完了フラグ（表示が追いつくまでstreamingは続く）
@@ -114,6 +116,7 @@ export function useStreamChat(props: {
     setWaiting(true);
     setGated(false);
     setReceived(false);
+    setSkipped(false);
     bufferRef.current = "";
     shownRef.current = 0;
     doneRef.current = false;
@@ -141,6 +144,7 @@ export function useStreamChat(props: {
       if (!bufferRef.current) {
         bufferRef.current = props.errorText;
         skipRef.current = true; // エラー文は刻まず即表示
+        setSkipped(true);
       }
     } finally {
       doneRef.current = true;
@@ -161,9 +165,11 @@ export function useStreamChat(props: {
     await stream(content);
   }
 
-  // ペーシングとゲートをやめて残りを即時全表示（読み飛ばしたい人の逃げ道）
+  // ペーシングとゲートをやめて残りを即時全表示（読み飛ばしたい人の逃げ道）。
+  // skipRefはレスポンス終了までtrueのままなので、以後の受信分も1tickごとに即時反映される
   function skip() {
     skipRef.current = true;
+    setSkipped(true);
     tick();
   }
 
@@ -179,6 +185,7 @@ export function useStreamChat(props: {
     waiting,
     gated,
     received,
+    skipped,
     send,
     resume,
     skip,

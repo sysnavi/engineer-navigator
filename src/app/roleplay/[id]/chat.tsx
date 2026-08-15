@@ -62,7 +62,7 @@ export function RoleplayChat(props: {
   endAction: () => Promise<void>;
   objectives: string[];
 }) {
-  const { messages, streaming, waiting, send, skip } = useStreamChat({
+  const { messages, streaming, waiting, skipped, send, skip } = useStreamChat({
     endpoint: "/api/roleplay",
     sessionId: props.sessionId,
     initial: props.initial,
@@ -72,11 +72,14 @@ export function RoleplayChat(props: {
   // 1回でもユーザーが発言していれば終了可能（未入力での終了＝無駄なAI呼び出し/エラーを防ぐ）
   const hasUserMsg = messages.some((m) => m.role === "USER");
 
-  // 読み戻し中は「↓ 最新へ」、追従中は「▶▶ ぜんぶ表示」（ペーシングの逃げ道）
+  // 読み戻し中は「↓ 最新へ」、追従中は「▶▶ ぜんぶ表示」（ペーシングの逃げ道）。
+  // skip後は即ピルを消す（押した手応え）。1文字も届いていない間もskipは無意味なので出さない
   const notice = streaming
     ? away
       ? { label: "↓ 最新へ", onClick: jumpToBottom }
-      : { label: "▶▶ ぜんぶ表示", onClick: skip }
+      : !skipped && !waiting
+        ? { label: "▶▶ ぜんぶ表示", onClick: skip }
+        : null
     : null;
 
   return (
@@ -90,7 +93,8 @@ export function RoleplayChat(props: {
             thinking={streaming && i === messages.length - 1}
           />
         ))}
-        <div ref={bottomRef} />
+        {/* scroll-mb: 追従スクロール時に最終行がドック（+desktopシェルのタスクバー）に隠れないための下マージン */}
+        <div ref={bottomRef} className="scroll-mb-36" />
       </div>
 
       <ChatComposer

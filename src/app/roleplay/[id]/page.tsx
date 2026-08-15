@@ -136,7 +136,7 @@ export default async function RoleplaySessionPage({
           </details>
         </>
       ) : (
-        <Window title="SIMULATION" titleEm=".live" bodyClass="p-4 sm:p-5">
+        <Window title="SIMULATION" titleEm=".live" className="win8-flow" bodyClass="p-4 sm:p-5">
           <RoleplayChat
             sessionId={session.id}
             initial={session.messages.map((m) => ({
