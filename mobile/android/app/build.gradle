@@ -15,7 +15,10 @@ android {
         applicationId "jp.engnavi.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        // CI配布（.github/workflows/android-distribute.yml）はrun番号で自動採番する。
+        // 上書きインストールには versionCode の増加が必須のため、ローカルの固定値 1 の
+        // ままCIと併用しないこと（CI配布後の手動配布は端末に入らなくなる）
+        versionCode System.getenv("ANDROID_VERSION_CODE") ? System.getenv("ANDROID_VERSION_CODE").toInteger() : 1
         versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

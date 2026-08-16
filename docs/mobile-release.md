@@ -88,7 +88,31 @@ App Store Connect → TestFlight タブ:
     将来のPlay移行時にも困る
 - `google-services.json` は App Distribution だけなら**不要**（プッシュ通知導入時に追加）
 
-### 1. ビルド & 配布（配布のたび）
+### 1. ビルド & 配布（配布のたび）— CI推奨
+
+**CI（GitHub Actions）**: Actions → 「Android配布」→ Run workflow（またはAPI経由）。
+リリースノートを入れて実行するだけで、ビルド〜テスターへの配布まで自動で走る
+（`.github/workflows/android-distribute.yml`）。versionCode はrun番号で自動採番される。
+
+初回のみ、リポジトリの Settings → Secrets and variables → Actions に登録する:
+
+| Secret | 値 |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | `base64 -i mobile/android/release.keystore \| pbcopy`（Macで実行） |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore.properties の storePassword |
+| `ANDROID_KEY_ALIAS` | keystore.properties の keyAlias（既存の鍵は `engnavi`） |
+| `ANDROID_KEY_PASSWORD` | keystore.properties の keyPassword |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | 下記サービスアカウントの鍵JSON全文 |
+
+サービスアカウントの作成（初回のみ・[GCPコンソール](https://console.cloud.google.com/iam-admin/serviceaccounts?project=engnavi-app)）:
+1. サービスアカウントを作成（名前は `github-actions-distribute` 等）
+2. ロールに **Firebase App Distribution 管理者** を付与
+3. キー → 新しい鍵を作成（JSON）→ 中身をそのまま Secret に貼る
+
+> Secrets未設定でもワークフローは未署名APKのビルドまで通る（パイプライン検証用）。
+> 配布は署名済みビルドのみ。
+
+**手動（Mac・従来の手順）**:
 
 ```bash
 cd mobile && npm run sync
@@ -104,6 +128,9 @@ npx firebase-tools appdistribution:distribute \
 
 > JDKは `brew install openjdk@21` で導入済み。シェルのrcに `JAVA_HOME` を
 > 書いておくと毎回のexportは不要。
+> ⚠️ CI配布を使い始めたら手動配布は混ぜないこと: ローカルビルドは versionCode=1 固定
+> なので、CIが配った端末には上書きインストールできない（配るなら
+> `ANDROID_VERSION_CODE=<大きい番号> ./gradlew assembleRelease` で採番する）。
 
 ### 2. テスターの管理
 
