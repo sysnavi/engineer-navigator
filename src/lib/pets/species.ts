@@ -284,6 +284,24 @@ export function speciesById(id: string | null | undefined): PetSpecies | null {
   return PET_SPECIES.find((s) => s.id === id) ?? null;
 }
 
+/** 来訪抽選の候補プール。引退種と、すでになかまにいる種を除く
+ *  （同じ種族が二度来て重複ペットになるのを防ぐ。ペットは1種1匹の図鑑コレクション） */
+export function visitablePool(ownedSpeciesIds: ReadonlySet<string>): PetSpecies[] {
+  return PET_SPECIES.filter((s) => !s.retired && !ownedSpeciesIds.has(s.id));
+}
+
+/** 重み付き抽選（純ロジック）。roll は [0,1) の乱数。全種コンプ時は null */
+export function pickFromPool(pool: PetSpecies[], roll: number): PetSpecies | null {
+  if (pool.length === 0) return null;
+  const total = pool.reduce((sum, s) => sum + s.weight, 0);
+  let r = roll * total;
+  for (const s of pool) {
+    r -= s.weight;
+    if (r <= 0) return s;
+  }
+  return pool[pool.length - 1];
+}
+
 // ---------------------------------------------------------------------------
 // 定型会話ツリー（性格別・2ターン）。choice.bond が判定ボーナスに積まれる。
 // ---------------------------------------------------------------------------

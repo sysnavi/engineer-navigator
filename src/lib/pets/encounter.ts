@@ -14,7 +14,12 @@
 import { prisma } from "@/lib/db";
 import { mondayOf } from "@/lib/week";
 import { getPlayerStats } from "@/lib/exp";
-import { PET_SPECIES, speciesById, type PetSpecies } from "@/lib/pets/species";
+import {
+  pickFromPool,
+  speciesById,
+  visitablePool,
+  type PetSpecies,
+} from "@/lib/pets/species";
 
 // ペット数ごとの出現率。コレクションが進むほどレア感が戻る
 const APPEAR_RATES = [0.4, 0.15, 0.1];
@@ -53,15 +58,9 @@ export async function wasRevisit(
   return !!prev && prev.speciesId === speciesId && isMissed(prev.status);
 }
 
-function pickSpecies(): PetSpecies {
-  const pool = PET_SPECIES.filter((s) => !s.retired);
-  const total = pool.reduce((sum, s) => sum + s.weight, 0);
-  let r = Math.random() * total;
-  for (const s of pool) {
-    r -= s.weight;
-    if (r <= 0) return s;
-  }
-  return pool[pool.length - 1];
+/** 所持済み種族を除いた重み付き抽選。全種コンプなら null（=その日は誰も来ない） */
+function pickSpecies(ownedSpeciesIds: ReadonlySet<string>): PetSpecies | null {
+  return pickFromPool(visitablePool(ownedSpeciesIds), Math.random());
 }
 
 /** きょうの来訪を確定させる（未抽選なら抽選）。layoutから毎リクエスト呼ばれる想定 */
@@ -79,15 +78,26 @@ export async function ensureTodayEncounter(userId: string) {
     data: { status: "EXPIRED" },
   });
 
-  const petCount = await prisma.pet.count({ where: { userId } });
+  const pets = await prisma.pet.findMany({
+    where: { userId },
+    select: { speciesId: true },
+  });
+  const petCount = pets.length;
+  const ownedSpecies = new Set(pets.map((p) => p.speciesId));
 
-  // 再訪: きのう逃した子は、一度だけ確定でもう一度来てくれる
+  // 再訪: きのう逃した子は、一度だけ確定でもう一度来てくれる。
+  // すでになかまにいる種は来ない（重複ペット防止。修正前の重複データが居ても連鎖させない）
   const yesterday = new Date(today.getTime() - DAY_MS);
   const missed = await prisma.encounter.findUnique({
     where: { userId_date: { userId, date: yesterday } },
   });
   let revisitSpecies: PetSpecies | null = null;
-  if (missed && isMissed(missed.status) && missed.speciesId) {
+  if (
+    missed &&
+    isMissed(missed.status) &&
+    missed.speciesId &&
+    !ownedSpecies.has(missed.speciesId)
+  ) {
     const alreadyRevisited = await wasRevisit(userId, yesterday, missed.speciesId);
     if (!alreadyRevisited) revisitSpecies = speciesById(missed.speciesId) ?? null;
   }
@@ -103,7 +113,8 @@ export async function ensureTodayEncounter(userId: string) {
   const appear =
     !!revisitSpecies || !recentMeet || Math.random() < appearRateFor(petCount);
 
-  const species = appear ? revisitSpecies ?? pickSpecies() : null;
+  // 全種コンプ済みなら pickSpecies が null を返し、その日は NONE になる
+  const species = appear ? revisitSpecies ?? pickSpecies(ownedSpecies) : null;
   try {
     return await prisma.encounter.create({
       data: {
@@ -147,7 +158,12 @@ export async function getPresenceHint(
   });
   if (!enc || enc.status === "PENDING") return null;
   if (isMissed(enc.status) && enc.speciesId) {
-    const alreadyRevisited = await wasRevisit(userId, today, enc.speciesId);
+    // なかまにいる種は再訪しない（ensureTodayEncounterと同じ条件）ので予告も出さない
+    const owned = await prisma.pet.count({
+      where: { userId, speciesId: enc.speciesId },
+    });
+    const alreadyRevisited =
+      owned > 0 || (await wasRevisit(userId, today, enc.speciesId));
     if (!alreadyRevisited) return "return";
   }
   if (enc.status === "NONE") {
@@ -212,6 +228,19 @@ export async function judgeEncounter(
   const befriended = Math.random() < p;
 
   if (befriended) {
+    // 同種は1匹まで（抽選側で除外済みだが、修正前に作られたPENDINGや
+    // 並行操作から重複ペットが生まれないよう、ここでも既存の子に合流させる）
+    const existing = await prisma.pet.findFirst({
+      where: { userId, speciesId: species.id },
+      select: { id: true },
+    });
+    if (existing) {
+      await prisma.encounter.update({
+        where: { id: encounterId },
+        data: { status: "BEFRIENDED" },
+      });
+      return { befriended: true, petId: existing.id, speciesName: species.name };
+    }
     const [, pet] = await prisma.$transaction([
       prisma.encounter.update({
         where: { id: encounterId },
