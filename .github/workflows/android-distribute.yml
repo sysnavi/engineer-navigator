@@ -1,0 +1,125 @@
+# Androidアプリのビルド & Firebase App Distribution 配布。
+# 手元のMac（docs/mobile-release.md の手動手順）と同じことをCIでやる:
+#   cap sync（本番URL焼き込み）→ gradlew assembleRelease → firebase appdistribution:distribute
+#
+# 起動は手動（workflow_dispatch）のみ。Web側のデプロイとは独立
+# （アプリ本体はサーバーにあり、シェルの再配布はネイティブを変えたときだけ必要）。
+#
+# 必要なSecrets（リポジトリ Settings → Secrets and variables → Actions）:
+#   ANDROID_KEYSTORE_BASE64   … release.keystore を base64 したもの
+#   ANDROID_KEYSTORE_PASSWORD … keystore のパスワード
+#   ANDROID_KEY_ALIAS         … 鍵のエイリアス（既存の鍵は engnavi）
+#   ANDROID_KEY_PASSWORD      … 鍵のパスワード
+#   FIREBASE_SERVICE_ACCOUNT_JSON … App Distribution権限を持つサービスアカウントのJSON全文
+# Secrets未設定でも動く: 未署名APKのビルドまで行い、配布はスキップする
+# （パイプライン自体の検証用。テスターに配れるのは署名済みビルドだけ）。
+
+name: Android配布
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: リリースノート（テスターへの通知メールに載る）
+        type: string
+        default: 修正版です。上書きインストールしてください
+      distribute:
+        description: Firebaseで配布する（offならビルドだけ・APKはArtifactsに残る）
+        type: boolean
+        default: true
+
+concurrency:
+  group: android-distribute
+  cancel-in-progress: false
+
+jobs:
+  build-and-distribute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: mobile依存のインストール
+        working-directory: mobile
+        run: npm ci
+
+      # CAP_SERVER_URL 未設定 = 本番URL（PROD_URL）が焼き込まれる
+      - name: Capacitor sync（本番URL焼き込み）
+        working-directory: mobile
+        run: npm run sync
+
+      - name: 署名鍵の展開（Secretsがあるときだけ）
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::署名鍵のSecretsが未設定のため未署名でビルドします（配布は不可）"
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > mobile/android/release.keystore
+          cat > mobile/android/keystore.properties <<EOF
+          storeFile=release.keystore
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      # versionCode は run番号から自動採番（上書きインストールには増加が必須）。
+      # 手動配布時代の 1 と衝突しないよう +1 する（build.gradle 側で参照）
+      - name: リリースAPKのビルド
+        working-directory: mobile/android
+        env:
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+        run: |
+          export ANDROID_VERSION_CODE=$((ANDROID_VERSION_CODE + 1))
+          ./gradlew assembleRelease
+
+      # 配布に失敗しても・配布しない回でも、ビルド成果物は30日残す
+      - name: APKをArtifactsに保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: mobile/android/app/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+      - name: Firebase App Distribution で配布
+        if: ${{ inputs.distribute }}
+        env:
+          SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          SIGNED: ${{ steps.keystore.outputs.signed }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+        working-directory: mobile
+        run: |
+          if [ "$SIGNED" != "true" ]; then
+            echo "::error::未署名ビルドは配布できません。ANDROID_KEYSTORE_* のSecretsを設定してください"
+            exit 1
+          fi
+          if [ -z "$SERVICE_ACCOUNT_JSON" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT_JSON が未設定です"
+            exit 1
+          fi
+          printf '%s' "$SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json"
+          npx firebase-tools appdistribution:distribute \
+            android/app/build/outputs/apk/release/app-release.apk \
+            --app 1:664916758573:android:e844da2a0cbc90d84be8a4 \
+            --project engnavi-app \
+            --release-notes "$RELEASE_NOTES" \
+            --groups testers

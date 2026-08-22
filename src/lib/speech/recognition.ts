@@ -10,11 +10,22 @@
 //   recorder … どちらも使えない環境（Firefox等）。MediaRecorderで録音して
 //              サーバーSTT（/api/transcribe）で文字起こし（recorder.ts）。
 //
-// 呼び出し側は resolveEngine() → startDictation() だけを使う。
+// 呼び出し側は resolveEngineInfo()（または resolveEngine()）→ startDictation() だけを使う。
+//
+// どれも使えないとき（none）は、UIから音声入力を黙って消さずに「なぜ使えないか」を
+// 出すこと。判定が none に倒れるとボタンごと消えるため、ユーザーからは
+// 「音声入力が無くなった」に見えてしまう（実際にそう報告された）。
 
 import { canRecord, serverSttEnabled, startRecording } from "./recorder";
 
 export type SpeechEngine = "native" | "web" | "recorder" | "none";
+
+/** 音声入力が使えない理由（ユーザーに出す文言の出し分けに使う） */
+export type UnavailableReason =
+  | "app-outdated" // アプリ版だが音声認識プラグインが無い（プラグイン導入前のビルド）
+  | "browser"; // ブラウザが未対応で、サーバーSTTフォールバックも無効
+
+export type EngineInfo = { engine: SpeechEngine; reason?: UnavailableReason };
 
 export type RecognitionHandle = {
   /** 聞き取りを終了して結果を確定する（onFinal が呼ばれる） */
@@ -62,17 +73,66 @@ export function detectLocalEngine(): "native" | "web" | "none" {
   return webSR() ? "web" : "none";
 }
 
-let resolvedEngine: Promise<SpeechEngine> | null = null;
+/**
+ * 環境の能力からエンジンを決める純関数（判定ロジックの本体。DOMに触らない）。
+ * アプリ版で web にフォールバックしないのは、WKWebViewの Web Speech API が
+ * 「存在するのに動かない」ため（AGENTS.md の決まりごと）。
+ */
+export function chooseEngine(caps: {
+  /** アプリ版（Capacitor）で動いている */
+  nativeApp: boolean;
+  /** ネイティブ音声認識プラグインが注入されている */
+  nativePlugin: boolean;
+  /** Web Speech API が使える */
+  web: boolean;
+  /** 録音 + サーバーSTT が使える */
+  recorder: boolean;
+}): EngineInfo {
+  if (caps.nativeApp) {
+    if (caps.nativePlugin) return { engine: "native" };
+    if (caps.recorder) return { engine: "recorder" };
+    // アプリの殻が古い（Web側だけ更新されてもネイティブは更新されない）
+    return { engine: "none", reason: "app-outdated" };
+  }
+  if (caps.web) return { engine: "web" };
+  if (caps.recorder) return { engine: "recorder" };
+  return { engine: "none", reason: "browser" };
+}
 
-/** 利用可能な音声入力エンジンを判定する（結果はセッション中キャッシュ） */
-export function resolveEngine(): Promise<SpeechEngine> {
+/** 音声入力が使えない理由をユーザー向けの日本語にする */
+export function unavailableMessage(reason?: UnavailableReason): string {
+  switch (reason) {
+    case "app-outdated":
+      return "アプリを最新版に更新すると音声入力が使えます。それまではキーボードで入力してください";
+    case "browser":
+      return "このブラウザは音声入力に対応していません。Chrome / Safari かアプリ版でお試しください";
+    default:
+      return "この環境では音声入力を利用できません";
+  }
+}
+
+let resolvedEngine: Promise<EngineInfo> | null = null;
+
+/** 利用可能な音声入力エンジンと、使えない場合の理由を判定する（結果はセッション中キャッシュ） */
+export function resolveEngineInfo(): Promise<EngineInfo> {
   resolvedEngine ??= (async () => {
     const local = detectLocalEngine();
-    if (local !== "none") return local;
-    if (canRecord() && (await serverSttEnabled())) return "recorder";
-    return "none";
+    // ネイティブ/webが使えるならサーバー照会（/api/transcribe）は省く
+    const recorder =
+      local === "none" && canRecord() && (await serverSttEnabled());
+    return chooseEngine({
+      nativeApp: isNativeApp(),
+      nativePlugin: local === "native",
+      web: local === "web",
+      recorder,
+    });
   })();
   return resolvedEngine;
+}
+
+/** 利用可能な音声入力エンジンを判定する（理由が要らない呼び出し側向け） */
+export function resolveEngine(): Promise<SpeechEngine> {
+  return resolveEngineInfo().then((i) => i.engine);
 }
 
 /** 指定エンジンで聞き取りを開始する */
@@ -88,7 +148,7 @@ export async function startDictation(
     case "recorder":
       return startRecording(opts);
     default:
-      opts.onError?.("この環境では音声入力を利用できません");
+      opts.onError?.(unavailableMessage());
       return { stop() {}, cancel() {} };
   }
 }
@@ -104,7 +164,10 @@ async function startNative(opts: RecognitionOpts): Promise<RecognitionHandle> {
 
   const avail = await plugin.available().catch(() => ({ available: false }));
   if (!avail.available) {
-    return fail("この端末では音声認識を利用できません");
+    // Androidは端末に音声認識サービスが無い/無効だとここに来る
+    return fail(
+      "端末の音声認識が使えません。端末の設定で音声入力を有効にしてください"
+    );
   }
 
   // 権限（初回はOSのダイアログが出る）
