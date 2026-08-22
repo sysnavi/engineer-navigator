@@ -19,6 +19,7 @@
 // 見張りが未登録なら、ふつうの Link と完全に同じ挙動になる。
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, type ComponentProps } from "react";
 
 /** 遷移してよければ true、止めるなら false */
@@ -59,6 +60,7 @@ export function useNavGuard(fn: NavGuardFn) {
  */
 export function GuardedLink(props: ComponentProps<typeof Link>) {
   const { onClick, href, ...rest } = props;
+  const pathname = usePathname();
   return (
     <Link
       {...rest}
@@ -67,6 +69,13 @@ export function GuardedLink(props: ComponentProps<typeof Link>) {
         // 新しいタブで開く操作は邪魔しない
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
         const to = typeof href === "string" ? href : String(href);
+        // すでにそのページにいるなら何もしない。見張りにも聞かない
+        // （おさんぽ中に「おさんぽ」を押しただけで引き止められないように）。
+        // usePathname はクエリ・ハッシュを含まないので、完全一致のときだけ止める
+        if (to === pathname) {
+          e.preventDefault();
+          return;
+        }
         if (!navAllowed(to)) {
           e.preventDefault();
           return;
