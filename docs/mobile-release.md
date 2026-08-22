@@ -43,6 +43,35 @@ iPhone専用 / 暗号輸出コンプライアンス回答済み）ので、**App
 
 ### 1. アーカイブ & アップロード（配布のたび）
 
+**CLI（Xcode不要・推奨）**: Xcodeにサインイン済みのApple IDでそのままアップロードできる。
+ビルド番号は `manageAppVersionAndBuildNumber=true` でXcodeが「App Store Connect上の最大+1」に
+自動採番するので、手で+1する必要はない（採番結果はログの `Starting upload` 付近に出る。
+リポジトリの `CURRENT_PROJECT_VERSION` はその値に合わせて更新しておく）。
+
+```bash
+cd mobile && npm run sync && cd ios/App
+cat > /tmp/ExportOptions.plist <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>method</key><string>app-store-connect</string>
+  <key>destination</key><string>upload</string>
+  <key>teamID</key><string>KFW7UH97T3</string>
+  <key>signingStyle</key><string>automatic</string>
+  <key>uploadSymbols</key><true/>
+  <key>manageAppVersionAndBuildNumber</key><true/>
+</dict></plist>
+PLIST
+xcodebuild -project App.xcodeproj -scheme App -configuration Release \
+  -destination 'generic/platform=iOS' -archivePath /tmp/App.xcarchive archive -allowProvisioningUpdates
+xcodebuild -exportArchive -archivePath /tmp/App.xcarchive -exportOptionsPlist /tmp/ExportOptions.plist \
+  -exportPath /tmp/ios-export -allowProvisioningUpdates
+```
+
+> 配布履歴（Build）: 1・2（2026-08上旬・Xcode GUI）→ 3（2026-08-22・上記CLI、自動採番）。
+
+**Xcode GUI（従来）**:
+
 ```bash
 cd mobile && npm run sync && npm run open:ios
 ```
@@ -131,11 +160,15 @@ npx firebase-tools appdistribution:distribute \
 > ⚠️ CI配布を使い始めたら手動配布は混ぜないこと: ローカルビルドは versionCode=1 固定
 > なので、CIが配った端末には上書きインストールできない（配るなら
 > `ANDROID_VERSION_CODE=<大きい番号> ./gradlew assembleRelease` で採番する）。
+> 配布履歴: versionCode 1（2026-08-04・手動）→ 2（2026-08-22・手動、`ANDROID_VERSION_CODE=2`）。
+> CIはまだSecrets未設定のため配布できない（run #1は未署名ビルドのみ）。次に手動で配るなら
+> 3以上、CIを使い始めるならrun番号+1が3以上になるので衝突しない。
 
 ### 2. テスターの管理
 
 [Console → App Distribution → テスターとグループ](https://console.firebase.google.com/project/engnavi-app/appdistribution)
-でグループ `testers` を作り、メールアドレスを追加する。以後は上のコマンドの
+でグループ `testers`（2026-08-22作成済み）にメールアドレスを追加する。CLIなら
+`npx firebase-tools appdistribution:testers:add a@example.com b@example.com --group-alias testers --project engnavi-app`。以後は上のコマンドの
 `--groups testers` で配布するたび全員に招待メールが飛ぶ。
 テスターはメールのリンクから端末に直接インストールできる（Play不要・
 「提供元不明のアプリ」の許可だけ必要）。
