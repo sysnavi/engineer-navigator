@@ -358,18 +358,35 @@ export function doBattle(s: DiveState, command: BattleCommand, rng: Rng): DiveSt
   return st;
 }
 
+/**
+ * 決着の締めの一言。ENDに遷移するときは必ずこれを出す。
+ * 以前はログを空にしたままENDへ入る経路があり、メッセージ欄が空白のまま
+ * 終わっていた（引き返した時は逆に直前のログがもう一度再生されていた）。
+ */
+function closingLogs(ending: NonNullable<DiveState["ending"]>): BattleLog[] {
+  if (ending === "cleared") {
+    return [{ text: "ボスを たおした！ むねを はって 帰ろう。", fx: "heal" }];
+  }
+  if (ending === "escaped") {
+    return [{ text: "きょうは ここで 引き返す。ぶじが いちばん。" }];
+  }
+  return [{ text: "きょう すすめるのは ここまで。また こんど。" }];
+}
+
 /** 次の階へどう進むか */
 export function doChoice(s: DiveState, choice: Choice, rng: Rng): DiveState {
   let st = { ...s };
   if (choice === "leave") {
     st.phase = "END";
-    st.ending = "escaped";
+    st.ending = st.bossDefeated ? "cleared" : "escaped";
+    st.logs = closingLogs(st.ending);
     return st;
   }
   st.depth += choice === "deep" ? 2 : 1;
   if (st.floor >= MAX_FLOORS) {
     st.phase = "END";
-    st.ending = "limit";
+    st.ending = st.bossDefeated ? "cleared" : "limit";
+    st.logs = closingLogs(st.ending);
     return st;
   }
   st = enterFloor(st, rng);
@@ -397,17 +414,18 @@ export function finishDive(s: DiveState): DiveState {
   };
 }
 
-/** イベントを読み終えた → 分岐へ（ボスを倒していたら帰還） */
+/**
+ * イベントを読み終えた → 分岐へ。
+ * ボスを倒しても探索は終わらない（enterFloor が二度目のボスを出さないだけ）。
+ * 「どこまで行くかは、きみが決める」ので、帰るかどうかも本人の選択に委ねる。
+ * ボスを倒した潜行は、どの形で帰っても ending=cleared（ボス撃破の勲章）になる。
+ */
 export function doNext(s: DiveState): DiveState {
   const st = { ...s, logs: [] as BattleLog[] };
-  if (st.bossDefeated) {
-    st.phase = "END";
-    st.ending = "cleared";
-    return st;
-  }
   if (st.floor >= MAX_FLOORS) {
     st.phase = "END";
-    st.ending = "limit";
+    st.ending = st.bossDefeated ? "cleared" : "limit";
+    st.logs = closingLogs(st.ending);
     return st;
   }
   st.phase = "CHOICE";
