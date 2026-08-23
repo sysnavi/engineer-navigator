@@ -372,7 +372,7 @@ export function DivePlayer(props: {
                     : "ここまでで 時間ぎれ"}
             </p>
             <p className="mt-1 text-[12.5px]">
-              地下{v.depth}階まで 到達（出発 地下{props.baseDepth}階）
+              地下{v.depth}階まで 到達（出発 地下{v.baseDepth}階）
             </p>
             {v.loot.gadgets.length + v.loot.foods.length > 0 ? (
               <p className="mt-1 text-[12.5px]">

@@ -37,6 +37,8 @@ export type DiveView = {
   floor: number;
   maxFloors: number;
   depth: number;
+  /** 実際の出発階（したくの腕試しボーナス込み。表示ズレ防止のためサーバー値を使う） */
+  baseDepth: number;
   hp: number;
   maxHp: number;
   sp: number;
@@ -58,6 +60,7 @@ function toView(runId: string, s: DiveState): DiveView {
     floor: s.floor,
     maxFloors: MAX_FLOORS,
     depth: s.depth,
+    baseDepth: s.baseDepth,
     hp: s.hp,
     maxHp: s.maxHp,
     sp: s.sp,
