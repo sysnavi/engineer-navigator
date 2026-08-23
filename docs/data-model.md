@@ -23,6 +23,9 @@ User ─┬─ Assignment ── Project（顧客名は clientAlias のみ・実
 ### 週報とAI解析を分離（WeeklyReport / ReportAnalysis）
 提出（人の行為）と解析（AIのジョブ）はライフサイクルが違う。解析は失敗・リトライ・モデル差し替えがありえるため、`status`（PENDING→RUNNING→DONE/FAILED）とコストログ（model, tokens）を持つ別テーブルにする。
 
+### 学習プランも「受付」と「AI生成」を分離（StudyPlan.generationStatus）
+プラン行は提出時に即作成し、週次項目のAI生成はレスポンス後のバックグラウンド（Next.js の `after()`）で実行する（GENERATING→READY/FAILED）。ReportAnalysis と同じ思想: 待てないユーザーが画面を離れても生成は続き、一覧・詳細の状態表示で追える。FAILED は詳細画面から再生成でき、再生成は既存 items を捨ててから入れ直す（冪等）。`ANTHROPIC_API_KEY` 未設定でも受付自体は成功し、生成だけ FAILED になる。
+
 ### スキル更新は必ず SkillSuggestion を経由する
 AIが直接 EngineerSkill を書き換えることはしない。ハルシネーション対策として、**AI提案 → 本人承認 → 反映**のフローを構造で強制する。承認時に `SkillHistory` へ履歴を積み、成長グラフと経歴書エビデンスの両方に使う。
 

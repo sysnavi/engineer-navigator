@@ -82,9 +82,17 @@ export default async function PlanListPage() {
                         {dl >= 0 ? `（あと${dl}日）` : "（終了）"}
                       </span>
                     </span>
-                    <span className="shrink-0 font-pixel text-[12px] text-royal2">
-                      {done}/{total}
-                    </span>
+                    {p.generationStatus === "GENERATING" ? (
+                      <span className="badge8 shrink-0">AIが作成中…</span>
+                    ) : p.generationStatus === "FAILED" ? (
+                      <span className="shrink-0 font-pixel text-[11px] text-pinkhot">
+                        生成失敗
+                      </span>
+                    ) : (
+                      <span className="shrink-0 font-pixel text-[12px] text-royal2">
+                        {done}/{total}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );

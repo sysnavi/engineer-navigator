@@ -803,6 +803,14 @@ enum StudyPlanStatus {
   ARCHIVED
 }
 
+// AI生成ジョブの状態。プラン行は提出時に即作られ、週次項目の生成はレスポンス後に
+// バックグラウンドで走る（週報の ReportAnalysis と同じ「受付とAIジョブを分離」の思想）。
+enum PlanGenerationStatus {
+  GENERATING
+  READY
+  FAILED
+}
+
 model StudyPlan {
   id            String          @id @default(cuid())
   user          User            @relation(fields: [userId], references: [id])
@@ -810,6 +818,9 @@ model StudyPlan {
   certification String // 例: "AWS SAA" "JSTQB FL"
   examDate      DateTime        @db.Date // 試験日
   status        StudyPlanStatus @default(ACTIVE)
+  // GENERATING中はitemsが空。FAILEDは画面から再生成できる（generationErrorは調査用）
+  generationStatus PlanGenerationStatus @default(READY)
+  generationError  String?
   createdAt     DateTime        @default(now())
 
   items StudyPlanItem[]

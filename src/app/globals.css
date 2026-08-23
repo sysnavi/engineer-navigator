@@ -322,6 +322,27 @@ body::before {
     }
   }
 
+  /* 学習プラン生成中の不定形バー: 所要が読めないので満了しない往復型。
+     8bit風にstepsでカクカク動かす（reduced-motionでは静止ブロックのまま） */
+  .genbar8-block {
+    width: 30%;
+    height: 100%;
+    background: var(--royal);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .genbar8-block {
+      animation: genbar8 1.4s steps(7, jump-none) infinite alternate;
+    }
+    @keyframes genbar8 {
+      0% {
+        transform: translateX(0);
+      }
+      100% {
+        transform: translateX(233%);
+      }
+    }
+  }
+
   /* pill-style radio (label wraps a sr-only input) */
   .pill8 {
     display: inline-flex;

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { requireFullAccountUser } from "@/lib/guest";
@@ -10,7 +11,8 @@ import { mondayOf } from "@/lib/week";
 import { analyzeReport } from "@/lib/ai/analyzeReport";
 import { completeJson, type ChatMessage } from "@/lib/ai/client";
 import { extractDraft } from "@/lib/ai/interview";
-import { generatePlanItems } from "@/lib/ai/studyplan";
+import { runPlanGeneration } from "@/lib/ai/studyplan";
+import { daysUntilExam } from "@/lib/plan-dates";
 import { generateOpeningLine, generateFeedback } from "@/lib/ai/roleplay";
 import { isPaletteId } from "@/lib/palettes";
 import { isUiShell } from "@/lib/shell";
@@ -449,8 +451,6 @@ export type StudyTopic = { title: string; why: string; firstQuestion: string };
 // 資格別学習プラン（Phase 3）
 // ---------------------------------------------------------------------------
 
-const DAY_MS = 86400_000;
-
 export async function createStudyPlan(formData: FormData) {
   const user = await requireFullAccountUser();
   const certification = formData.get("certification");
@@ -462,22 +462,9 @@ export async function createStudyPlan(formData: FormData) {
     throw new Error("試験日を入力してください");
   }
   const examDate = new Date(examDateRaw + "T00:00:00Z");
-  const now = new Date();
-  const daysLeft = Math.ceil((examDate.getTime() - now.getTime()) / DAY_MS);
-  if (daysLeft < 3) {
+  if (daysUntilExam(examDate, new Date()) < 3) {
     throw new Error("試験日は3日以上先の日付にしてください");
   }
-  const weeks = Math.min(16, Math.max(1, Math.ceil(daysLeft / 7)));
-
-  const skills = await prisma.engineerSkill.findMany({
-    where: { userId: user.id },
-    include: { skill: true },
-    orderBy: { level: "desc" },
-    take: 15,
-  });
-  const currentSkills = skills
-    .map((s) => `${s.skill.name}(Lv${s.level})`)
-    .join(", ");
 
   await assertAiAllowed(user.id, "study-plan").catch(throwFriendly);
 
@@ -486,37 +473,36 @@ export async function createStudyPlan(formData: FormData) {
   const cert = findCert(certification);
   const certName = cert?.label ?? certification.trim();
 
-  const items = await generatePlanItems({
-    certification: certName,
-    weeks,
-    currentSkills,
-    stance: user.mentorStance,
-  });
-
-  const monday = mondayOf(now);
+  // プラン行だけ即作り、AI生成はレスポンス後に回す（runPlanGeneration）。
+  // ユーザーはすぐ作成中画面に遷移でき、他の画面へ移っても生成は続く。
   const plan = await prisma.studyPlan.create({
     data: {
       userId: user.id,
       certification: certName,
       examDate,
-      items: {
-        create: items.map((it, i) => ({
-          order: i,
-          weekLabel: it.weekLabel,
-          title: it.title,
-          detail: it.detail,
-          topic: it.topic ?? null,
-          // 週次で目安日を割り当て、最後は試験日
-          targetDate:
-            i === items.length - 1
-              ? examDate
-              : new Date(monday.getTime() + (i + 1) * 7 * DAY_MS),
-        })),
-      },
+      generationStatus: "GENERATING",
     },
   });
+  after(() => runPlanGeneration(plan.id));
   revalidatePath("/plan");
   redirect(`/plan/${plan.id}`);
+}
+
+/** 生成に失敗したプランの再生成（FAILEDのときだけ受け付ける） */
+export async function retryPlanGeneration(planId: string) {
+  const user = await requireFullAccountUser();
+  const plan = await prisma.studyPlan.findUnique({ where: { id: planId } });
+  if (!plan || plan.userId !== user.id) throw new Error("プランが見つかりません");
+  if (plan.generationStatus !== "FAILED") return; // 連打・二重生成の防止
+
+  await assertAiAllowed(user.id, "study-plan").catch(throwFriendly);
+
+  await prisma.studyPlan.update({
+    where: { id: planId },
+    data: { generationStatus: "GENERATING", generationError: null },
+  });
+  after(() => runPlanGeneration(planId));
+  revalidatePath(`/plan/${planId}`);
 }
 
 export async function toggleStudyItem(itemId: string, done: boolean) {

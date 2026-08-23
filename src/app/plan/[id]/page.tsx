@@ -2,8 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireFullAccount } from "@/lib/guest";
 import { prisma } from "@/lib/db";
-import { toggleStudyItem } from "@/app/actions";
+import { toggleStudyItem, retryPlanGeneration } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
+import { SubmitButton } from "@/components/submit-button";
+import { PlanGenerating } from "./generating";
 
 export default async function PlanDetailPage({
   params,
@@ -17,6 +19,58 @@ export default async function PlanDetailPage({
     include: { items: { orderBy: { order: "asc" } } },
   });
   if (!plan || plan.userId !== user.id) notFound();
+
+  // 生成中・失敗はチェックリストの代わりに状態画面を出す（itemsはまだ無い/不完全）
+  if (plan.generationStatus !== "READY") {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <PixelLabel>STUDY PLAN</PixelLabel>
+            <PixelTitle as="h1" className="text-2xl text-royal">
+              {plan.certification}
+            </PixelTitle>
+            <p className="mt-1 text-[13px] text-inksoft">
+              試験日 {plan.examDate.toISOString().slice(0, 10)}
+            </p>
+          </div>
+          <Link href="/plan" className="btn8 text-[12px]">
+            ← 一覧
+          </Link>
+        </div>
+
+        {plan.generationStatus === "GENERATING" ? (
+          <Window title="AIが作成中" titleEm=".gen">
+            <PlanGenerating />
+            <p className="mt-3 text-[12.5px] text-inksoft">
+              あなたのスキルと登録済みの教材を踏まえて、週次カリキュラムを作っています。
+              1分ほどかかることがあります。
+            </p>
+            <p className="mt-1.5 text-[11.5px] text-inksoft">
+              このページを離れても生成は続きます。できあがりは「これまでのプラン」からいつでも開けます。
+            </p>
+          </Window>
+        ) : (
+          <Window title="生成に失敗" titleEm=".err">
+            <p className="text-[13px]">
+              プランの生成に失敗しました。時間をおいて再生成してください。
+            </p>
+            <form
+              action={async () => {
+                "use server";
+                await retryPlanGeneration(plan.id);
+              }}
+              className="mt-3"
+            >
+              <SubmitButton className="btn8 btn8-start" pendingLabel="受付中…">
+                ▶ 再生成する
+              </SubmitButton>
+            </form>
+          </Window>
+        )}
+      </div>
+    );
+  }
 
   // 各週のお題に、いま何問あるかを数えて出す（0問なら誘導しても空振りになるので出し分ける）。
   const topics = [...new Set(plan.items.map((i) => i.topic).filter((t): t is string => !!t))];

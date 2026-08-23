@@ -2,6 +2,8 @@ import { completeJson } from "./client";
 import { searchLearningChunks, formatContextBlock } from "./retrieval";
 import { studyPlanStanceBlock, toStance } from "./stance";
 import { findCert, chapterCatalogBlock } from "@/lib/certifications";
+import { prisma } from "@/lib/db";
+import { planWeeks, itemTargetDate } from "@/lib/plan-dates";
 
 // 資格別学習プラン（Phase 3）: 試験日から逆算した週次カリキュラムをClaudeが生成。
 // 学習コンテンツRAGで裏付ける（社内教材があればそれに沿った計画になる）。
@@ -69,4 +71,75 @@ ${params.currentSkills || "（未登録）"}${catalog}${context}`,
     ...it,
     topic: it.topic && valid.has(it.topic) ? it.topic : null,
   }));
+}
+
+/**
+ * GENERATING状態のプランに週次項目を生成して詰める（バックグラウンド実行の本体）。
+ * 提出actionと再生成actionの両方から `after()` 経由で呼ぶため、必要な材料は
+ * すべてplanIdから引き直す。失敗したら FAILED にして画面の「再生成」に委ねる
+ * （ANTHROPIC_API_KEY未設定でも「プランの受付」自体は成功する流儀）。
+ */
+export async function runPlanGeneration(planId: string): Promise<void> {
+  const plan = await prisma.studyPlan.findUnique({
+    where: { id: planId },
+    include: { user: { select: { mentorStance: true } } },
+  });
+  if (!plan) return;
+
+  try {
+    const now = new Date();
+    const weeks = planWeeks(plan.examDate, now);
+    const skills = await prisma.engineerSkill.findMany({
+      where: { userId: plan.userId },
+      include: { skill: true },
+      orderBy: { level: "desc" },
+      take: 15,
+    });
+    const currentSkills = skills
+      .map((s) => `${s.skill.name}(Lv${s.level})`)
+      .join(", ");
+
+    const items = await generatePlanItems({
+      certification: plan.certification,
+      weeks,
+      currentSkills,
+      stance: plan.user.mentorStance,
+    });
+
+    await prisma.$transaction([
+      // 再生成でも冪等になるよう、前回の生成物は捨ててから入れ直す
+      prisma.studyPlanItem.deleteMany({ where: { planId } }),
+      prisma.studyPlanItem.createMany({
+        data: items.map((it, i) => ({
+          planId,
+          order: i,
+          weekLabel: it.weekLabel,
+          title: it.title,
+          detail: it.detail,
+          topic: it.topic ?? null,
+          targetDate: itemTargetDate({
+            index: i,
+            total: items.length,
+            examDate: plan.examDate,
+            now,
+          }),
+        })),
+      }),
+      prisma.studyPlan.update({
+        where: { id: planId },
+        data: { generationStatus: "READY", generationError: null },
+      }),
+    ]);
+  } catch (e) {
+    console.error(`[studyplan] 生成失敗 (plan=${planId}):`, e);
+    await prisma.studyPlan
+      .update({
+        where: { id: planId },
+        data: {
+          generationStatus: "FAILED",
+          generationError: e instanceof Error ? e.message : String(e),
+        },
+      })
+      .catch(() => {}); // 記録すら失敗したらログだけ残す
+  }
 }
