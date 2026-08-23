@@ -22,8 +22,13 @@ import {
 //   npm run gen:quiz -- --list                     お題ごとの問題数を見る
 //   npm run gen:quiz -- --topic "AWS IAM" -n 5     お題を指定して5問
 //   npm run gen:quiz -- --cert aws-saa -n 3        資格の全章に3問ずつ
-//   npm run gen:quiz -- --fill 5                   全カタログのお題を5問まで補充
+//   npm run gen:quiz -- --topics "SQL,Git" -n 10   複数お題をまとめて（カタログ外でもOK）
+//   npm run gen:quiz -- --fill 5                   カタログの全章＋DBに既にあるお題を5問まで補充
+//   npm run gen:quiz -- --fill 10 --catalog-only   カタログの章だけに絞る
 //   （--dry を付けると生成だけしてDBに入れない）
+//
+// ★1回のAI呼び出しは5問まで（多すぎると品質が落ちる）。それ以上の数を頼まれたら
+//   5問ずつ何回かに分けて、採用済みの問題文を「避けるリスト」に足しながら目標数まで埋める。
 
 // 出題者になるシステムユーザー。QuizQuestion.authorId が必須なので必要。
 // 自作問題は本人に出題されない仕様なので、実在ユーザーを作者にすると
@@ -33,18 +38,26 @@ const AI_AUTHOR_NAME = "AI出題くん";
 
 type Args = {
   topic?: string;
+  topics?: string[];
   cert?: string;
   count: number;
   fill?: number;
+  catalogOnly: boolean;
   dry: boolean;
   list: boolean;
 };
 
 function parseArgs(argv: string[]): Args {
-  const a: Args = { count: 3, dry: false, list: false };
+  const a: Args = { count: 3, catalogOnly: false, dry: false, list: false };
   for (let i = 0; i < argv.length; i++) {
     const v = argv[i];
     if (v === "--topic") a.topic = argv[++i];
+    else if (v === "--topics")
+      a.topics = (argv[++i] ?? "")
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+    else if (v === "--catalog-only") a.catalogOnly = true;
     else if (v === "--cert") a.cert = argv[++i];
     else if (v === "--count" || v === "-n") a.count = Number(argv[++i]);
     else if (v === "--fill") a.fill = Number(argv[++i] ?? 5);
@@ -82,7 +95,19 @@ async function countsByTopic(topics: string[]): Promise<Map<string, number>> {
   return m;
 }
 
+/** DBに既に問題があるお題（ユーザー投稿・初期シード分）。カタログ外でも補充対象にする */
+async function existingTopics(): Promise<string[]> {
+  const rows = await prisma.quizQuestion.findMany({
+    distinct: ["topic"],
+    select: { topic: true },
+  });
+  return rows.map((r) => r.topic);
+}
+
 type Job = { topic: string; focus: string | null; cert: CertDef | null; count: number };
+
+/** 1回のAI呼び出しで頼む上限。多すぎると後半の問題の質が落ちる */
+const PER_CALL = 5;
 
 function chapterOf(topic: string): { cert: CertDef; chapter: CertChapter } | null {
   for (const c of CERTIFICATIONS) {
@@ -99,53 +124,67 @@ async function runJob(job: Job, authorId: string, dry: boolean): Promise<number>
     take: 60,
     orderBy: { createdAt: "desc" },
   });
-  const existingPrompts = existing.map((e) => e.prompt);
+  // 採用した問題文をここに足していき、次の呼び出しで「避けるリスト」として渡す
+  const avoid = existing.map((e) => e.prompt);
 
-  const { questions, usage } = await generateQuizQuestions({
-    topic: job.topic,
-    focus: job.focus,
-    certLabel: job.cert?.label ?? null,
-    count: job.count,
-    existingPrompts,
-  });
-
-  // 生成内でも重複しうるので、採用済みも突き合わせながら1問ずつ見る
-  const accepted: typeof questions = [];
-  for (const q of questions) {
-    if (isDuplicate(q.prompt, [...existingPrompts, ...accepted.map((a) => a.prompt)])) {
-      console.log(`    ・重複でスキップ: ${q.prompt.slice(0, 40)}…`);
-      continue;
-    }
-    accepted.push(q);
-  }
-
-  console.log(
-    `    生成${questions.length}問 → 採用${accepted.length}問` +
-      `（in ${usage.inputTokens} / out ${usage.outputTokens} tok）`
-  );
-  if (dry) {
-    for (const q of accepted) {
-      console.log(`      Q. ${q.prompt}`);
-      q.choices.forEach((c, i) => console.log(`        ${i === q.answerIndex ? "★" : " "} ${c}`));
-    }
-    return 0;
-  }
-
-  for (const q of accepted) {
-    await prisma.quizQuestion.create({
-      data: {
-        authorId,
-        topic: job.topic,
-        domains: job.cert?.domains ?? [],
-        prompt: q.prompt,
-        choices: q.choices,
-        answerIndex: q.answerIndex,
-        explanation: q.explanation,
-      },
+  let total = 0;
+  // 重複で落ちる分を見込んで、目標回数+1回まで粘る（0問の回が出たら打ち切り）
+  const maxRounds = Math.ceil(job.count / PER_CALL) + 1;
+  for (let round = 1; round <= maxRounds && total < job.count; round++) {
+    const want = Math.min(PER_CALL, job.count - total);
+    const { questions, usage } = await generateQuizQuestions({
+      topic: job.topic,
+      focus: job.focus,
+      certLabel: job.cert?.label ?? null,
+      count: want,
+      existingPrompts: avoid,
     });
+
+    // 生成内でも重複しうるので、採用済みも突き合わせながら1問ずつ見る
+    const accepted: typeof questions = [];
+    for (const q of questions) {
+      if (isDuplicate(q.prompt, avoid)) {
+        console.log(`    ・重複でスキップ: ${q.prompt.slice(0, 40)}…`);
+        continue;
+      }
+      accepted.push(q);
+      avoid.push(q.prompt);
+    }
+
+    const roundLabel = maxRounds > 2 ? `(${round}回目) ` : "";
+    console.log(
+      `    ${roundLabel}生成${questions.length}問 → 採用${accepted.length}問` +
+        `（in ${usage.inputTokens} / out ${usage.outputTokens} tok）`
+    );
+    if (dry) {
+      for (const q of accepted) {
+        console.log(`      Q. ${q.prompt}`);
+        q.choices.forEach((c, i) => console.log(`        ${i === q.answerIndex ? "★" : " "} ${c}`));
+      }
+    } else {
+      // 回ごとに書き込む（長いバッチが途中で落ちても、そこまでの分は残る）
+      for (const q of accepted) {
+        await prisma.quizQuestion.create({
+          data: {
+            authorId,
+            topic: job.topic,
+            domains: job.cert?.domains ?? [],
+            prompt: q.prompt,
+            choices: q.choices,
+            answerIndex: q.answerIndex,
+            explanation: q.explanation,
+          },
+        });
+      }
+      await prisma.aiUsage.create({ data: { userId: authorId, kind: "quiz-gen-batch" } });
+    }
+    total += accepted.length;
+    if (accepted.length === 0) break;
   }
-  await prisma.aiUsage.create({ data: { userId: authorId, kind: "quiz-gen-batch" } });
-  return accepted.length;
+  if (total < job.count) {
+    console.log(`    △ 目標${job.count}問に対して${total}問で打ち切り（重複が多い or 生成が細い）`);
+  }
+  return dry ? 0 : total;
 }
 
 async function main() {
@@ -162,6 +201,16 @@ async function main() {
         console.log(`  ${n === 0 ? "✗" : n < 3 ? "△" : "✓"} ${String(n).padStart(2)}問  ${ch.topic}`);
       }
     }
+    const catalog = new Set(topics);
+    const others = (await existingTopics()).filter((t) => !catalog.has(t)).sort();
+    if (others.length) {
+      const otherCounts = await countsByTopic(others);
+      console.log("\n📚 カタログ外のお題（DBにあるもの。--fill はこれも補充する）");
+      for (const t of others) {
+        const n = otherCounts.get(t) ?? 0;
+        console.log(`  ${n < 3 ? "△" : "✓"} ${String(n).padStart(2)}問  ${t}`);
+      }
+    }
     await prisma.$disconnect();
     return;
   }
@@ -173,14 +222,14 @@ async function main() {
 
   // 何を作るかを決める
   const jobs: Job[] = [];
+  const topicJob = (topic: string, count: number): Job => {
+    const hit = chapterOf(topic);
+    return { topic, focus: hit?.chapter.focus ?? null, cert: hit?.cert ?? null, count };
+  };
   if (args.topic) {
-    const hit = chapterOf(args.topic);
-    jobs.push({
-      topic: args.topic,
-      focus: hit?.chapter.focus ?? null,
-      cert: hit?.cert ?? null,
-      count: args.count,
-    });
+    jobs.push(topicJob(args.topic, args.count));
+  } else if (args.topics?.length) {
+    for (const t of args.topics) jobs.push(topicJob(t, args.count));
   } else if (args.cert) {
     const cert = findCert(args.cert);
     if (!cert) {
@@ -192,18 +241,19 @@ async function main() {
     }
   } else if (args.fill != null) {
     const target = Number.isFinite(args.fill) && args.fill > 0 ? args.fill : 5;
-    const topics = allCertTopics();
+    // カタログの章＋（指定がなければ）DBに既にあるお題。順序はカタログ→その他で安定させる
+    const topics = [...allCertTopics()];
+    if (!args.catalogOnly) {
+      const seen = new Set(topics);
+      for (const t of (await existingTopics()).sort()) {
+        if (!seen.has(t)) topics.push(t);
+      }
+    }
     const counts = await countsByTopic(topics);
     for (const t of topics) {
       const lack = target - (counts.get(t) ?? 0);
       if (lack <= 0) continue;
-      const hit = chapterOf(t);
-      jobs.push({
-        topic: t,
-        focus: hit?.chapter.focus ?? null,
-        cert: hit?.cert ?? null,
-        count: Math.min(lack, 5), // 1回の生成は5問まで（多すぎると品質が落ちる）
-      });
+      jobs.push(topicJob(t, lack));
     }
     if (jobs.length === 0) {
       console.log(`すべてのお題が ${target} 問以上あります。やることなし。`);
@@ -211,7 +261,7 @@ async function main() {
       return;
     }
   } else {
-    console.error("--topic / --cert / --fill / --list のいずれかを指定してください。");
+    console.error("--topic / --topics / --cert / --fill / --list のいずれかを指定してください。");
     process.exit(1);
   }
 
