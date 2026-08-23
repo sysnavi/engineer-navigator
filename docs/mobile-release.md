@@ -123,7 +123,8 @@ App Store Connect → TestFlight タブ:
 リリースノートを入れて実行するだけで、ビルド〜テスターへの配布まで自動で走る
 （`.github/workflows/android-distribute.yml`）。versionCode はrun番号で自動採番される。
 
-初回のみ、リポジトリの Settings → Secrets and variables → Actions に登録する:
+Secretsは登録済み（2026-08-23）。サービスアカウントは `github-actions-distribute@engnavi-app.iam.gserviceaccount.com`
+（ロール: Firebase アプリ配布管理者 = App Distribution Admin）。鍵をローテーションするときの参照用に手順を残す:
 
 | Secret | 値 |
 |---|---|
@@ -160,9 +161,9 @@ npx firebase-tools appdistribution:distribute \
 > ⚠️ CI配布を使い始めたら手動配布は混ぜないこと: ローカルビルドは versionCode=1 固定
 > なので、CIが配った端末には上書きインストールできない（配るなら
 > `ANDROID_VERSION_CODE=<大きい番号> ./gradlew assembleRelease` で採番する）。
-> 配布履歴: versionCode 1（2026-08-04・手動）→ 2（2026-08-22・手動、`ANDROID_VERSION_CODE=2`）。
-> CIはまだSecrets未設定のため配布できない（run #1は未署名ビルドのみ）。次に手動で配るなら
-> 3以上、CIを使い始めるならrun番号+1が3以上になるので衝突しない。
+> 配布履歴: versionCode 1（2026-08-04・手動）→ 2（2026-08-22・手動、`ANDROID_VERSION_CODE=2`）
+> → 3（2026-08-23・CI run #2、Secrets登録済み・以後はCI配布が標準）。
+> 手動で配る必要があるときは `ANDROID_VERSION_CODE=<最新CI run番号+2以上>` を付けること。
 
 ### 2. テスターの管理
 
