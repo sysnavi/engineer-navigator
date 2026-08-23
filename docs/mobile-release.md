@@ -7,6 +7,16 @@
 - appId: `jp.engnavi.app`（iOS Bundle ID / Android applicationId 共通）
 - 接続先: `mobile/capacitor.config.ts` の `PROD_URL`
 
+## 配布の入口は /mobile-release
+
+配布作業は `.claude/skills/mobile-release/`（Claude Code skill）経由で行う。
+「前回配布点からの `mobile/` 差分 → 再配布の要否判定 → リリースノート生成 → 配布 → タグ → 履歴更新」
+を一本化してある。Android は GitHub Actions なのでスマホ/クラウドセッションからも配れる。
+iOS は Mac 限定（`scripts/ios-upload.sh`）。
+
+**配布点タグ**: 配るたびに `android-vc<versionCode>` / `ios-build<Build>` を配布元コミットに打って push する。
+skill はこのタグを基準に差分とリリースノートを出すので、手で配ったときも必ず打つこと。
+
 ## 日常の開発コマンド
 
 ```bash

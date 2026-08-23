@@ -18,6 +18,9 @@ git status --short
 - 未コミットの変更が混ざっていないか、意図しないコミットが乗っていないか確認
 - スキーマ変更（prisma/migrations の追加）が含まれる場合はその旨をユーザーに明示する
   （Vercelビルドが本番DBに `migrate deploy` を自動適用するため）
+- `mobile/` 配下の変更が含まれる場合（`git diff --stat origin/main..HEAD -- mobile/`）は、
+  push後の報告に「ネイティブ側が変わったのでアプリの再配布が必要かも。/mobile-release で
+  判定できます」と一言添える（Web側の変更だけなら既存アプリに自動反映されるので不要）
 
 ## 2. push前ゲート
 
