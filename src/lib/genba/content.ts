@@ -326,7 +326,7 @@ export const OFFER_TEMPLATES: OfferTemplate[] = [
     theme: "web",
     title: "自社SaaSの開発支援",
     client: "HR系スタートアップ",
-    work: "Next.jsでの機能開発。設計から任せてもらえる",
+    work: "設計からお任せするNext.jsでの機能開発",
     skills: [
       { name: "TypeScript", level: 5 },
       { name: "Next.js", level: 4 },
