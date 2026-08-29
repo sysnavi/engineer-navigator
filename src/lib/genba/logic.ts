@@ -59,21 +59,50 @@ export type GenbaOffer = OfferTemplate & {
   rateToday: number; // 営業信頼ボーナス込みの提示単価
 };
 
+/** COMPLETED契約行 → テンプレID→満了時しんらいの最大値。
+ *  offerId の先頭要素がテンプレID（album/page.tsx と同じ流儀）。同テンプレを
+ *  複数回満了した過去データは max で救済する */
+export function completedTrustMap(
+  rows: { offerId: string; trust: number }[]
+): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const r of rows) {
+    const id = r.offerId.split(":")[0];
+    m.set(id, Math.max(m.get(id) ?? 0, r.trust));
+  }
+  return m;
+}
+
+/** きょうの提示プール。満了した案件は恒久的に出さない（同じ現場には戻らない）。
+ *  しんらいREVISIT_TRUST以上で満了した基礎案件は、代わりに「再訪（次フェーズ）」
+ *  テンプレが解禁される。再訪も満了すれば消える＝系列完結 */
+export function availableTemplates(
+  completedTrust: ReadonlyMap<string, number>
+): OfferTemplate[] {
+  return OFFER_TEMPLATES.filter((t) => {
+    if (t.era) return false; // きおく枠は offersForDay 側で別処理
+    if (completedTrust.has(t.id)) return false;
+    if (t.revisitOf)
+      return (completedTrust.get(t.revisitOf) ?? -1) >= GENBA.REVISIT_TRUST;
+    return true;
+  });
+}
+
 /** きょうの提示案件（seed決定的・DB保存しない）。
- *  信頼度20+で4件、40+で単価+5%。テーマが偏らないよう全テンプレをシャッフルして先頭から取る。
- *  信頼度60+の日は、たまに「妙な案件」（きおくの現場）が最後に紛れ込む */
+ *  信頼度20+で4件、40+で単価+5%。テーマが偏らないようプールをシャッフルして先頭から取る。
+ *  信頼度60+の日は、たまに「妙な案件」（きおくの現場）が最後に紛れ込む。
+ *  completedTrust は満了履歴（completedTrustByTemplate で導出）——page/actions の
+ *  両方が同じものを渡さないと resolveOffer の検証が壊れる */
 export function offersForDay(
   userId: string,
   date: string,
-  salesTrust: number
+  salesTrust: number,
+  completedTrust: ReadonlyMap<string, number>
 ): GenbaOffer[] {
   const count = salesTrust >= GENBA.SALES_TRUST_EXTRA_OFFER ? 4 : 3;
   const rateBonus = salesTrust >= GENBA.SALES_TRUST_RATE_BONUS ? 1.05 : 1;
   const seed = hash(strSeed(userId) ^ strSeed(date));
-  const offers: GenbaOffer[] = shuffled(
-    OFFER_TEMPLATES.filter((t) => !t.era),
-    seed
-  )
+  const offers: GenbaOffer[] = shuffled(availableTemplates(completedTrust), seed)
     .slice(0, count)
     .map((t, i) => ({
       ...t,
@@ -97,11 +126,13 @@ export function resolveOffer(
   userId: string,
   date: string,
   salesTrust: number,
+  completedTrust: ReadonlyMap<string, number>,
   offerId: string
 ): GenbaOffer | null {
   return (
-    offersForDay(userId, date, salesTrust).find((o) => o.offerId === offerId) ??
-    null
+    offersForDay(userId, date, salesTrust, completedTrust).find(
+      (o) => o.offerId === offerId
+    ) ?? null
   );
 }
 

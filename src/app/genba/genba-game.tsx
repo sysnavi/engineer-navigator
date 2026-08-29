@@ -33,6 +33,7 @@ export type OfferView = {
   stars: number; // 相性 0-5
   blocked: boolean; // 本日面接NG
   era: { period: string } | null; // きおくの現場（星の代わりに年代を出す）
+  revisit: boolean; // 再訪（次フェーズ）案件——信頼を得た現場からの指名
 };
 
 export type ActiveView = {
@@ -182,6 +183,14 @@ function OfficeView(props: {
           <Bubble>
             {message ? (
               <>{message}</>
+            ) : offers.length === 0 ? (
+              <>
+                …すごい経歴になりましたね。いま紹介できる現場、ぜんぶ回りきっちゃいました！
+                <br />
+                <span className="text-[11px] opacity-70">
+                  新しい案件が入ったら、いちばんに持ってきます。
+                </span>
+              </>
             ) : (
               <>
                 いい案件、入りました！　きょうは{offers.length}件です。
@@ -207,13 +216,25 @@ function OfficeView(props: {
                     {o.era.period}
                   </span>
                 ) : (
-                  <Stars n={o.stars} />
+                  <span className="flex shrink-0 items-center gap-2">
+                    {o.revisit && (
+                      <span className="font-pixel border-2 border-[var(--ink)] bg-[var(--lemon)] px-1.5 py-[2px] text-[10px]">
+                        再訪
+                      </span>
+                    )}
+                    <Stars n={o.stars} />
+                  </span>
                 )}
               </div>
               <p className="text-[12px] opacity-80">
                 {o.client} ／ {o.work}
               </p>
               <p className="text-[11px] opacity-60">{theme?.flavor}</p>
+              {o.revisit && (
+                <p className="text-[11px]">
+                  🤝 信頼を得た現場からの指名。担当者とは顔なじみ——面接は少し有利です
+                </p>
+              )}
               {o.era ? (
                 <p className="text-[11px]">
                   🕰 もう存在しない現場への、妙な案件。スキル不問——単価は当時の相場です
