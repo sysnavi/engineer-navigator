@@ -12,7 +12,7 @@ import { analyzeReport } from "@/lib/ai/analyzeReport";
 import { completeJson, type ChatMessage } from "@/lib/ai/client";
 import { extractDraft } from "@/lib/ai/interview";
 import { runPlanGeneration } from "@/lib/ai/studyplan";
-import { daysUntilExam } from "@/lib/plan-dates";
+import { daysUntilExam, MIN_PLAN_LEAD_DAYS } from "@/lib/plan-dates";
 import { generateOpeningLine, generateFeedback } from "@/lib/ai/roleplay";
 import { isPaletteId } from "@/lib/palettes";
 import { isUiShell } from "@/lib/shell";
@@ -451,22 +451,37 @@ export type StudyTopic = { title: string; why: string; firstQuestion: string };
 // 資格別学習プラン（Phase 3）
 // ---------------------------------------------------------------------------
 
-export async function createStudyPlan(formData: FormData) {
+/** useActionState でフォームに返す状態。本番ではthrowしたErrorのメッセージが
+ *  クライアントに渡らない（digestのみ）ため、入力起因のエラーは戻り値で返す。 */
+export type PlanFormState = { error: string | null };
+
+export async function createStudyPlan(
+  _prev: PlanFormState,
+  formData: FormData
+): Promise<PlanFormState> {
   const user = await requireFullAccountUser();
   const certification = formData.get("certification");
   const examDateRaw = formData.get("examDate");
   if (typeof certification !== "string" || !certification.trim()) {
-    throw new Error("資格名を入力してください");
+    return { error: "資格名を入力してください" };
   }
   if (typeof examDateRaw !== "string" || !examDateRaw) {
-    throw new Error("試験日を入力してください");
+    return { error: "試験日を入力してください" };
   }
   const examDate = new Date(examDateRaw + "T00:00:00Z");
-  if (daysUntilExam(examDate, new Date()) < 3) {
-    throw new Error("試験日は3日以上先の日付にしてください");
+  if (Number.isNaN(examDate.getTime())) {
+    return { error: "試験日の形式が正しくありません" };
+  }
+  if (daysUntilExam(examDate, new Date()) < MIN_PLAN_LEAD_DAYS) {
+    return { error: `試験日は${MIN_PLAN_LEAD_DAYS}日以上先の日付にしてください` };
   }
 
-  await assertAiAllowed(user.id, "study-plan").catch(throwFriendly);
+  try {
+    await assertAiAllowed(user.id, "study-plan");
+  } catch (e) {
+    if (e instanceof AiBlockedError) return { error: e.userMessage };
+    throw e;
+  }
 
   // 表記ゆれ（"基本情報技術者試験" 等）はカタログの表示名に寄せて保存する。
   // 同じ資格のプランが別名で並ぶのを防ぎ、章立ての紐づけも安定する。
