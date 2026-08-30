@@ -21,6 +21,8 @@ export const GENBA = {
   SALES_TRUST_EXTRA_OFFER: 20, // 信頼がこれ以上で案件4件提示
   SALES_TRUST_RATE_BONUS: 40, // 信頼がこれ以上で単価+5%
   SALES_TRUST_ERA_OFFER: 60, // 信頼がこれ以上で「妙な案件」（時代テーマ）が紛れ込むことがある
+  REVISIT_TRUST: 70, // 満了時のしんらいがこれ以上だと「再訪（次フェーズ）案件」が解禁される
+  REVISIT_INTERVIEW_BONUS: 0.08, // 再訪面接の顔なじみボーナス（通過率に加算）
 } as const;
 
 // ---- テーマ ----
@@ -174,6 +176,9 @@ export type OfferTemplate = {
   skills: { name: string; level: number }[]; // 必須スキル（Skill.name と文字列一致）
   rate: number; // EN/現場日
   days: 10 | 15 | 20; // 1ヶ月=10日 / 2ヶ月=15日 / 3ヶ月=20日
+  // 再訪（次フェーズ）案件: 基礎テンプレのidを指す。基礎をしんらいREVISIT_TRUST以上で
+  // 満了すると解禁される。client は基礎と同じ現場——役割と要求スキルが一段上がる。
+  revisitOf?: string;
   // 「きおくの現場」の案件。skills は必ず []（消えた仕事に現代の要件は課さない）。
   // kioku は満了後にアルバムへ載る史実解説。単価は当時の相場感であえて安い。
   era?: { period: string; kioku: string };
@@ -360,6 +365,200 @@ export const OFFER_TEMPLATES: OfferTemplate[] = [
       { name: "React", level: 2 },
     ],
     rate: 45,
+    days: 10,
+  },
+  // ================= 再訪案件（次フェーズ） =================
+  // 基礎案件をしんらい70+で満了すると解禁。同じ現場（client同一）で役割が一段上がり、
+  // 要求スキルはやや重く・単価は基礎の+10〜15%。満了すると系列は完結して消える。
+  {
+    id: "fin-core-rv",
+    theme: "finance",
+    revisitOf: "fin-core",
+    title: "銀行勘定系 次期更改の方式設計",
+    client: "大手銀行系SIer",
+    work: "前フェーズの保守で得た知見を買われ、次期更改の方式設計と移行計画づくりを担当",
+    skills: [
+      { name: "Java", level: 6 },
+      { name: "基本設計", level: 5 },
+      { name: "SQL", level: 4 },
+    ],
+    rate: 85,
+    days: 20,
+  },
+  {
+    id: "fin-sec-rv",
+    theme: "finance",
+    revisitOf: "fin-sec",
+    title: "証券バックオフィス 性能改善と本番移行",
+    client: "ネット証券",
+    work: "リプレイスを完遂した実績で再指名。バッチの性能改善と本番移行の立ち会いを主導",
+    skills: [
+      { name: "Java", level: 6 },
+      { name: "Spring Boot", level: 5 },
+      { name: "Oracle", level: 5 },
+    ],
+    rate: 95,
+    days: 15,
+  },
+  {
+    id: "fin-test-rv",
+    theme: "finance",
+    revisitOf: "fin-test",
+    title: "信販システムのテストリーダー",
+    client: "信販会社",
+    work: "前フェーズの丁寧な仕事ぶりが評価され、テストリーダーとして自動化導入を主導",
+    skills: [
+      { name: "結合テスト", level: 4 },
+      { name: "SQL", level: 3 },
+    ],
+    rate: 55,
+    days: 15,
+  },
+  {
+    id: "ec-renew-rv",
+    theme: "ec",
+    revisitOf: "ec-renew",
+    title: "会員基盤・ポイント機能の第2期開発",
+    client: "アパレルEC",
+    work: "リニューアルの信頼で第2期も指名。会員基盤とポイント機能の設計から任される",
+    skills: [
+      { name: "PHP", level: 5 },
+      { name: "Laravel", level: 4 },
+      { name: "MySQL", level: 4 },
+    ],
+    rate: 68,
+    days: 15,
+  },
+  {
+    id: "ec-stock-rv",
+    theme: "ec",
+    revisitOf: "ec-stock",
+    title: "在庫管理システムの多倉庫対応",
+    client: "日用品EC",
+    work: "初期リリースの実績で継続指名。多倉庫対応と外部API連携の拡張フェーズを担当",
+    skills: [
+      { name: "TypeScript", level: 5 },
+      { name: "React", level: 4 },
+      { name: "SQL", level: 3 },
+    ],
+    rate: 70,
+    days: 15,
+  },
+  {
+    id: "ec-support-rv",
+    theme: "ec",
+    revisitOf: "ec-support",
+    title: "ECサイト基盤刷新の主担当",
+    client: "食品EC",
+    work: "保守で現場を知り尽くした人にと、大型セールへ向けた基盤刷新の主担当に指名",
+    skills: [
+      { name: "PHP", level: 4 },
+      { name: "保守運用", level: 4 },
+    ],
+    rate: 58,
+    days: 15,
+  },
+  {
+    id: "emb-car-rv",
+    theme: "embedded",
+    revisitOf: "emb-car",
+    title: "車載検証の自動化ツール開発リード",
+    client: "自動車部品メーカー",
+    work: "評価・検証の経験を踏まえ、次期モデル向け検証自動化ツールの開発リードを担当",
+    skills: [
+      { name: "Python", level: 4 },
+      { name: "結合テスト", level: 5 },
+    ],
+    rate: 62,
+    days: 20,
+  },
+  {
+    id: "emb-iot-rv",
+    theme: "embedded",
+    revisitOf: "emb-iot",
+    title: "IoT基盤のクラウド全面移行",
+    client: "設備機器メーカー",
+    work: "収集サーバーを知る人にと再指名。IoT基盤のクラウド全面移行と分析画面の開発",
+    skills: [
+      { name: "C#", level: 4 },
+      { name: "Azure", level: 4 },
+      { name: "SQL", level: 4 },
+    ],
+    rate: 74,
+    days: 20,
+  },
+  {
+    id: "gov-city-rv",
+    theme: "gov",
+    revisitOf: "gov-city",
+    title: "次年度制度対応の設計とりまとめ",
+    client: "県庁システム元請",
+    work: "前年度対応の実績で継続参画。次年度制度対応の基本設計とりまとめ役を担当",
+    skills: [
+      { name: "Java", level: 4 },
+      { name: "基本設計", level: 5 },
+      { name: "顧客折衝", level: 3 },
+    ],
+    rate: 65,
+    days: 20,
+  },
+  {
+    id: "gov-doc-rv",
+    theme: "gov",
+    revisitOf: "gov-doc",
+    title: "次期システム要件定義の本体参画",
+    client: "中央省庁案件の二次請け",
+    work: "設計支援の働きぶりが省庁側にも伝わり、次期システムの要件定義フェーズに本体参画",
+    skills: [
+      { name: "要件定義", level: 5 },
+      { name: "顧客折衝", level: 4 },
+      { name: "基本設計", level: 3 },
+    ],
+    rate: 78,
+    days: 15,
+  },
+  {
+    id: "web-saas-rv",
+    theme: "web",
+    revisitOf: "web-saas",
+    title: "新モジュールのテックリード",
+    client: "HR系スタートアップ",
+    work: "機能開発の信頼で再指名。新モジュールのテックリードとして設計と実装を牽引",
+    skills: [
+      { name: "TypeScript", level: 6 },
+      { name: "Next.js", level: 5 },
+      { name: "React", level: 4 },
+    ],
+    rate: 82,
+    days: 15,
+  },
+  {
+    id: "web-infra-rv",
+    theme: "web",
+    revisitOf: "web-infra",
+    title: "IaC刷新とオンコール体制の設計",
+    client: "動画配信サービス",
+    work: "基盤改善の実績で中核メンバーに。IaCの全面刷新とオンコール体制の設計を担当",
+    skills: [
+      { name: "AWS", level: 6 },
+      { name: "Docker", level: 4 },
+      { name: "障害対応", level: 5 },
+    ],
+    rate: 90,
+    days: 20,
+  },
+  {
+    id: "web-junior-rv",
+    theme: "web",
+    revisitOf: "web-junior",
+    title: "指名リピート案件の主担当",
+    client: "制作会社",
+    work: "前回の仕事ぶりでお客様から指名が入り、小規模Webアプリの主担当へ昇格",
+    skills: [
+      { name: "JavaScript", level: 4 },
+      { name: "React", level: 3 },
+    ],
+    rate: 52,
     days: 10,
   },
   // ================= きおくの現場（時代案件） =================
@@ -583,6 +782,42 @@ export function interviewPlan(offer: OfferTemplate): InterviewPlan {
   }
   const main = offer.skills[0];
   const term = DAYS_TO_TERM[offer.days] ?? `${offer.days}日`;
+  // 再訪（次フェーズ）: 面接というより顔合わせ。担当者は前フェーズからの顔なじみで話が早い。
+  // 経歴書フェーズは省略（もう知られている）ので設問は2問。受け答えの上振れは通常より
+  // 控えめにし、その分を固定の顔なじみボーナス（GENBA.REVISIT_INTERVIEW_BONUS）で補う。
+  if (offer.revisitOf) {
+    return {
+      intro:
+        `おかえりなさい。またご一緒できるのを楽しみにしていました。` +
+        `前フェーズでの働きぶりは現場から聞いています。` +
+        `今回は「${offer.title}」——${offer.work}。期間は${term}です。` +
+        `経歴のご説明は結構ですので、いくつか確認だけさせてください。`,
+      questions: [
+        {
+          phase: "質疑応答",
+          ask: `今回は前回より一歩踏み込んで、${main.name}まわりを引っ張っていただきたい。いけそうですか？`,
+          choices: [
+            {
+              label: `前フェーズの経験があります。${main.name}は私が巻き取ります`,
+              mod: 0.12,
+              needSkill: main.name,
+            },
+            { label: "現場を知っているぶん、立ち上がりは速いと思います", mod: 0.06 },
+            { label: "正直すこし不安ですが、挑戦させてください", mod: 0.02 },
+          ],
+        },
+        {
+          phase: "質疑応答",
+          ask: "前フェーズから体制も少し変わります。確認しておきたいことはありますか？",
+          choices: [
+            { label: "体制図と、前フェーズからの引き継ぎ事項を教えてください", mod: 0.08 },
+            { label: "単価は上がりますか", mod: -0.04 },
+            { label: "特にありません。勝手はわかっているので", mod: 0 },
+          ],
+        },
+      ],
+    };
+  }
   return {
     intro:
       `本日はお時間をいただきありがとうございます。まず案件のご説明から。` +

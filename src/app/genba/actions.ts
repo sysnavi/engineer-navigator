@@ -7,6 +7,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { completedTrustByTemplate } from "@/lib/genba/completed";
 import {
   GENBA,
   interviewPlan,
@@ -80,7 +81,8 @@ export async function applyToOffer(
     throw new Error("この案件の面接は今日はもう受けられません");
   }
 
-  const offer = resolveOffer(user.id, date, sales.trust, offerId);
+  const completedTrust = await completedTrustByTemplate(user.id);
+  const offer = resolveOffer(user.id, date, sales.trust, completedTrust, offerId);
   if (!offer) throw new Error("案件が見つかりません（日付が変わった可能性があります）");
 
   const owned = await ownedSkills(user.id);
@@ -98,7 +100,9 @@ export async function applyToOffer(
     mod += choice.mod;
   }
 
-  const p = clamp(interviewBaseRate(m) + mod, 0.05, 0.97);
+  // 再訪は顔なじみの現場——面接に固定ボーナス（設問が2問と少ない分の補填でもある）
+  const bonus = offer.revisitOf ? GENBA.REVISIT_INTERVIEW_BONUS : 0;
+  const p = clamp(interviewBaseRate(m) + mod + bonus, 0.05, 0.97);
   const passed = Math.random() < p;
 
   if (!passed) {

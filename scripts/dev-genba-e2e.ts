@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { eventForDay } from "@/lib/genba/logic";
-import { OFFER_TEMPLATES, type GenbaTheme } from "@/lib/genba/content";
+import { GENBA, OFFER_TEMPLATES, type GenbaTheme } from "@/lib/genba/content";
 
 // げんばE2E用のDB直操作（dev専用）。
 //   npx tsx --env-file=.env scripts/dev-genba-e2e.ts <mode>
@@ -9,6 +9,7 @@ import { OFFER_TEMPLATES, type GenbaTheme } from "@/lib/genba/content";
 //   failing      … 途中退場検証用の契約を作る（strikes=2・たいりょく極小・初日に−たいりょく選択肢がある seed を探す）
 //   era [theme]  … きおくの現場の契約を作る（既定: punchcard）。アルバム解放の検証用
 //   trust <n>    … えいぎょう信頼を n にする（妙な案件の混入検証用。60+で解放）
+//   revisit-ready <templateId> [trust=80] … 基礎案件を満了扱いにする（再訪案件の解禁検証用。trust 69 で非解禁も確認可）
 //   status       … Wallet / WalletLog / GenbaSales / 契約一覧を表示
 
 const TARGET = process.env.DEV_GENBA_USER ?? "engineer@sysnavi.co.jp";
@@ -92,6 +93,36 @@ async function main() {
       },
     });
     console.log(`era: ${c.title}（${tpl.era!.period}） rate=${c.rate} days=${c.totalDays}`);
+  } else if (mode === "revisit-ready") {
+    const templateId = process.argv[3] ?? "web-saas";
+    const trust = Number(process.argv[4] ?? 80);
+    const tpl = OFFER_TEMPLATES.find((t) => t.id === templateId);
+    if (!tpl || tpl.era || tpl.revisitOf) {
+      throw new Error(`基礎テンプレ（非era・非再訪）を指定してください: ${templateId}`);
+    }
+    await prisma.genbaContract.create({
+      data: {
+        userId: user.id,
+        offerId: `${tpl.id}:e2e:0`,
+        seed: 1,
+        title: tpl.title,
+        theme: tpl.theme,
+        rate: tpl.rate,
+        totalDays: tpl.days,
+        day: tpl.days,
+        trust,
+        status: "COMPLETED",
+        payout: 0,
+        endedAt: new Date(),
+      },
+    });
+    const rv = OFFER_TEMPLATES.find((t) => t.revisitOf === tpl.id);
+    console.log(
+      `revisit-ready: ${tpl.id} を trust=${trust} で満了扱いに。` +
+        (trust >= GENBA.REVISIT_TRUST
+          ? `解禁される再訪: ${rv?.id ?? "(なし)"}`
+          : `trust<${GENBA.REVISIT_TRUST} のため再訪は解禁されない（${tpl.id} は消えるだけ）`)
+    );
   } else if (mode === "trust") {
     const n = Number(process.argv[3] ?? 60);
     await prisma.genbaSales.upsert({

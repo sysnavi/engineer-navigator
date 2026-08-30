@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getPlayerStats } from "@/lib/exp";
 import { type GenbaTheme } from "@/lib/genba/content";
+import { completedTrustByTemplate } from "@/lib/genba/completed";
 import {
   fulfillment,
   matchStars,
@@ -85,7 +86,8 @@ export default async function GenbaPage() {
   } else {
     const blocked = (sales.blocked ?? {}) as { date?: string; ids?: string[] };
     const blockedIds = blocked.date === date ? (blocked.ids ?? []) : [];
-    offers = offersForDay(user.id, date, sales.trust).map((o) => {
+    const completedTrust = await completedTrustByTemplate(user.id);
+    offers = offersForDay(user.id, date, sales.trust, completedTrust).map((o) => {
       const m = fulfillment(o.skills, owned);
       return {
         offerId: o.offerId,
@@ -103,6 +105,7 @@ export default async function GenbaPage() {
         stars: matchStars(m),
         blocked: blockedIds.includes(o.offerId),
         era: o.era ? { period: o.era.period } : null,
+        revisit: !!o.revisitOf,
       };
     });
   }
