@@ -5,9 +5,20 @@ import { mondayOf } from "@/lib/week";
 
 export const DAY_MS = 86400_000;
 
+/** プラン作成に必要な最低リード日数。フォームのmin属性とサーバー検証の両方で使う。 */
+export const MIN_PLAN_LEAD_DAYS = 3;
+
 /** 試験日までの残り日数（切り上げ）。 */
 export function daysUntilExam(examDate: Date, now: Date): number {
   return Math.ceil((examDate.getTime() - now.getTime()) / DAY_MS);
+}
+
+/**
+ * 検証（daysUntilExam >= MIN_PLAN_LEAD_DAYS）を満たす最小の試験日（UTC基準のYYYY-MM-DD）。
+ * 試験日は "YYYY-MM-DD" + T00:00:00Z で解釈されるため、min属性もUTCの日付で揃える。
+ */
+export function minExamDateStr(now: Date): string {
+  return new Date(now.getTime() + MIN_PLAN_LEAD_DAYS * DAY_MS).toISOString().slice(0, 10);
 }
 
 /** 試験日から逆算した週数。生成プロンプトの前提に合わせて1〜16に丸める。 */

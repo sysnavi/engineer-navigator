@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { requireFullAccount } from "@/lib/guest";
 import { prisma } from "@/lib/db";
-import { createStudyPlan } from "@/app/actions";
+import { minExamDateStr } from "@/lib/plan-dates";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
-import { SubmitButton } from "@/components/submit-button";
-import { CertPicker } from "@/components/cert-picker";
+import { PlanCreateForm } from "@/components/plan-create-form";
 
 function daysLeft(examDate: Date, now: number): number {
   return Math.ceil((examDate.getTime() - now) / 86400_000);
@@ -32,28 +31,7 @@ export default async function PlanListPage() {
       </div>
 
       <Window title="あたらしいプラン" titleEm=".new">
-        <form action={createStudyPlan} className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-[12px] font-extrabold">
-                資格 <span className="text-pinkhot">*</span>
-              </label>
-              <CertPicker />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-[12px] font-extrabold">
-                試験日 <span className="text-pinkhot">*</span>
-              </label>
-              <input name="examDate" type="date" required className="field8" />
-            </div>
-          </div>
-          <SubmitButton className="btn8 btn8-start" pendingLabel="AIが作成中…">
-            ▶ プランを作成
-          </SubmitButton>
-          <p className="text-[11.5px] text-inksoft">
-            試験日までを逆算し、あなたのスキルと登録済みの教材を踏まえて週次の計画を生成します。
-          </p>
-        </form>
+        <PlanCreateForm minExamDate={minExamDateStr(new Date())} />
       </Window>
 
       <Window title="これまでのプラン" titleEm={` (${plans.length})`}>
