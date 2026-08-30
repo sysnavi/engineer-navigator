@@ -134,23 +134,16 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-7">
-      <div>
-        <PixelLabel>MY HOME — ペットと戦利品の家</PixelLabel>
-        <PixelTitle as="h1" className="text-3xl text-royal">
-          マイホーム
-        </PixelTitle>
-        <p className="mt-1 text-[13px] text-inksoft">
-          ガジェットで作業環境を組み、リビングでは仲間が暮らす。
-        </p>
-      </div>
+      <PixelTitle as="h1" className="text-3xl text-royal">
+        マイホーム
+      </PixelTitle>
 
       {/* ===== デスクの作業環境（自由配置） ===== */}
       <Window title="DESKTOP" titleEm=".sav" bodyClass="p-4">
         <div className="mb-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <PixelLabel>WORKSTATION — ドラッグで模様替え</PixelLabel>
+          <PixelLabel>WORKSTATION</PixelLabel>
           <span className="font-pixel text-[10.5px] tracking-wide text-royal2">
             🖥 {desk.name}
-            <span className="text-inksoft">（{desk.hint}）</span>
           </span>
         </div>
         <DesktopScene
@@ -163,7 +156,7 @@ export default async function HomePage() {
         />
         {stored.length > 0 && (
           <div className="mt-3">
-            <PixelLabel className="!text-inksoft">収納BOX — クリックで飾る</PixelLabel>
+            <PixelLabel className="!text-inksoft">収納BOX</PixelLabel>
             <div className="mt-1.5 flex flex-wrap gap-2">
               {stored.map((g) => (
                 <form
@@ -212,10 +205,9 @@ export default async function HomePage() {
       {/* ===== リビング（ペットの生活圏 + 家具の自由配置） ===== */}
       <Window title="LIVING" titleEm=".sav" bodyClass="p-4">
         <div className="mb-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <PixelLabel>LIVING ROOM — なかまの居場所・ドラッグで模様替え</PixelLabel>
+          <PixelLabel>LIVING ROOM</PixelLabel>
           <span className="font-pixel text-[10.5px] tracking-wide text-royal2">
             🏠 {room.name}
-            <span className="text-inksoft">（{room.hint}）</span>
           </span>
         </div>
         <LivingScene
@@ -231,7 +223,7 @@ export default async function HomePage() {
         {/* ===== 収納BOX（しまってある家具） ===== */}
         {storedFurniture.length > 0 && (
           <div className="mt-3">
-            <PixelLabel className="!text-inksoft">収納BOX — クリックで飾る</PixelLabel>
+            <PixelLabel className="!text-inksoft">収納BOX</PixelLabel>
             <div className="mt-1.5 flex flex-wrap gap-2">
               {storedFurniture.map((f) => (
                 <form
@@ -258,9 +250,7 @@ export default async function HomePage() {
         )}
         <p className="mt-2.5 text-[11.5px] text-inksoft">
           なかま {pets.length} 匹
-          {fledCount > 0 && ` ／ これまで逃げられた回数 ${fledCount} 回（また会えるさ）`}
-          ｜ クリックで おせわメニュー（なでなで1日1回・ごはん1日3回）｜
-          ときどきデスクに遊びに行きます
+          {fledCount > 0 && ` ／ 逃げられた ${fledCount} 回`}
         </p>
         {pets.length > 0 && (
           <Link href="/walk" className="btn8 btn8-ok mt-3 inline-block text-[12px]">
@@ -272,7 +262,7 @@ export default async function HomePage() {
 
       {/* ===== きせかえ（壁紙・床は2部屋共通） ===== */}
       <Window title="ROOM" titleEm=".cfg">
-        <PixelLabel>もようがえ — 壁紙と床をえらぶ</PixelLabel>
+        <PixelLabel>もようがえ</PixelLabel>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
           {(
             [
@@ -337,7 +327,7 @@ export default async function HomePage() {
       {/* ===== ペットの名前 ===== */}
       {pets.length > 0 && (
         <Window title="PETS" titleEm=".cfg">
-          <PixelLabel>なかまのなまえ — いつでも変えられます</PixelLabel>
+          <PixelLabel>なかまのなまえ</PixelLabel>
           <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
             {pets.map((p) => {
               const sp = speciesById(p.speciesId);
