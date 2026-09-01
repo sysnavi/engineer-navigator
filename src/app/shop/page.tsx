@@ -8,6 +8,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
   SHOP_SERIES,
+  collectionSeries,
+  expansionBlockReason,
+  isExpansionItem,
   seriesItems,
   seriesComplete,
   weeklyStock,
@@ -30,8 +33,10 @@ function ItemCard(props: {
   inStock: boolean;
   rotating: boolean;
   affordable: boolean;
+  /** 買えない理由（拡張キットの前提未購入など）。null なら購入可 */
+  blockReason: string | null;
 }) {
-  const { item, owned, inStock, rotating, affordable } = props;
+  const { item, owned, inStock, rotating, affordable, blockReason } = props;
 
   // 未所持 × 入荷待ち: シルエットで「いつか買えるもの」の存在だけ見せる
   if (!owned && !inStock) {
@@ -69,11 +74,15 @@ function ItemCard(props: {
           </span>
           {owned ? (
             <span className="text-[11px] font-bold text-[var(--good,#2e9e5b)]">
-              ✔ おうちにあります
+              ✔ {item.expand ? "かくちょう済み" : "おうちにあります"}
             </span>
           ) : (
             <ActionForm
-              ok={`${item.name} をかいました！ リビングにとどきました`}
+              ok={
+                item.expand
+                  ? `${item.name} をかいました！ リビングがひろくなりました`
+                  : `${item.name} をかいました！ リビングにとどきました`
+              }
               action={async () => {
                 "use server";
                 const res = await buyItem(item.id);
@@ -82,8 +91,8 @@ function ItemCard(props: {
             >
               <button
                 className="btn8 btn8-ok text-[11.5px] disabled:opacity-50"
-                disabled={!affordable}
-                title={affordable ? undefined : "ENが足りません"}
+                disabled={!affordable || !!blockReason}
+                title={blockReason ?? (affordable ? undefined : "ENが足りません")}
               >
                 かう
               </button>
@@ -125,7 +134,9 @@ export default async function ShopPage() {
   const balance = wallet?.balance ?? 0;
   const ownedIds = new Set(purchases.map((p) => p.itemId));
   const stock = weeklyStock(new Date().toISOString().slice(0, 10));
-  const totalItems = SHOP_SERIES.reduce((n, s) => n + seriesItems(s.id).length, 0);
+  // コレクション n/total は家具だけ数える（拡張キットは別軸のお買い物）
+  const totalItems = collectionSeries().reduce((n, s) => n + seriesItems(s.id).length, 0);
+  const ownedFurnitureCount = [...ownedIds].filter((id) => !isExpansionItem(id)).length;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -148,7 +159,7 @@ export default async function ShopPage() {
               {balance.toLocaleString()} <em className="not-italic text-[10px]">EN</em>
             </span>
             <p className="mt-1.5 font-pixel text-[10px] tabular-nums text-inksoft">
-              コレクション {ownedIds.size}/{totalItems}
+              コレクション {ownedFurnitureCount}/{totalItems}
             </p>
           </div>
         </div>
@@ -193,6 +204,7 @@ export default async function ShopPage() {
                   inStock={stock.has(item.id)}
                   rotating={series.rotating}
                   affordable={balance >= item.price}
+                  blockReason={expansionBlockReason(item, ownedIds)}
                 />
               ))}
             </div>

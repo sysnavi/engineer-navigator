@@ -23,6 +23,8 @@ export type ShopSeries = {
   desc: string;
   /** true = 週替わり入荷の対象（未所持でも今週の入荷分しか買えない） */
   rotating: boolean;
+  /** true = リビング拡張キットのシリーズ。家具コレクション（roomTier・n/total）に数えない */
+  expansion?: true;
 };
 
 export type ShopItem = {
@@ -36,6 +38,9 @@ export type ShopItem = {
   /** ラグ・ざぶとんなど「床に敷く」もの。常にペットより奥に描く */
   flat?: boolean;
   petSpot?: { kind: PetSpotKind; line: string }; // line=「{name}は…」のふるまい文
+  /** リビング拡張キット: 家具ではなく「へやの広さ」を買う（値=到達レベル）。
+   *  配置不可（zone/size はダミー。optional にすると clampFurniture 等に波及するため） */
+  expand?: number;
   sprite: string[]; // 12x12 ドット絵（shop-sprite.tsx の色表参照）
 };
 
@@ -69,6 +74,13 @@ export const SHOP_SERIES: ShopSeries[] = [
     name: "みどりのオアシス",
     desc: "画面疲れの目に、みどりの休憩を",
     rotating: true,
+  },
+  {
+    id: "kakuchou",
+    name: "リビングかくちょう",
+    desc: "おうちそのものを広くする、いっしょうもののお買い物",
+    rotating: false,
+    expansion: true,
   },
 ];
 
@@ -726,6 +738,57 @@ export const SHOP_ITEMS: ShopItem[] = [
       "............",
     ],
   },
+  // =========================================================================
+  // リビングかくちょう（定番・家具ではない）
+  // =========================================================================
+  {
+    id: "living-expand-1",
+    name: "リビング拡張キットI",
+    desc: "壁をぶちぬいて ひろさ1.5倍。のびのび模様替え",
+    price: 3000,
+    series: "kakuchou",
+    zone: "floor",
+    size: 10,
+    expand: 1,
+    sprite: [
+      "............",
+      ".mmmmmm.....",
+      ".mmmmmm.....",
+      ".mmmmmm.....",
+      "...nn.......",
+      "...nn..bbbbb",
+      "...nn..bwwwb",
+      "...nn..bwbwb",
+      "...nn..bwwwb",
+      "...nn..bbbbb",
+      "............",
+      "............",
+    ],
+  },
+  {
+    id: "living-expand-2",
+    name: "リビング拡張キットII",
+    desc: "さらに増築して ひろさ2倍のだいごうてい",
+    price: 6000,
+    series: "kakuchou",
+    zone: "floor",
+    size: 10,
+    expand: 2,
+    sprite: [
+      "............",
+      ".....rr.....",
+      "....rrrr....",
+      "...rrrrrr...",
+      "..rrrrrrrr..",
+      "..eeeeeeee..",
+      "..eeenneee..",
+      "..eeenneee..",
+      "..eeeeeeee..",
+      ".o........o.",
+      "oo........oo",
+      "............",
+    ],
+  },
 ];
 
 export const shopItemById = (id: string): ShopItem | undefined =>
@@ -742,6 +805,44 @@ export function seriesComplete(ownedIds: ReadonlySet<string>, seriesId: string):
   const items = seriesItems(seriesId);
   return items.length > 0 && items.every((i) => ownedIds.has(i.id));
 }
+
+// ---------------------------------------------------------------------------
+// リビング拡張キット（kakuchouシリーズ）。家具ではなく「へやの広さ」を買う。
+// 所持は Purchase 行で表す（@@unique が1回限りを保証）。レベルは所持から導出し、
+// DBに専用カラムは持たない（二重管理を避ける）
+// ---------------------------------------------------------------------------
+
+/** 拡張キットか（配置・収納・コレクション集計の対象外） */
+export const isExpansionItem = (id: string): boolean => !!shopItemById(id)?.expand;
+
+/** 拡張キットを expand 順（I→II）で返す */
+export const expansionItems = (): ShopItem[] =>
+  SHOP_ITEMS.filter((i) => i.expand).sort((a, b) => a.expand! - b.expand!);
+
+/** 所持Purchaseから拡張レベルを導出。連番所持のみカウント（IIだけ持っていても0） */
+export function expansionLevel(ownedIds: ReadonlySet<string>): number {
+  let level = 0;
+  for (const item of expansionItems()) {
+    if (!ownedIds.has(item.id)) break;
+    level = item.expand!;
+  }
+  return level;
+}
+
+/** 拡張キットが買えない理由（買えるなら null）。buyItem とショップUIで共用 */
+export function expansionBlockReason(
+  item: Pick<ShopItem, "expand">,
+  ownedIds: ReadonlySet<string>
+): string | null {
+  if (!item.expand) return null;
+  const prev = expansionItems().find((i) => i.expand === item.expand! - 1);
+  if (prev && !ownedIds.has(prev.id)) return `さきに「${prev.name}」で増築しよう`;
+  return null;
+}
+
+/** 家具コレクションの対象シリーズ（拡張キットはコンプ数・n/total に数えない） */
+export const collectionSeries = (): ShopSeries[] =>
+  SHOP_SERIES.filter((s) => !s.expansion);
 
 // ---------------------------------------------------------------------------
 // 週替わり入荷（乱数不使用・決定的。げんば/デスク来訪と同じハッシュ方針）

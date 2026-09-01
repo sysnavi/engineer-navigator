@@ -96,6 +96,17 @@ export function furnitureBottomY(item: Pick<ShopItem, "size">, y: number): numbe
 
 export type RoomTier = { tier: 0 | 1 | 2 | 3; name: string; hint: string };
 
+/** リビング拡張キット（おかいもの）の最大レベル。content.ts の expand と対 */
+export const MAX_EXPANSION_LEVEL = 2;
+
+/** 拡張レベル → へやの横幅倍率（1.0 / 1.5 / 2.0）。
+ *  シーンのキャンバスがこの倍率だけ横に広がり、横スクロールで見わたす。
+ *  座標は常に「キャンバスの0-100%」のままなので、クランプ・保存座標・spot() は
+ *  無変更でよい（LivingScene側は表示幅%だけ ÷倍率 して px サイズを保つ） */
+export function roomWidthFactor(level: number): number {
+  return 1 + Math.max(0, Math.min(MAX_EXPANSION_LEVEL, level)) * 0.5;
+}
+
 export function roomTier(
   ownedCount: number,
   completedSeriesCount: number
@@ -158,12 +169,15 @@ export function furnitureLodgers(
 
 /** 家具を使っているペットの描画アンカー。
  *  返り値は「ペットのスプライト下端」を置くシーン座標と表示倍率。
- *  behind=true なら家具より奥（zを家具-1）に描く */
+ *  behind=true なら家具より奥（zを家具-1）に描く。
+ *  widthFactor: へや拡張の横幅倍率。x方向のオフセットだけ ÷倍率 する
+ *  （拡張キャンバスでは同じx%が倍のpxになるため。y%は倍率に依存しない） */
 export function petAnchorFor(
   kind: PetSpotKind,
   item: Pick<ShopItem, "size" | "zone">,
   x: number,
-  y: number
+  y: number,
+  widthFactor = 1
 ): { x: number; y: number; scale: number; behind: boolean } {
   const h = item.size * FURN_ASPECT; // 家具のおおよその高さ%
   switch (kind) {
@@ -177,7 +191,12 @@ export function petAnchorFor(
       if (item.zone !== "floor") {
         return { x, y: 56, scale: 1, behind: false };
       }
-      return { x: x - item.size * 0.62 - 3, y: y + h * 0.45, scale: 1, behind: false };
+      return {
+        x: x - (item.size * 0.62 + 3) / widthFactor,
+        y: y + h * 0.45,
+        scale: 1,
+        behind: false,
+      };
     case "front": // まえに陣取る（テレビ・れいぞうこ・きょうたい）
       return { x, y: y + h * 0.52 + 2, scale: 1, behind: false };
   }

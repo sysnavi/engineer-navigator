@@ -7,7 +7,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { shopItemById, weeklyStock } from "@/lib/shop/content";
+import { expansionBlockReason, shopItemById, weeklyStock } from "@/lib/shop/content";
 import { defaultLivingPosition } from "@/lib/home/living";
 
 export type BuyResult = { ok: true; balance: number } | { ok: false; reason: string };
@@ -30,6 +30,16 @@ export async function buyItem(itemId: string): Promise<BuyResult> {
   });
   if (already) return { ok: false, reason: "もう持っています" };
 
+  // 拡張キット: IIはIが先（購入順を強制）。理由文はショップUIの表示と共通
+  if (item.expand) {
+    const rows = await prisma.purchase.findMany({
+      where: { userId: user.id },
+      select: { itemId: true },
+    });
+    const blocked = expansionBlockReason(item, new Set(rows.map((r) => r.itemId)));
+    if (blocked) return { ok: false, reason: blocked };
+  }
+
   try {
     await prisma.$transaction(async (tx) => {
       const updated = await tx.wallet.updateMany({
@@ -37,25 +47,32 @@ export async function buyItem(itemId: string): Promise<BuyResult> {
         data: { balance: { decrement: item.price } },
       });
       if (updated.count === 0) throw new Error("EN_SHORT");
-      // 買った家具はその場でLIVINGへ（かう→部屋が変わる、を即体験させる）
-      const placedCount = await tx.purchase.count({
-        where: { userId: user.id, livingX: { not: null } },
-      });
-      const topZ = await tx.purchase.aggregate({
-        where: { userId: user.id },
-        _max: { livingZ: true },
-      });
-      const pos = defaultLivingPosition(item, placedCount);
-      await tx.purchase.create({
-        data: {
-          userId: user.id,
-          itemId,
-          price: item.price,
-          livingX: pos.x,
-          livingY: pos.y,
-          livingZ: (topZ._max.livingZ ?? 0) + 1,
-        },
-      });
+      if (item.expand) {
+        // 拡張キットは家具ではないので配置しない（所持の記録だけ。livingX=null）
+        await tx.purchase.create({
+          data: { userId: user.id, itemId, price: item.price },
+        });
+      } else {
+        // 買った家具はその場でLIVINGへ（かう→部屋が変わる、を即体験させる）
+        const placedCount = await tx.purchase.count({
+          where: { userId: user.id, livingX: { not: null } },
+        });
+        const topZ = await tx.purchase.aggregate({
+          where: { userId: user.id },
+          _max: { livingZ: true },
+        });
+        const pos = defaultLivingPosition(item, placedCount);
+        await tx.purchase.create({
+          data: {
+            userId: user.id,
+            itemId,
+            price: item.price,
+            livingX: pos.x,
+            livingY: pos.y,
+            livingZ: (topZ._max.livingZ ?? 0) + 1,
+          },
+        });
+      }
       await tx.walletLog.create({
         data: {
           userId: user.id,
