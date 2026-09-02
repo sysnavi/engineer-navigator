@@ -2,10 +2,23 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { TUTORIAL_STEPS, GUEST_TUTORIAL_STEPS } from "@/lib/tutorial";
 import { PixelAvatar } from "@/components/pixel-avatar";
 import { completeTutorial, updateMentorStance } from "@/app/actions";
 import { STANCES, type StanceId } from "@/lib/ai/stance";
+
+// げんば体験版は案件・イベント辞書（大きい）を抱えるので、そのステップを開いたときだけ読む。
+// Tutorial は layout に常駐するため、静的importだと全ページのバンドルに乗ってしまう。
+const GenbaTrial = dynamic(
+  () => import("@/components/genba-trial").then((m) => m.GenbaTrial),
+  {
+    ssr: false,
+    loading: () => (
+      <p className="font-pixel text-[11px] tracking-wide text-royal2">げんばを準備中…</p>
+    ),
+  }
+);
 
 // 初回チュートリアル（モーダル歩き）。初回ログイン時に自動表示。
 // マイページの「もう一度」から window イベント "en:tutorial" で再表示できる。
@@ -50,8 +63,9 @@ export function Tutorial(props: { defaultOpen: boolean; guest?: boolean }) {
       aria-label="はじめかたガイド"
     >
       <div className="absolute inset-0 bg-ink/45" onClick={finish} />
-      <div className="relative w-full max-w-md overflow-hidden rounded-xl border-[3px] border-line8 bg-win shadow-hard">
-        <div className="flex items-center gap-2 bg-royal px-3 py-2 font-pixel text-[12px] tracking-wide text-white">
+      {/* 体験ステップ（げんば）は背が高くなるので、パネルは画面内に収めて本文側をスクロールさせる */}
+      <div className="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-xl border-[3px] border-line8 bg-win shadow-hard">
+        <div className="flex shrink-0 items-center gap-2 bg-royal px-3 py-2 font-pixel text-[12px] tracking-wide text-white">
           <span className="inline-flex gap-1.5" aria-hidden="true">
             <i className="h-2.5 w-2.5 rounded-full border-2 border-white bg-pinkhot" />
             <i className="h-2.5 w-2.5 rounded-full border-2 border-white bg-lemon" />
@@ -66,7 +80,7 @@ export function Tutorial(props: { defaultOpen: boolean; guest?: boolean }) {
           </button>
         </div>
 
-        <div className="flex flex-col items-center gap-3 px-6 py-6 text-center">
+        <div className="flex min-h-0 flex-col items-center gap-3 overflow-y-auto px-6 py-6 text-center">
           <div className="grid h-24 w-24 place-items-center rounded-lg border-[2.5px] border-line8 bg-surface">
             <PixelAvatar sprite={step.sprite} px={8} />
           </div>
@@ -111,6 +125,8 @@ export function Tutorial(props: { defaultOpen: boolean; guest?: boolean }) {
             </div>
           )}
 
+          {step.trial === "genba" && <GenbaTrial />}
+
           {last && step.cta && (
             <Link
               href={step.cta.href}
@@ -122,7 +138,7 @@ export function Tutorial(props: { defaultOpen: boolean; guest?: boolean }) {
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t-2 border-dashed border-peri px-4 py-2.5">
+        <div className="flex shrink-0 items-center justify-between border-t-2 border-dashed border-peri px-4 py-2.5">
           <button
             onClick={finish}
             className="font-pixel text-[11px] tracking-wide text-inksoft hover:text-pinkhot"

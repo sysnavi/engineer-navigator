@@ -10,6 +10,8 @@ export type TutorialStep = {
   // 説明だけでなく、その場で設定を選ばせるステップ（今は接し方のみ）。
   // 選ばなくても既定（ふつう）で進めるので、フローは止めない。
   pick?: "stance";
+  // その場で機能の縮小版を遊ばせるステップ。報酬なし・DB非依存の体験（今はげんばのみ）
+  trial?: "genba";
 };
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
@@ -41,8 +43,9 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     sprite: "ichininmae",
-    title: "げんばで働く",
-    body: "営業のハトリさんが案件を持ってくる。面接を受けて、現場の毎日を乗り切れば報酬のEN。週報で育てたスキルが、そのまま面接の通りやすさになる。稼いだENはおかいものでマイホームの家具に。",
+    title: "げんばを体験",
+    body: "営業のハトリさんが案件を持ってくる。面接→現場の毎日→精算まで、ここでひと通り味見してみよう。週報で育てたスキルが、本番では面接の通りやすさになるよ。",
+    trial: "genba",
   },
   {
     sprite: "ichininmae",
@@ -84,8 +87,14 @@ export const GUEST_TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     sprite: "ichininmae",
+    title: "げんばを体験",
+    body: "登録すると遊べる『げんば』を、ここだけ味見。ハトリさんの案件で面接→現場→精算まで、ひと通りどうぞ。",
+    trial: "genba",
+  },
+  {
+    sprite: "ichininmae",
     title: "登録するともっと",
-    body: "週報・AIメンター・経歴書に加えて、案件を選んで働く『げんば』も登録すると使えるようになる。育てたアバターや戦利品はそのまま引き継がれるよ（マイページから連携）。",
+    body: "週報・AIメンター・経歴書、それにさっきの『げんば』本番は、登録すると使えるようになる。育てたアバターや戦利品はそのまま引き継がれるよ（マイページから連携）。",
     cta: { href: "/quiz", label: "▶ まずは腕試し" },
   },
 ];
