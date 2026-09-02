@@ -8,6 +8,11 @@
 //
 // ごはん（Issue #23）: 器にもりつけて差し出す→もぐもぐ→リアクション、の順で再生。
 // 好物を当てた日は「いっしょに いただきます」（おじぎ付き）に自動で切り替わる。
+//
+// へや拡張（リビング拡張キット）: 3層構造で横に広がる。
+//   フレーム（従来のaspect比の「窓」）> スクローラ > キャンバス（幅 widthFactor 倍）
+// 座標は常に「キャンバスの0-100%」、表示幅%だけ ÷widthFactor して pxサイズを保つ。
+// セリフ窓・ログ・収納BOXなどのUIはフレーム直下のオーバーレイ（ビューポート固定）。
 
 import { useRef, useState, useTransition } from "react";
 import Image from "next/image";
@@ -85,7 +90,9 @@ export function LivingScene(props: {
   floorCss: string;
   awayName: string | null; // デスクへ遊びに行っている子（表示だけ）
   stocks: FoodStock[];
+  widthFactor: number; // へや拡張の横幅倍率（roomWidthFactor。1 = 拡張なし）
 }) {
+  const W = props.widthFactor;
   const sceneRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [pets, setPets] = useState(props.pets);
@@ -363,7 +370,7 @@ export function LivingScene(props: {
       const f = furniture.find((x) => x.itemId === itemId);
       const def = shopItemById(itemId);
       if (!f || !def?.petSpot) break;
-      const a = petAnchorFor(def.petSpot.kind, def, f.x, f.y);
+      const a = petAnchorFor(def.petSpot.kind, def, f.x, f.y, W);
       return {
         xPct: a.x,
         topPct: a.y,
@@ -379,14 +386,19 @@ export function LivingScene(props: {
   };
   const poses = new Map(pets.map((p, i) => [p.id, poseOf(p, i)]));
 
+  // まど幅%はキャンバス基準。拡張キャンバスでは ÷W して pxサイズを保つ
+  const winW = props.window.width / W;
+
   return (
     // isolate: ペットのz-index(奥行き〜900)がヘッダー(z-10)を突き抜けて
     // スクロール中にナビの上へ描画されるのを防ぐ（スタッキングを部屋内に閉じる）
-    <div
-      ref={sceneRef}
-      className="isolate relative aspect-[16/8] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8 sm:aspect-[16/6]"
-      style={{ touchAction: "none" }}
-    >
+    <div className="isolate relative aspect-[16/8] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8 sm:aspect-[16/6]">
+      {/* スクローラ: 拡張(W>1)ぶんを横スクロールで見わたす。touchAction:none を
+          ここに置くとタッチでパンできなくなるため、家具ボタン側だけに付けてある
+          （家具から始まるタッチはドラッグ、床・壁・ペットから始まるタッチはパン） */}
+      <div className="h-full w-full overflow-x-auto overflow-y-hidden overscroll-x-contain">
+      {/* キャンバス: 幅W倍。子の座標は常にこのキャンバスの0-100% */}
+      <div ref={sceneRef} className="relative h-full" style={{ width: `${W * 100}%` }}>
       {/* 上部の壁（まどは へやの進化で立派になる） */}
       <div
         className="absolute inset-x-0 top-0 border-b-[3px] border-line8"
@@ -394,7 +406,7 @@ export function LivingScene(props: {
       >
         <div
           className="absolute left-1/2 top-[12%] grid h-[74%] -translate-x-1/2 grid-cols-2 overflow-hidden rounded-md border-[2.5px] border-line8 bg-sky8/60"
-          style={{ width: `${props.window.width}%`, minWidth: 96 }}
+          style={{ width: `${winW}%`, minWidth: 96 }}
         >
           <i className="border-b-2 border-r-2 border-line8/60" />
           <i className="border-b-2 border-line8/60" />
@@ -409,7 +421,7 @@ export function LivingScene(props: {
                 key={side}
                 className="absolute top-[6%] h-[86%] rounded-sm border-2 border-line8"
                 style={{
-                  left: `calc(50% + ${side} * (${props.window.width / 2}% + 8px) - ${side === 1 ? 0 : 12}px)`,
+                  left: `calc(50% + ${side} * (${winW / 2}% + 8px) - ${side === 1 ? 0 : 12}px)`,
                   width: 12,
                   background:
                     "repeating-linear-gradient(90deg, var(--crit, #e5484d) 0 4px, #f2848b 4px 8px)",
@@ -479,7 +491,7 @@ export function LivingScene(props: {
             style={{
               left: `${f.x}%`,
               top: `${f.y}%`,
-              width: `${def.size}%`,
+              width: `${def.size / W}%`,
               transform: "translate(-50%, -50%)",
               zIndex: furnZ(f),
               touchAction: "none",
@@ -490,13 +502,6 @@ export function LivingScene(props: {
         );
       })}
 
-      {/* ペットを1匹も飼っていないときだけ、部屋の中央に案内を出す。
-          飼っている子が全員おでかけ中のときは「空のリビング」を見せて、右下の小ラベルに任せる */}
-      {pets.length === 0 && !props.awayName && (
-        <p className="absolute inset-x-0 top-[55%] px-4 text-center text-[12.5px] text-inksoft">
-          まだ誰も住んでいません。ときどき画面のすみに遊びに来る子に話しかけてみよう。
-        </p>
-      )}
       {pets.map((p, i) => {
         const sp = speciesById(p.speciesId);
         if (!sp) return null;
@@ -541,10 +546,9 @@ export function LivingScene(props: {
             style={{
               left: `${pose.xPct}%`,
               top: `${pose.topPct}%`,
-              // %指定だけだと狭い端末で30px程度まで縮み、名前が縦に折り返して
-              // 背の高い名札になり、スプライト本体が部屋の外へ押し出される。
-              // 48pxを下限にしてスプライトの視認性とタップ領域を守る
-              width: `max(${PET_SIZE * pose.scale}%, ${Math.round(48 * pose.scale)}px)`,
+              // %はキャンバス基準なので ÷W（拡張してもpxサイズを保つ）。
+              // 48px下限はスプライトの視認性とタップ領域を守るため
+              width: `max(${(PET_SIZE * pose.scale) / W}%, ${Math.round(48 * pose.scale)}px)`,
               zIndex: pose.z,
             }}
           >
@@ -584,22 +588,22 @@ export function LivingScene(props: {
                   unoptimized
                 />
               </span>
-              {/* nowrap必須: 折り返すと1文字ずつ縦に積まれて名札が塔になる */}
-              <span className="whitespace-nowrap rounded border-2 border-line8 bg-win px-1 font-pixel text-[9px] tracking-wide">
+              {/* 名札はタップ（おせわメニューを開いている間）だけ見せる。
+                  条件レンダーにするとラベル分の高さが消えて足元アンカーがずれる
+                  （petAnchorForのオフセットが狂う）ため、opacityで隠す。
+                  nowrap必須: 折り返すと1文字ずつ縦に積まれて名札が塔になる */}
+              <span
+                className={`whitespace-nowrap rounded border-2 border-line8 bg-win px-1 font-pixel text-[9px] tracking-wide transition-opacity duration-150 ${
+                  menuPetId === p.id ? "opacity-100" : "opacity-0"
+                }`}
+                aria-hidden={menuPetId !== p.id}
+              >
                 {p.name}
               </span>
             </span>
           </button>
         );
       })}
-      {/* セリフ窓（シーン幅に収まる折り返し窓。頭上の吹き出しだと切れる） */}
-      {serving?.bubble && (
-        <PetSpeech
-          name={pets.find((p) => p.id === serving.petId)?.name ?? ""}
-          text={serving.bubble}
-        />
-      )}
-
       {/* もりつけたごはん（ペットの足元にそっと置かれる）。
           「話しかける」だけのときは foodId が空なので器を出さない */}
       {serving?.foodId &&
@@ -616,6 +620,34 @@ export function LivingScene(props: {
             />
           );
         })()}
+      </div>
+      </div>
+
+      {/* ===== ここからオーバーレイ（ビューポート固定。スクロールしても動かないUI） ===== */}
+
+      {/* 拡張中はスクロールできることを右端のフェードで示す */}
+      {W > 1 && (
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0 z-[1150] w-6"
+          style={{ background: "linear-gradient(to left, rgba(0,0,0,0.12), transparent)" }}
+        />
+      )}
+
+      {/* ペットを1匹も飼っていないときだけ、部屋の中央に案内を出す。
+          飼っている子が全員おでかけ中のときは「空のリビング」を見せて、右下の小ラベルに任せる */}
+      {pets.length === 0 && !props.awayName && (
+        <p className="absolute inset-x-0 top-[55%] px-4 text-center text-[12.5px] text-inksoft">
+          まだ誰も住んでいません。ときどき画面のすみに遊びに来る子に話しかけてみよう。
+        </p>
+      )}
+
+      {/* セリフ窓（ビューポート幅に収まる折り返し窓。頭上の吹き出しだと切れる） */}
+      {serving?.bubble && (
+        <PetSpeech
+          name={pets.find((p) => p.id === serving.petId)?.name ?? ""}
+          text={serving.bubble}
+        />
+      )}
 
       {log && (
         <p className="absolute inset-x-2 bottom-1 z-[1250] rounded border-2 border-line8 bg-win/95 px-2 py-0.5 text-[10.5px] font-bold leading-snug">

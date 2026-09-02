@@ -333,6 +333,8 @@ export async function setRoomTheme(kind: "wallpaper" | "floor", id: string) {
 /** 所持確認つきで家具定義を引く */
 async function ownedFurnitureDef(userId: string, itemId: string) {
   const def = shopItemById(itemId);
+  // 拡張キットは家具ではない（配置/移動/収納の対象外。偽造リクエストもここで弾く）
+  if (def?.expand) throw new Error("拡張キットは かざれません");
   const owned = def
     ? await prisma.purchase.findUnique({
         where: { userId_itemId: { userId, itemId } },

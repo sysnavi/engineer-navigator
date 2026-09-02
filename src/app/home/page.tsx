@@ -19,8 +19,15 @@ import {
   FLOORS,
 } from "@/lib/home/scene";
 import { FOODS, MAX_FEEDS_PER_DAY } from "@/lib/pets/foods";
-import { SHOP_SERIES, seriesComplete, seriesById, shopItemById } from "@/lib/shop/content";
-import { furnitureLodgers, ROOM_WINDOW, roomTier } from "@/lib/home/living";
+import {
+  collectionSeries,
+  expansionLevel,
+  isExpansionItem,
+  seriesComplete,
+  seriesById,
+  shopItemById,
+} from "@/lib/shop/content";
+import { furnitureLodgers, ROOM_WINDOW, roomTier, roomWidthFactor } from "@/lib/home/living";
 import { ShopSprite } from "@/components/shop-sprite";
 import { DesktopScene, type DeskGadget, type DeskVisitor } from "./desktop-scene";
 import { LivingScene, type LivingFurniture, type RoomPet } from "./living-scene";
@@ -46,13 +53,18 @@ export default async function HomePage() {
   const placedFurniture: LivingFurniture[] = purchases
     .filter((p) => p.livingX !== null && p.livingY !== null && shopItemById(p.itemId))
     .map((p) => ({ itemId: p.itemId, x: p.livingX!, y: p.livingY!, z: p.livingZ }));
+  // 拡張キットは家具ではないので収納BOXに出さない（livingXは常にnullだがここで除外）
   const storedFurniture = purchases
-    .filter((p) => p.livingX === null || p.livingY === null)
+    .filter((p) => (p.livingX === null || p.livingY === null) && !isExpansionItem(p.itemId))
     .map((p) => shopItemById(p.itemId))
     .filter((i): i is NonNullable<typeof i> => !!i);
   const ownedItemIds = new Set(purchases.map((p) => p.itemId));
-  const completedSeries = SHOP_SERIES.filter((s) => seriesComplete(ownedItemIds, s.id));
-  const room = roomTier(ownedItemIds.size, completedSeries.length);
+  // へやの進化（窓）は家具コレクションだけで決める。拡張キットは別軸（横幅）
+  const furnitureCount = purchases.filter((p) => !isExpansionItem(p.itemId)).length;
+  const completedSeries = collectionSeries().filter((s) => seriesComplete(ownedItemIds, s.id));
+  const room = roomTier(furnitureCount, completedSeries.length);
+  const livingLevel = expansionLevel(ownedItemIds);
+  const livingWidthFactor = roomWidthFactor(livingLevel);
 
   const ownedDefs = owned
     .map((o) => GADGETS.find((g) => g.id === o.gadgetId))
@@ -209,6 +221,11 @@ export default async function HomePage() {
           <span className="font-pixel text-[10.5px] tracking-wide text-royal2">
             🏠 {room.name}
           </span>
+          {livingLevel > 0 && (
+            <span className="font-pixel text-[10.5px] tracking-wide text-inksoft">
+              📐 かくちょう Lv{livingLevel}（よこにスクロール）
+            </span>
+          )}
         </div>
         <LivingScene
           pets={roomPets}
@@ -219,6 +236,7 @@ export default async function HomePage() {
           floorCss={floorCss}
           awayName={visitor?.name ?? null}
           stocks={stocks}
+          widthFactor={livingWidthFactor}
         />
         {/* ===== 収納BOX（しまってある家具） ===== */}
         {storedFurniture.length > 0 && (
