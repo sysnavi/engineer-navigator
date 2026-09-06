@@ -41,6 +41,10 @@
 	<string>週報インタビューで、話した内容を音声入力するためにマイクを使用します。</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>話した内容をその場でテキストに変換するために音声認識を使用します。音声は端末のOSが処理し、アプリが録音を保存することはありません。</string>
+	<!-- おさんぽ「いまの天気にあわせる」。WKWebViewの navigator.geolocation はこのキーが無いと
+	     許可ダイアログを出さずに黙って失敗する。座標は端末→Open-Meteoへ直接送られ、当サービスには保存しない -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>おさんぽ画面で現在地の天気を反映するために位置情報を使用します。位置情報は天気サービス（Open-Meteo）にのみ送られ、当サービスのサーバーには保存されません。</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

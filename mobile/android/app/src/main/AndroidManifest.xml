@@ -42,6 +42,11 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- ボイスインタビュー（週報のハンズフリー音声入力） -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- おさんぽ「いまの天気にあわせる」。WebViewの navigator.geolocation は Capacitor が
+         この2つを要求して端末の許可ダイアログを出す（未宣言だと出ずに黙って失敗する）。
+         FINE を断られても COARSE が通れば街レベルで動く（天気は街レベルで十分） -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <!-- Android 11+ のパッケージ可視性。これが無いと端末に音声認識サービスがあっても
          SpeechRecognizer.isRecognitionAvailable() が false を返し、

@@ -19,7 +19,7 @@ import {
   type WeatherBucket,
   type WalkContext,
 } from "@/lib/walk/mutter";
-import { fetchWeather } from "@/lib/walk/weather";
+import { fetchWeather, weatherFailMessage } from "@/lib/walk/weather";
 import { BIOME_JA, ENTRY_LINES, type BiomeId } from "@/lib/walk/world";
 import { walkItemById } from "@/lib/walk/items";
 import { WalkCanvas } from "./walk-canvas";
@@ -100,6 +100,9 @@ export function WalkScene(props: {
   const [weather, setWeather] = useState<WeatherBucket>("clear");
   const [tempC, setTempC] = useState<number | null>(null);
   const [realWeather, setRealWeather] = useState(false);
+  // 「いまの天気にあわせる」の進行状態と、取れなかったときの一言（押して無反応、をなくす）
+  const [weatherBusy, setWeatherBusy] = useState(false);
+  const [weatherNote, setWeatherNote] = useState<string | null>(null);
   const [biome, setBiome] = useState<BiomeId | null>(null);
   // 季節はマウント時に確定させる（散歩中に変わらないので初期化子で十分）
   const [season] = useState<SeasonBucket>(() =>
@@ -164,16 +167,30 @@ export function WalkScene(props: {
   }, []);
 
   // 天気（位置情報→Open-Meteo・失敗時は擬似）。座標はうちのサーバーに送らない。
-  const loadWeather = () => {
-    fetchWeather().then((w) => {
-      setWeather(w.weather);
-      setTempC(w.tempC);
-      setRealWeather(w.real);
-    });
-  };
-  useEffect(() => {
-    loadWeather();
+  // マウント時は静かに試す（ダメなら擬似のまま）。ボタンからは結果を必ず一言で返す。
+  const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const applyWeather = useCallback((w: Awaited<ReturnType<typeof fetchWeather>>) => {
+    setWeather(w.weather);
+    setTempC(w.tempC);
+    setRealWeather(w.real);
   }, []);
+  useEffect(() => {
+    fetchWeather().then(applyWeather);
+    return () => {
+      if (noteTimer.current) clearTimeout(noteTimer.current);
+    };
+  }, [applyWeather]);
+  const matchWeather = async () => {
+    setWeatherBusy(true);
+    setWeatherNote(null);
+    const w = await fetchWeather();
+    applyWeather(w);
+    setWeatherBusy(false);
+    if (w.real) return;
+    setWeatherNote(weatherFailMessage(w.reason));
+    if (noteTimer.current) clearTimeout(noteTimer.current);
+    noteTimer.current = setTimeout(() => setWeatherNote(null), 8000);
+  };
 
   // つぶやきループが常に最新の文脈を読めるよう ref に載せる（更新は effect 内で）
   const ctxRef = useRef<WalkContext>({
@@ -353,11 +370,13 @@ export function WalkScene(props: {
         <BgmPlayer />
         {!realWeather && (
           <button
-            onClick={loadWeather}
-            className="rounded-md border-2 border-peri bg-surface px-2 py-1 font-pixel text-[10.5px] tracking-wide text-royal2 hover:bg-win"
+            onClick={matchWeather}
+            disabled={weatherBusy}
+            aria-busy={weatherBusy}
+            className="rounded-md border-2 border-peri bg-surface px-2 py-1 font-pixel text-[10.5px] tracking-wide text-royal2 hover:bg-win disabled:opacity-60"
             title="現在地の天気を反映します（位置情報はOpen-Meteoにだけ送られ、当サービスには保存しません）"
           >
-            📍 いまの天気にあわせる
+            {weatherBusy ? "📍 しらべ中…" : "📍 いまの天気にあわせる"}
           </button>
         )}
 
@@ -380,6 +399,11 @@ export function WalkScene(props: {
                 {p.name}
               </button>
             ))}
+          </span>
+        )}
+        {weatherNote && (
+          <span role="status" className="basis-full text-[11.5px] text-inksoft">
+            {weatherNote}
           </span>
         )}
       </div>
