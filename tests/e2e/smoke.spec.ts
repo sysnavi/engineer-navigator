@@ -85,3 +85,39 @@ test("ウェルカム: 公開ページが表示される @mobile", async ({ page
     page.getByRole("heading", { name: /ぜんぶ経験値になる/ })
   ).toBeVisible();
 });
+
+// ダンジョン（問いに答えて倒す）: 潜行が始まり、戦闘に入ったら問いが出ることを確認する。
+// 初回の潜行は1階目が宝箱で確定なので、最初の「つぎへ」までは決定的。その先は抽選なので
+// 「問いの選択肢 か 次の分岐 か 決着」のどれかが出ればよい、という緩い確認に留める。
+test("ダンジョン: 潜行が始まり、進めると問いか分岐が出る", async ({ page }) => {
+  await page.goto("/dungeon");
+  await closeTutorialIfShown(page);
+  await page.getByRole("button", { name: /潜る/ }).click();
+  await expect(page.getByText(/地下\d+階/).first()).toBeVisible();
+
+  // メッセージはクリックで送る。「つぎへ」が出るまで送り続ける
+  const next = page.getByRole("button", { name: "▶ つぎへ" });
+  for (let i = 0; i < 8 && !(await next.isVisible()); i++) {
+    await page.locator("div.max-h-\\[150px\\]").click();
+    await page.waitForTimeout(300);
+  }
+  await expect(next).toBeVisible();
+  await next.click();
+
+  // 分岐 → 慎重に進む → 何かが起きる（戦闘なら問いの選択肢、そうでなければ つぎへ）
+  await page.getByRole("button", { name: /慎重に進む/ }).click();
+  for (let i = 0; i < 12; i++) {
+    if (
+      (await page.getByRole("button", { name: /パス/ }).isVisible()) ||
+      (await next.isVisible()) ||
+      (await page.getByRole("button", { name: "とじる" }).isVisible())
+    ) {
+      break;
+    }
+    await page.locator("div.max-h-\\[150px\\]").click();
+    await page.waitForTimeout(300);
+  }
+  await expect(
+    page.getByRole("button", { name: /パス/ }).or(next).or(page.getByRole("button", { name: "とじる" })).first()
+  ).toBeVisible();
+});

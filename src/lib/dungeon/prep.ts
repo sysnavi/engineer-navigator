@@ -66,8 +66,10 @@ export async function getDivePrep(userId: string): Promise<DivePrep> {
   const since = startOfToday();
 
   const [todayCorrect, mentorCount, approvedCount, planDoneCount] = await Promise.all([
+    // ダンジョン内の解答（source:"dungeon"）は数えない。潜行の中で稼いで次の潜行を
+    // 強くする循環を作らないため
     prisma.quizAttempt.findMany({
-      where: { userId, correct: true, createdAt: { gte: since } },
+      where: { userId, correct: true, source: "quiz", createdAt: { gte: since } },
       select: { questionId: true },
       distinct: ["questionId"],
     }),
@@ -88,6 +90,7 @@ export async function getDivePrep(userId: string): Promise<DivePrep> {
       where: {
         userId,
         correct: true,
+        source: "quiz",
         questionId: { in: ids },
         createdAt: { lt: since },
       },

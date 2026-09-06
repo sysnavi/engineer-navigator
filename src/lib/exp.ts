@@ -232,15 +232,16 @@ export const getPlayerStats = cache(async (userId: string): Promise<PlayerStats>
     prisma.weeklyReport.count({ where: { userId, isPublic: true } }),
     prisma.skillSuggestion.count({ where: { userId, status: "APPROVED" } }),
     prisma.roleplaySession.count({ where: { userId, status: "COMPLETED" } }),
-    // 腕試し: 1問につき初回のみ（解き直しファーミング対策）。初回日時も週次判定に使う
+    // 腕試し: 1問につき初回のみ（解き直しファーミング対策）。初回日時も週次判定に使う。
+    // ダンジョンの戦闘で解いた分（source:"dungeon"）は数えない＝ダンジョンはEXP対象外のまま
     prisma.quizAttempt.groupBy({
       by: ["questionId"],
-      where: { userId },
+      where: { userId, source: "quiz" },
       _min: { createdAt: true },
     }),
     prisma.quizAttempt.groupBy({
       by: ["questionId"],
-      where: { userId, correct: true },
+      where: { userId, correct: true, source: "quiz" },
       _min: { createdAt: true },
     }),
     prisma.quizQuestion.count({ where: { authorId: userId } }),

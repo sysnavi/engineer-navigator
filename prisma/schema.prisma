@@ -427,9 +427,14 @@ model QuizAttempt {
   userId      String
   chosenIndex Int
   correct     Boolean
+  // どこで解いたか: "quiz"=腕試し / "dungeon"=ダンジョンの戦闘。
+  // 復習ボックス・スキル検証はどちらも効かせるが、EXPと「したく」の集計は quiz だけ
+  // （ダンジョン内の正解で次の潜行やEXPを稼ぐ循環＝ファーミングを切るため）
+  source      String       @default("quiz")
   createdAt   DateTime     @default(now())
 
   @@index([userId, questionId])
+  @@index([userId, source, createdAt])
 }
 
 // 今日の一問（デイリー）。「その日どの問題を出したか」を記録して確定させる。

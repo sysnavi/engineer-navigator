@@ -6,8 +6,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { requireFullAccountUser } from "@/lib/guest";
 import { isDomainId } from "@/lib/domains";
-import { recordReviewOutcome } from "@/lib/quiz/review";
-import { markDailyAnswered } from "@/lib/quiz/daily";
+import { recordAttempt } from "@/lib/quiz/attempt";
 
 // 良問バンクのサーバーアクション。四択の採点はここ（サーバー）で行い、正解は
 // クライアントに渡さない。AIは使わないのでトークン消費はゼロ。
@@ -81,68 +80,16 @@ export async function submitQuizAnswer(
     throw new Error("不正な選択です。");
   }
   const correct = chosenIndex === q.answerIndex;
-  await prisma.quizAttempt.create({
-    data: { questionId, userId: user.id, chosenIndex, correct },
+  // 記録と副作用（復習ボックス・今日の一問・スキル検証）はダンジョンと共通
+  await recordAttempt({
+    userId: user.id,
+    questionId,
+    chosenIndex,
+    correct,
+    topic: q.topic,
+    source: "quiz",
   });
-  // 復習ボックス（誤答は寝かせて再出題・正答は1段進める）と、今日の一問の達成記録。
-  // どちらも解答の副作用で、失敗しても解答自体は成立させたいので握りつぶす。
-  await Promise.all([
-    recordReviewOutcome(user.id, questionId, correct).catch((e) =>
-      console.error("recordReviewOutcome failed:", e)
-    ),
-    markDailyAnswered(user.id, questionId, correct).catch((e) =>
-      console.error("markDailyAnswered failed:", e)
-    ),
-  ]);
-  // トークンゼロの裏取り経路（Issue #25）: 正解が仮判定スキルの検証になる
-  if (correct) {
-    await promoteSkillsVerifiedByQuiz(user.id, q.topic).catch((e) =>
-      console.error("promoteSkillsVerifiedByQuiz failed:", e)
-    );
-  }
   return { correct, answerIndex: q.answerIndex, explanation: q.explanation };
-}
-
-/** 仮判定スキルのうち、お題（topic）が一致する問題に累計2問正解したものを
- *  「腕試しで検証済み」へ昇格させる。AI費ゼロで検証が回る経路（Issue #25） */
-async function promoteSkillsVerifiedByQuiz(userId: string, topic: string) {
-  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, "");
-  const topicNorm = norm(topic);
-
-  // いま解いた問題のお題に関係する仮判定スキルだけを対象にする
-  const provisional = await prisma.engineerSkill.findMany({
-    where: { userId, verifiedBy: null },
-    include: { skill: { select: { name: true, aliases: true } } },
-  });
-  const matched = provisional.filter((es) =>
-    [es.skill.name, ...es.skill.aliases].some((n) => {
-      const nn = norm(n);
-      return nn.length >= 2 && (topicNorm.includes(nn) || nn.includes(topicNorm));
-    })
-  );
-  if (matched.length === 0) return;
-
-  // スキルごとに「お題が一致する問題への正解数（問題単位で重複排除）」を数える
-  const attempts = await prisma.quizAttempt.findMany({
-    where: { userId, correct: true },
-    select: { questionId: true, question: { select: { topic: true } } },
-  });
-  const byQuestion = new Map(attempts.map((a) => [a.questionId, norm(a.question.topic)]));
-
-  for (const es of matched) {
-    const names = [es.skill.name, ...es.skill.aliases]
-      .map(norm)
-      .filter((n) => n.length >= 2);
-    const correctCount = [...byQuestion.values()].filter((t) =>
-      names.some((n) => t.includes(n) || n.includes(t))
-    ).length;
-    if (correctCount >= 2) {
-      await prisma.engineerSkill.update({
-        where: { id: es.id },
-        data: { verifiedBy: "quiz", verifiedAt: new Date() },
-      });
-    }
-  }
 }
 
 /** 「もう表示しない」の設定（本人にだけ以後出題されなくなる） */
