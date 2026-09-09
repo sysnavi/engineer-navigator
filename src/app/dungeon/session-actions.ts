@@ -24,12 +24,15 @@ import {
   doAnswer,
   doBattle,
   doChoice,
+  doMove,
   doNext,
   finishDive,
   MAX_FLOORS,
   type Choice,
   type DiveState,
+  type Move,
 } from "@/lib/dungeon/session";
+import { cellKey, type CellKind, type Facing } from "@/lib/dungeon/map";
 import {
   loadCandidates,
   pickQuestion,
@@ -71,6 +74,17 @@ export type DiveView = {
     question: Omit<PendingQuestion, "askedAt"> | null;
   } | null;
   hintCost: number;
+  /** 迷路（一人称ビュー用）。壁の配置は丸ごと渡す（見せるのは seen だけ） */
+  map: {
+    n: number;
+    cells: string[];
+    x: number;
+    y: number;
+    facing: Facing;
+    seen: string[];
+    /** 見えているもの（罠は含めない）。歩いた周辺＋現在地から半径4 */
+    objects: { x: number; y: number; kind: CellKind }[];
+  } | null;
   logs: DiveState["logs"];
   ending: DiveState["ending"];
   loot: { gadgets: string[]; foods: string[] };
@@ -119,6 +133,7 @@ function toView(runId: string, s: DiveState): DiveView {
         }
       : null,
     hintCost: HINT_COST,
+    map: s.map ? viewMap(s.map) : null,
     logs: s.logs,
     ending: s.ending,
     loot: {
@@ -133,6 +148,21 @@ function toView(runId: string, s: DiveState): DiveView {
   };
 }
 
+/** 見えているオブジェクトの範囲（チェビシェフ距離） */
+const SIGHT = 4;
+
+function viewMap(m: NonNullable<DiveState["map"]>): NonNullable<DiveView["map"]> {
+  const seen = new Set(m.seen);
+  const objects: { x: number; y: number; kind: CellKind }[] = [];
+  for (const [key, kind] of Object.entries(m.events)) {
+    if (kind === "TRAP") continue; // 罠は見えない（踏んで初めて分かる）
+    const [x, y] = key.split(",").map(Number);
+    const near = Math.max(Math.abs(x - m.x), Math.abs(y - m.y)) <= SIGHT;
+    if (near || seen.has(cellKey(x, y))) objects.push({ x, y, kind });
+  }
+  return { n: m.n, cells: m.cells, x: m.x, y: m.y, facing: m.facing, seen: m.seen, objects };
+}
+
 /** 進行中の潜行があれば返す（リロードしても続きから） */
 export async function getActiveDive(): Promise<DiveView | null> {
   const user = await requireFullAccountUser();
@@ -141,10 +171,13 @@ export async function getActiveDive(): Promise<DiveView | null> {
     orderBy: { createdAt: "desc" },
   });
   if (!run?.state) return null;
+  const before = run.state;
   let state = normalizeState(run.state);
   if (needsQuestion(state)) {
     // 古い形式の状態（問いを持たない戦闘）や、選定前に閉じた潜行の続き
     state = await ensureQuestion(user.id, state);
+  }
+  if (state !== before) {
     await prisma.dungeonRun.update({ where: { id: run.id }, data: { state: state as unknown as object } });
   }
   return toView(run.id, state);
@@ -152,8 +185,15 @@ export async function getActiveDive(): Promise<DiveView | null> {
 
 /** DBから読んだ状態を今の形に揃える（以前の潜行に無かった項目を補う） */
 function normalizeState(raw: unknown): DiveState {
-  const s = raw as DiveState;
-  return { ...s, askedIds: Array.isArray(s.askedIds) ? s.askedIds : [] };
+  let s = raw as DiveState;
+  if (!Array.isArray(s.askedIds)) s = { ...s, askedIds: [] };
+  if (s.map === undefined || (s.map === null && s.phase !== "INTRO" && s.phase !== "END")) {
+    // 迷路の無い旧形式（コマンド選択制）の潜行: 迷路を足して探索に置く。
+    // 旧 CHOICE（深く潜る/慎重に）は迷路の探索に読み替える
+    const withMap = enterFloor({ ...s, map: null, floor: Math.max(0, s.floor - 1) }, rng);
+    s = { ...withMap, phase: s.phase === "CHOICE" || s.phase === "INTRO" ? "EXPLORE" : s.phase, foe: s.foe, logs: s.logs };
+  }
+  return s;
 }
 
 /** 戦闘中で問いが無ければ選んで載せる。バンクが空なら ○× で成立させる */
@@ -271,6 +311,7 @@ export async function act(
   action:
     | { type: "answer"; choiceIndex: number }
     | { type: "battle"; command: BattleCommand }
+    | { type: "move"; dir: Facing; facing: Facing }
     | { type: "next" }
     | { type: "choice"; choice: Choice }
 ): Promise<{ ok: true; view: DiveView } | { ok: false; error: string }> {
@@ -323,9 +364,17 @@ export async function act(
       }
     }
     state = doBattle(state, action.command, rng, { hintHide });
+  } else if (action.type === "move" && state.phase === "EXPLORE") {
+    const ok = (v: unknown): v is Facing => v === 0 || v === 1 || v === 2 || v === 3;
+    if (!ok(action.dir) || !ok(action.facing)) return { ok: true, view: toView(run.id, state) };
+    const move: Move = { dir: action.dir, facing: action.facing };
+    state = doMove(state, move, rng);
   } else if (action.type === "next" && (state.phase === "EVENT" || state.phase === "INTRO")) {
     state = doNext(state);
-  } else if (action.type === "choice" && state.phase === "CHOICE") {
+  } else if (
+    action.type === "choice" &&
+    (state.phase === "CHOICE" || (state.phase === "EXPLORE" && action.choice === "leave"))
+  ) {
     state = doChoice(state, action.choice, rng);
   } else {
     return { ok: true, view: toView(run.id, state) };

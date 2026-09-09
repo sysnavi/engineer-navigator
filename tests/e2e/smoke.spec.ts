@@ -86,38 +86,41 @@ test("ウェルカム: 公開ページが表示される @mobile", async ({ page
   ).toBeVisible();
 });
 
-// ダンジョン（問いに答えて倒す）: 潜行が始まり、戦闘に入ったら問いが出ることを確認する。
-// 初回の潜行は1階目が宝箱で確定なので、最初の「つぎへ」までは決定的。その先は抽選なので
-// 「問いの選択肢 か 次の分岐 か 決着」のどれかが出ればよい、という緩い確認に留める。
-test("ダンジョン: 潜行が始まり、進めると問いか分岐が出る", async ({ page }) => {
+// ダンジョン（一人称探索＋問いに答えて倒す）: 潜行が始まり、迷路を歩けることを確認する。
+// 最初の一歩の先は抽選（初回は入口の隣が宝箱で確定）なので、数手進めたあとは
+// 「十字キー か 問いのパス か つぎへ か とじる」のどれかが見えればよい、という緩い確認に留める。
+test("ダンジョン: 潜行が始まり、迷路を歩くと何かが起きる", async ({ page }) => {
   await page.goto("/dungeon");
   await closeTutorialIfShown(page);
   await page.getByRole("button", { name: /潜る/ }).click();
   await expect(page.getByText(/地下\d+階/).first()).toBeVisible();
 
-  // メッセージはクリックで送る。「つぎへ」が出るまで送り続ける
-  const next = page.getByRole("button", { name: "▶ つぎへ" });
-  for (let i = 0; i < 8 && !(await next.isVisible()); i++) {
-    await page.locator("div.max-h-\\[150px\\]").click();
+  // メッセージはクリックで送る。十字キー（進む）が出るまで送り続ける
+  const forward = page.getByRole("button", { name: "進む" });
+  const log = page.locator("div.max-h-\\[150px\\]");
+  for (let i = 0; i < 8 && !(await forward.isVisible()); i++) {
+    await log.click();
     await page.waitForTimeout(300);
   }
-  await expect(next).toBeVisible();
-  await next.click();
+  await expect(forward).toBeVisible();
+  await expect(page.getByLabel("迷宮の一人称ビュー")).toBeVisible();
 
-  // 分岐 → 慎重に進む → 何かが起きる（戦闘なら問いの選択肢、そうでなければ つぎへ）
-  await page.getByRole("button", { name: /慎重に進む/ }).click();
-  for (let i = 0; i < 12; i++) {
-    if (
-      (await page.getByRole("button", { name: /パス/ }).isVisible()) ||
-      (await next.isVisible()) ||
-      (await page.getByRole("button", { name: "とじる" }).isVisible())
-    ) {
-      break;
-    }
-    await page.locator("div.max-h-\\[150px\\]").click();
+  // 壁に当たっても進めるよう、向きを変えながら数手歩く
+  const anyNext = page
+    .getByRole("button", { name: /パス/ })
+    .or(page.getByRole("button", { name: "▶ つぎへ" }))
+    .or(page.getByRole("button", { name: "とじる" }))
+    .or(forward);
+  for (let i = 0; i < 6; i++) {
+    if (!(await forward.isVisible())) break;
+    await forward.click();
+    await page.waitForTimeout(400);
+    if (await forward.isVisible()) await page.getByRole("button", { name: "右を向く" }).click();
+    else break;
+  }
+  for (let i = 0; i < 8 && !(await anyNext.first().isVisible()); i++) {
+    await log.click();
     await page.waitForTimeout(300);
   }
-  await expect(
-    page.getByRole("button", { name: /パス/ }).or(next).or(page.getByRole("button", { name: "とじる" })).first()
-  ).toBeVisible();
+  await expect(anyNext.first()).toBeVisible();
 });

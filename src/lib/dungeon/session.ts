@@ -15,11 +15,21 @@ import {
   TRAPS,
   RESTS,
   GADGETS,
-  EVENT_WEIGHTS,
   MIMIC_RATE,
   type Rarity,
 } from "./content";
 import { FOODS, rollFood, foodById, type FoodId } from "@/lib/pets/foods";
+import {
+  generateFloor,
+  isOpen,
+  markSeen,
+  findEvent,
+  cellKey,
+  DIRS,
+  type CellKind,
+  type Facing,
+  type FloorMap,
+} from "./map";
 import {
   foeStats,
   resolveAnswer,
@@ -33,11 +43,14 @@ import {
   type TurnResult,
 } from "./battle";
 
-/** 1回の潜行で進める最大の階数（日課として重くなりすぎない上限） */
-export const MAX_FLOORS = 10;
+/** 1回の潜行で進める最大の階数（1階=迷路1つ・8〜12手。日課として重くなりすぎない上限） */
+export const MAX_FLOORS = 5;
+/** 階段を降りるごとに深くなる深度 */
+export const DESCEND_DEPTH = 2;
 /** ボスが現れうる最小の深度。育ちきっていなくても山場に会えるよう浅めに置く */
 export const BOSS_MIN_DEPTH = 5;
-const BOSS_RATE = 0.28;
+/** 階ごとにボスが階段の前に立つ確率 */
+const BOSS_RATE = 0.4;
 const FOOD_DROP_RATE = 0.5;
 /** この深度より浅い雑魚戦は、一定確率で ○×高速ラウンドになる */
 export const RAPID_MAX_DEPTH = 4;
@@ -47,9 +60,10 @@ const HEAL_RATIO = 0.3;
 
 export type Phase =
   | "INTRO" // 出発（次へ で最初の階へ）
-  | "EVENT" // イベントの結果を読んでいる（次へ で分岐へ）
+  | "EXPLORE" // 迷路を歩いている（move 待ち）
+  | "EVENT" // イベントの結果を読んでいる（次へ で探索に戻る）
   | "BATTLE" // 戦闘中（コマンド待ち）
-  | "CHOICE" // 次の階をどう進むか
+  | "CHOICE" // 階段で: 降りる／まだ探索／帰る
   | "END"; // 決着
 
 export type DiveState = {
@@ -68,6 +82,8 @@ export type DiveState = {
   gotGadgets: string[];
   gotFoods: string[];
   foe: Foe | null;
+  /** いまの階の迷路（一人称探索）。INTRO/END では null のことがある */
+  map: FloorMap | null;
   /** この潜行で出した問い（"bank:<id>" / "riddle:<id>"）。同じ問いは二度出さない */
   askedIds: string[];
   phase: Phase;
@@ -79,7 +95,8 @@ export type DiveState = {
   firstDive: boolean;
 };
 
-export type Choice = "deep" | "careful" | "leave";
+export type Choice = "descend" | "stay" | "leave";
+export type Move = { dir: Facing; facing: Facing };
 
 /**
  * 潜行の初期状態を作る。
@@ -111,6 +128,7 @@ export function createDiveState(params: {
     gotGadgets: [],
     gotFoods: [],
     foe: null,
+    map: null,
     askedIds: [],
     phase: "INTRO",
     logs: [],
@@ -145,29 +163,87 @@ function rollGadget(depth: number, rng: Rng) {
   return pick(weighted, rng);
 }
 
-/** 次の階のイベントを決めて状態を進める。戦闘なら phase=BATTLE で止まる */
+/**
+ * 次の階へ。迷路を生成して探索（EXPLORE）に入る。
+ * イベントはマスに事前配置され、踏んだ時に resolveCell が解決する。
+ */
 export function enterFloor(s: DiveState, rng: Rng): DiveState {
   const st = { ...s, logs: [] as BattleLog[] };
   st.floor += 1;
 
-  // 初回の潜行の1階目は宝箱を確定（必ず何か持ち帰れる体験をさせる）
-  const forceTreasure = st.firstDive && st.floor === 1;
-
-  // ボス: 一定より深く、まだ倒していなければ。
-  // ボスの minDepth は深い階を想定した値なので、そこに届かない浅い潜行では
-  // 「いちばん浅いボス」を出す（育ちきっていない人が山場に一度も会えないのを防ぐ）。
+  // ボス: 一定より深く、まだ倒していなければ階段の前に立つ
   const bossPool = MONSTERS.filter((m) => m.boss && !m.retired);
-  if (
-    !forceTreasure &&
-    st.depth >= BOSS_MIN_DEPTH &&
-    !st.bossDefeated &&
-    bossPool.length > 0 &&
-    rng() < BOSS_RATE
-  ) {
+  const boss =
+    st.depth >= BOSS_MIN_DEPTH && !st.bossDefeated && bossPool.length > 0 && rng() < BOSS_RATE;
+
+  st.map = generateFloor({ rng, boss, firstDive: st.firstDive && st.floor === 1 });
+  st.foe = null;
+  st.phase = "EXPLORE";
+  st.logs = [
+    {
+      text:
+        st.floor === 1
+          ? `地下${st.depth}階。たいまつに火をつけた。階段を探そう。`
+          : `暗い階段を降りた。地下${st.depth}階。`,
+    },
+  ];
+  return st;
+}
+
+/** 歩いている時のフレーバー（イベントの無いマス） */
+const STROLL_LINES = [
+  "石の床が続いている。",
+  "遠くで水の落ちる音がする。",
+  "たいまつが小さく揺れた。",
+  "壁に古いコメントが刻まれている。「// TODO: あとで直す」",
+  "足元にセミコロンが落ちていた。",
+  "どこかで fan の音がする。",
+];
+
+/**
+ * 迷路を1マス進む。壁なら何も起きない。
+ * イベントのあるマスに入ったら解決して phase を進める（階段なら CHOICE）。
+ */
+export function doMove(s: DiveState, move: Move, rng: Rng): DiveState {
+  if (s.phase !== "EXPLORE" || !s.map) return s;
+  const [dx, dy] = DIRS[move.dir];
+  const nx = s.map.x + dx;
+  const ny = s.map.y + dy;
+  if (!isOpen(s.map, nx, ny)) {
+    return { ...s, map: { ...s.map, facing: move.facing }, logs: [{ text: "壁だ。" }] };
+  }
+  let map = markSeen({ ...s.map, x: nx, y: ny, facing: move.facing }, nx, ny);
+  const st: DiveState = { ...s, map, logs: [] };
+  const ev = findEvent(map, nx, ny);
+  if (!ev) {
+    st.logs = [{ text: STROLL_LINES[map.seen.length % STROLL_LINES.length] }];
+    return st;
+  }
+  if (ev === "STAIRS") {
+    st.phase = "CHOICE";
+    st.logs = [{ text: "下へ続く階段だ。" }];
+    return st;
+  }
+  // 解決したイベントは消す
+  const events = { ...map.events };
+  delete events[cellKey(nx, ny)];
+  map = { ...map, events };
+  return resolveCell({ ...st, map }, ev, rng);
+}
+
+/** マスのイベントを解決する。戦闘なら phase=BATTLE で止まる */
+export function resolveCell(s: DiveState, kind: CellKind, rng: Rng): DiveState {
+  const st = { ...s, logs: [] as BattleLog[] };
+
+  if (kind === "BOSS") {
+    const bossPool = MONSTERS.filter((m) => m.boss && !m.retired);
+    // ボスの minDepth は深い階を想定した値なので、そこに届かない浅い潜行では
+    // 「いちばん浅いボス」を出す（育ちきっていない人が山場に一度も会えないのを防ぐ）
     const eligible = bossPool.filter((m) => m.minDepth <= st.depth);
     const boss = eligible.length
       ? pick(eligible.map((m) => ({ ...m, weight: m.weight ?? 1 })), rng)
       : [...bossPool].sort((a, b) => a.minDepth - b.minDepth)[0];
+    if (!boss) return resolveCell(st, "ENCOUNTER", rng);
     const fs = foeStats(st.depth, true);
     st.foe = {
       id: boss.id,
@@ -184,19 +260,7 @@ export function enterFloor(s: DiveState, rng: Rng): DiveState {
     return st;
   }
 
-  const ev = forceTreasure
-    ? "TREASURE"
-    : pick(
-        [
-          { kind: "ENCOUNTER", weight: EVENT_WEIGHTS.ENCOUNTER },
-          { kind: "TREASURE", weight: EVENT_WEIGHTS.TREASURE },
-          { kind: "TRAP", weight: EVENT_WEIGHTS.TRAP },
-          { kind: "REST", weight: EVENT_WEIGHTS.REST },
-        ],
-        rng
-      ).kind;
-
-  if (ev === "ENCOUNTER") {
+  if (kind === "ENCOUNTER") {
     const mon = pick(
       MONSTERS.filter((m) => !m.boss && !m.retired && m.minDepth <= st.depth).map((m) => ({
         ...m,
@@ -223,23 +287,25 @@ export function enterFloor(s: DiveState, rng: Rng): DiveState {
     return st;
   }
 
-  if (ev === "TREASURE") {
-    if (!forceTreasure && rng() < MIMIC_RATE) {
+  if (kind === "TREASURE") {
+    // 初回の最初の宝箱はミミックにしない（必ず何か持ち帰れる体験をさせる）
+    const guaranteed = st.firstDive && st.gotGadgets.length === 0;
+    if (!guaranteed && rng() < MIMIC_RATE) {
       st.logs = [
         { text: "宝箱を見つけた！開けてみると…" },
         { text: "空っぽだ。「304 Not Modified」の文字だけが浮かんで消えた。", fx: "miss" },
       ];
     } else {
       const g = rollGadget(st.depth, rng);
-      st.gotGadgets.push(g.id);
+      st.gotGadgets = [...st.gotGadgets, g.id];
       const food = rng() < FOOD_DROP_RATE ? rollFood(st.depth, false) : null;
       st.logs = [
         { text: "宝箱を見つけた！開けてみると…" },
         { text: `「${g.name}」を手に入れた！（${g.rarity}）`, fx: "heal" },
       ];
       if (food) {
-        st.gotFoods.push(food.id);
-        st.items.push(food.id as FoodId);
+        st.gotFoods = [...st.gotFoods, food.id];
+        st.items = [...st.items, food.id as FoodId];
         st.logs.push({ text: `すみに「${food.name}」も入っていた。`, fx: "heal" });
       }
     }
@@ -247,7 +313,7 @@ export function enterFloor(s: DiveState, rng: Rng): DiveState {
     return st;
   }
 
-  if (ev === "TRAP") {
+  if (kind === "TRAP") {
     const trap = pick(
       TRAPS.filter((t) => !t.retired).map((t) => ({ ...t, weight: 1 })),
       rng
@@ -438,22 +504,30 @@ function closingLogs(ending: NonNullable<DiveState["ending"]>): BattleLog[] {
   return [{ text: "きょう すすめるのは ここまで。また こんど。" }];
 }
 
-/** 次の階へどう進むか */
+/** 階段で: 降りる／まだ探索する／帰る。「帰る」は探索中いつでも選べる */
 export function doChoice(s: DiveState, choice: Choice, rng: Rng): DiveState {
   let st = { ...s };
   if (choice === "leave") {
+    if (st.phase !== "CHOICE" && st.phase !== "EXPLORE") return st;
     st.phase = "END";
     st.ending = st.bossDefeated ? "cleared" : "escaped";
     st.logs = closingLogs(st.ending);
     return st;
   }
-  st.depth += choice === "deep" ? 2 : 1;
+  if (st.phase !== "CHOICE") return st;
+  if (choice === "stay") {
+    st.phase = "EXPLORE";
+    st.logs = [{ text: "階段は あとにして、もう少し見てまわる。" }];
+    return st;
+  }
+  // descend
   if (st.floor >= MAX_FLOORS) {
     st.phase = "END";
     st.ending = st.bossDefeated ? "cleared" : "limit";
     st.logs = closingLogs(st.ending);
     return st;
   }
+  st.depth += DESCEND_DEPTH;
   st = enterFloor(st, rng);
   return st;
 }
@@ -480,19 +554,14 @@ export function finishDive(s: DiveState): DiveState {
 }
 
 /**
- * イベントを読み終えた → 分岐へ。
- * ボスを倒しても探索は終わらない（enterFloor が二度目のボスを出さないだけ）。
- * 「どこまで行くかは、きみが決める」ので、帰るかどうかも本人の選択に委ねる。
+ * イベントを読み終えた → 探索に戻る。
+ * ボスを倒しても探索は終わらない。「どこまで行くかは、きみが決める」ので、
+ * 帰るかどうかも本人の選択に委ねる（探索中いつでも「帰る」が選べる）。
  * ボスを倒した潜行は、どの形で帰っても ending=cleared（ボス撃破の勲章）になる。
  */
 export function doNext(s: DiveState): DiveState {
   const st = { ...s, logs: [] as BattleLog[] };
-  if (st.floor >= MAX_FLOORS) {
-    st.phase = "END";
-    st.ending = st.bossDefeated ? "cleared" : "limit";
-    st.logs = closingLogs(st.ending);
-    return st;
-  }
-  st.phase = "CHOICE";
+  if (!st.map) return st;
+  st.phase = "EXPLORE";
   return st;
 }
