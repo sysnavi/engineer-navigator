@@ -11,6 +11,7 @@ SESエンジニアの成長をデータ化するアプリ。構想・設計は d
 - docs/weekly-report.md — 週報テンプレの設計思想（フォームを変える前に読む）
 - docs/data-model.md — スキーマの設計判断（AI提案→本人承認フローは構造で強制）
 - docs/dev-infra.md — 開発・テスト・リリース基盤の図解（E2EのDB分離・CIの構成）
+- docs/bug-triage.md — 日次バグトリアージ（機能ツアー→Slack報告→軽微なら自動修正PR）
 
 ## スタック
 Next.js 16 (App Router / Server Actions) + Prisma 7 + PostgreSQL 16 (pgvector, port 5433) + Claude API
@@ -24,12 +25,14 @@ npm run dev               # http://localhost:3000
 npm run check             # 型 + lint + ユニットテスト。コード変更後は必ず通すこと
 npm run test:e2e          # E2Eスモーク（Playwright）。DB起動が前提
 npm run check:release     # check + E2E。リリース（mainへのpush）前に必ず通すこと
+npm run test:tour         # 機能ツアー（全画面一周・日次トリアージの検出部）。TOUR_ONLY=<id> で1本だけ
 ```
 
 ## Skills（.claude/skills/・コミット対象）
 - /feature — 依頼→実装→検証→コミットの標準手順。コード変更タスクはこれ経由
 - /release — mainへのpush（=本番リリース）とCI見届け。push作業はこれ経由
 - /mobile-release — iOS/Androidアプリ（シェル）の再配布。要否判定→リリースノート→配布→タグ。アプリ配布はこれ経由
+- /bug-triage — 日次バグトリアージ（docs/bug-triage.md）。機能ツアーの不備を「軽微なら修正PR / 他は診断」に振り分けSlackへ。CIが毎朝自動実行
 
 ## テストの決まりごと
 - ユニットテストは `src/**/*.test.ts` に併置。DBに触らない純ロジックのみ（vitest.config.ts）

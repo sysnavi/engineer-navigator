@@ -1,0 +1,129 @@
+# 日次バグトリアージ（docs/bug-triage.md）
+#
+#  1. 使い捨てDBでアプリを起動し、テスト用アカウント（seedのデモユーザー）で全画面を一周する
+#     （tests/tour/・Playwright）
+#  2. 不備1件につき1投稿をキャプチャ付きで #engineer-navigator に報告する（scripts/triage/report.ts）
+#  3. 不備があれば Claude Code が .claude/skills/bug-triage/SKILL.md に従って
+#     軽微なものを修正 → main から派生したブランチで検証 → PR作成 → リンクと改善キャプチャを Slack に投稿
+#
+# CI（ci.yml）と同じDB構成（pgvector/pg16, port 5433）。実APIは呼ばない（ANTHROPIC_API_KEY を空にして起動）。
+# 修正フェーズだけ Claude API を使う（TRIAGE_BUDGET_USD で1回あたりの上限を切る）。
+name: バグトリアージ（日次）
+
+on:
+  schedule:
+    # 毎日 07:00 JST（= 22:00 UTC 前日）。前夜のリリースを朝一で拾う
+    - cron: "0 22 * * *"
+  workflow_dispatch:
+    inputs:
+      fix:
+        description: "不備があれば自動修正まで行う"
+        type: boolean
+        default: true
+
+# 同時に2本走ると同じ triage/<id> ブランチを取り合うので直列化
+concurrency:
+  group: bug-triage
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: navi
+          POSTGRES_PASSWORD: navi
+          POSTGRES_DB: engineer_navigator
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U navi"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_TRIAGE_CHANNEL: ${{ vars.SLACK_TRIAGE_CHANNEL }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      # 修正PRの作成・push に使う。TRIAGE_GH_TOKEN（PAT）があればそれを使い、
+      # 無ければ GITHUB_TOKEN（この場合 PR 上で CI が自動起動しない。docs/bug-triage.md 参照）
+      GH_TOKEN: ${{ secrets.TRIAGE_GH_TOKEN || github.token }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.TRIAGE_GH_TOKEN || github.token }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+
+      - run: npm ci
+
+      - name: Playwrightブラウザのキャッシュ
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Playwrightブラウザの準備
+        run: npx playwright install --with-deps chromium
+
+      # ---- 1. 機能ツアー -------------------------------------------------
+      - name: 機能ツアー（全画面を一周）
+        id: tour
+        continue-on-error: true
+        run: npm run test:tour
+
+      # ---- 2. Slack報告（不備1件 = 1投稿・キャプチャ付き） -------------
+      - name: Slackへ報告
+        id: report
+        run: npm run triage:report
+
+      - name: ツアー結果を保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tour-results
+          path: tour-results/
+          retention-days: 14
+
+      # ---- 3. 軽微なバグの自動修正 → PR → Slack ----------------------------
+      - name: Claude Code の準備
+        if: steps.report.outputs.fixable != '0' && (github.event_name != 'workflow_dispatch' || inputs.fix)
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: 軽微なバグを修正してPRを作る
+        if: steps.report.outputs.fixable != '0' && (github.event_name != 'workflow_dispatch' || inputs.fix)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          git config user.name "engineer-navigator-triage[bot]"
+          git config user.email "triage-bot@users.noreply.github.com"
+          claude -p "AGENTS.md を読んでから .claude/skills/bug-triage/SKILL.md を読み、その「CIでの前提」に沿って手順を実行してください。" \
+            --dangerously-skip-permissions \
+            --model "${{ vars.TRIAGE_MODEL || 'claude-sonnet-5' }}" \
+            --max-budget-usd "${{ vars.TRIAGE_BUDGET_USD || '5' }}" \
+            --max-turns 300 \
+            --no-session-persistence \
+            --output-format json \
+            | tee tour-results/claude.json
+
+      - name: 修正フェーズのログを保存
+        if: always() && steps.report.outputs.fixable != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: triage-fix-log
+          path: tour-results/claude.json
+          retention-days: 14
+          if-no-files-found: ignore

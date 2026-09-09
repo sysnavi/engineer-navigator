@@ -11,6 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:tour": "playwright test -c playwright.tour.config.ts",
+    "triage:report": "tsx scripts/triage/report.ts",
     "check": "npm run typecheck && npm run lint && npm run test",
     "check:release": "npm run check && npm run test:e2e",
     "postinstall": "prisma generate",

@@ -109,6 +109,8 @@ flowchart LR
 - **/feature** — 依頼→分類→実装（AGENTS.mdの決まりごとチェックリスト）→検証→コミット。
   環境検知（DBの有無）でフル検証/クラウドモードを分岐
 - **/release** — push前ゲート→push→CI見届け→失敗時の巻き取り（fix-forward / revert）
+- **/bug-triage** — 日次バグトリアージ（[bug-triage.md](bug-triage.md)）。CIが毎朝、機能ツアー→Slack報告→
+  軽微なら修正PRまで自動で回す。同じ手順を手元でも呼べる
 
 ## 決まりごと（テスト設計）
 
