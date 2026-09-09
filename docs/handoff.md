@@ -100,6 +100,13 @@ Phase 0（基盤）+ Phase 1 の縦切りが実装済み。**実 ANTHROPIC_API_K
   - バランス（`npx tsx scripts/sim-dungeon.ts 5000`・正答率をコイン投げで代用・慎重な人の方針）: 手ぶら0%。ボス撃破率は 正答率0.4/0.6/0.8 × Lv1 で 3%/23%/59%、Lv3 で 9%/36%/73%、Lv8 で 48%/78%/94%。**知識（正答率）がレベルと同じくらい効く**のが狙いどおり。敗走率は Lv1×0.6 で72%と高いが、ボス遭遇が8割で逃げられない構造による（敗走しても戦利品は持ち帰る）。数値を触ったら回し直すこと。
   - ⚠ `loadCandidates` は問題ごとの正答率を `QuizAttempt` の groupBy で毎回集計する。件数が増えて重くなったら `QuizQuestion.attemptCount/correctCount` にキャッシュする。
   - 旧 `app/dungeon/player.tsx` は今回も残置（import されていない・型は通る）。
+- **ダンジョン＝ウィザードリィ風の一人称探索（2026-09-09）**: 残っていた「画面が固定構図」の単調さを、迷路を歩く一人称ビューで解消した。Artifact の試作「迷宮ウォーカー」（https://claude.ai/code/artifact/ad1da3f1-3354-417f-b586-299db45efe9c）でユーザー確認済みの作りをそのまま移植。
+  - **迷路** `src/lib/dungeon/map.ts`（純関数・乱数注入）: 9×9・再帰的バックトラッカー＋行き止まりを数か所つないで回遊できるように。入口 (1,1)・階段は BFS で最遠。イベント（ENCOUNTER×2 / TREASURE×1 / TRAP 50% / REST×1 / 深度条件を満たせば階段の手前に BOSS）は**マスに事前配置**し、踏んだ時に `resolveCell` が解決して events から消す（STAIRS は残る）。初回潜行は入口の隣に宝箱確定（「持ち帰る楽しさ」の約束を維持）。
+  - **状態機械** `session.ts`: `Phase` に `EXPLORE` を追加。`enterFloor` は「floor+1 → 迷路生成 → EXPLORE」、旧イベント解決は `resolveCell(st, kind, rng)` に分離。`doMove({dir, facing})` で1マス（壁なら「壁だ。」だけ）。`doNext` は EXPLORE に戻る。`doChoice` は `descend`（depth+2・`DESCEND_DEPTH`）/ `stay` / `leave`。**`leave` は探索中いつでも**（「どこで帰るかは本人が決める」）。`MAX_FLOORS` は 10→**5**（1階 8〜12手なので日課の3〜5分に収める）。
+  - **向きはクライアントが持つ**（描画にしか効かない）。進む時に `{type:"move", dir, facing}` を送り、サーバーは隣接の通路かだけ検証。`DiveView.map` は壁の配置を丸ごと渡す（見せるのは seen だけ＝オートマップ。改ざんしても得るのは迷路の形だけ）。**objects は seen のマス＋現在地から半径4（チェビシェフ）の TRAP 以外**。ENCOUNTER/BOSS は正体を出さず影のシルエットで描く（踏んでから判明）。
+  - **描画** `app/dungeon/first-person-view.tsx`: canvas 240×180 をドット拡大（`image-rendering: pixelated`）。壁の縁を細い青線でなぞるワイヤーフレーム・奥ほど暗い減光・たいまつの揺らぎ（`prefers-reduced-motion` で停止）。戦闘中は敵スプライトを目の前に大きく描く。オートマップは右上に seen のマスだけ。CSS 3D を使わなかったのは WKWebView の安定性と軽さ。
+  - 旧形式（迷路無し）の ACTIVE な潜行は `normalizeState` が迷路を生成して EXPLORE に置く。
+  - バランス（`npx tsx scripts/sim-dungeon.ts`・迷路は既知として階段へ最短・イベントは踏む・慎重な人の方針・各3000回）: ボス撃破率は 正答率0.4/0.6/0.8 × Lv1 で 5%/27%/73%、Lv3 で 12%/45%/86%、Lv8 で 57%/89%/99%。到達 B6〜8（旧 B8〜10）、敗走 Lv1×0.6 で54%（旧72%）、手ぶら0%。旧より少し優しく、知識の効き方は同じ。深度が浅めになったぶんレア度の解禁（`RARITY_MIN_DEPTH`）が遠のく点は要観察。
 
 ## 再開手順
 

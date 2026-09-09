@@ -4,8 +4,8 @@
 // 問いの正誤は正答率 p のコイン投げで代用し、選択は単純方針:
 //   - 難問（ためる後）は SP があればヒント、無ければ答える
 //   - HP が 30% を切ったら どうぐ（あれば）
-//   - 深く潜る／慎重の選択は「HP 50% 以上なら深く」。ボスを倒したら帰る。
-//     HP が 30% を切って どうぐも無ければ引き返す（慎重な人）
+//   - 迷路は既知として階段へ最短で歩き、途中のイベントは踏む
+//   - 階段では降りる。ボスを倒したら帰る。HP が 30% を切って どうぐも無ければ帰る（慎重な人）
 
 import { heroStats } from "@/lib/dungeon/battle";
 import {
@@ -16,10 +16,12 @@ import {
   doAnswer,
   doBattle,
   doChoice,
+  doMove,
   doNext,
   finishDive,
   type DiveState,
 } from "@/lib/dungeon/session";
+import { cellKey, DIRS, type Facing } from "@/lib/dungeon/map";
 
 function mulberry(seed: number) {
   return () => {
@@ -46,6 +48,35 @@ function ask(st: DiveState, rng: () => number, hard: boolean): DiveState {
   });
 }
 
+/** 現在地から階段への最短経路の最初の一歩（BFS） */
+function nextStep(st: DiveState): Facing | null {
+  const m = st.map!;
+  const [tx, ty] = m.stairs;
+  const prev = new Map<string, [number, number, Facing]>();
+  const q: [number, number][] = [[m.x, m.y]];
+  prev.set(cellKey(m.x, m.y), [-1, -1, 0]);
+  while (q.length) {
+    const [x, y] = q.shift()!;
+    if (x === tx && y === ty) break;
+    DIRS.forEach(([dx, dy], i) => {
+      const nx = x + dx, ny = y + dy;
+      if (m.cells[ny]?.[nx] === "." && !prev.has(cellKey(nx, ny))) {
+        prev.set(cellKey(nx, ny), [x, y, i as Facing]);
+        q.push([nx, ny]);
+      }
+    });
+  }
+  if (!prev.has(cellKey(tx, ty))) return null;
+  let cur: [number, number] = [tx, ty];
+  let first: Facing = 0;
+  while (!(cur[0] === m.x && cur[1] === m.y)) {
+    const p = prev.get(cellKey(cur[0], cur[1]))!;
+    first = p[2];
+    cur = [p[0], p[1]];
+  }
+  return first;
+}
+
 function dive(level: number, p: number, rng: () => number, fastRate: number) {
   const stats = heroStats({ level, generation: 1, gadgetRarities: [] });
   let st = createDiveState({
@@ -58,7 +89,7 @@ function dive(level: number, p: number, rng: () => number, fastRate: number) {
   st = enterFloor(st, rng);
   let guard = 0;
   let bossMet = false;
-  while (st.phase !== "END" && guard++ < 500) {
+  while (st.phase !== "END" && guard++ < 2000) {
     if (st.phase === "BATTLE" && st.foe) {
       if (st.foe.boss) bossMet = true;
       const hard = !!st.foe.charging;
@@ -81,14 +112,20 @@ function dive(level: number, p: number, rng: () => number, fastRate: number) {
       st = doAnswer(st, { correct: rng() < pc, elapsedMs: rng() < fastRate ? 3000 : 20_000 }, rng);
     } else if (st.phase === "EVENT" || st.phase === "INTRO") {
       st = doNext(st);
+    } else if (st.phase === "EXPLORE") {
+      // 迷路は既知として階段へ最短で歩く（途中のイベントは踏む）。
+      // 疲れていたら（HP3割未満・どうぐ無し）その場で帰る
+      if (st.hp < st.maxHp * 0.3 && st.items.length === 0) {
+        st = doChoice(st, "leave", rng);
+        continue;
+      }
+      const dir = nextStep(st);
+      if (dir == null) { st = doChoice(st, "leave", rng); continue; }
+      st = doMove(st, { dir, facing: dir }, rng);
     } else if (st.phase === "CHOICE") {
       // 慎重な人の方針: ボスを倒したら帰る／HPが3割を切って どうぐも無ければ帰る
       const tired = st.hp < st.maxHp * 0.3 && st.items.length === 0;
-      st = doChoice(
-        st,
-        st.bossDefeated || tired ? "leave" : st.hp >= st.maxHp * 0.5 ? "deep" : "careful",
-        rng
-      );
+      st = doChoice(st, st.bossDefeated || tired ? "leave" : "descend", rng);
     }
   }
   st = finishDive(st);

@@ -22,8 +22,8 @@
 
 `src/lib/dungeon/session.ts` の `DiveState.phase` と `ending` がそのまま曲の切り替え条件になる。
 
-- `phase`: `INTRO`（出発）/ `EVENT`（宝箱・罠・休憩）/ `CHOICE`（深く潜る・慎重・引き返す）/ `BATTLE` / `END`
-  - **探索曲** = INTRO・EVENT・CHOICE
+- `phase`: `INTRO`（出発）/ `EXPLORE`（迷路を歩く・2026-09-09 追加）/ `EVENT`（宝箱・罠・休憩）/ `CHOICE`（階段で降りる・まだ探索・帰る）/ `BATTLE` / `END`
+  - **探索曲** = INTRO・EXPLORE・EVENT・CHOICE（潜行時間の大半は EXPLORE）
   - **戦闘曲** = BATTLE（`state.foe.boss === false`）
   - **ボス曲** = BATTLE（`state.foe.boss === true`）
 - `ending`: `cleared`（ボス撃破）/ `defeated`（敗走）/ `escaped`（引き返した）/ `limit`（階数切れ）

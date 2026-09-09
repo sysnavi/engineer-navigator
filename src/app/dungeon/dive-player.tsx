@@ -12,12 +12,15 @@
 //    正誤もダメージもサーバーが決める。クライアントは選択肢の番号しか送らない。
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { PixelAvatar } from "@/components/pixel-avatar";
 import type { BattleLog } from "@/lib/dungeon/battle";
 import { startDive, act, type DiveView } from "./session-actions";
 import type { BattleCommand } from "@/lib/dungeon/battle";
 import type { Choice } from "@/lib/dungeon/session";
+import type { Facing } from "@/lib/dungeon/map";
+import { FirstPersonView } from "./first-person-view";
+
+const FACING_LABEL = ["N", "E", "S", "W"];
 
 // --- 効果音（既存のダンジョンと同じ作り。音が出せない環境でも進行する）---
 let actx: AudioContext | null = null;
@@ -97,6 +100,8 @@ export function DivePlayer(props: {
   const [view, setView] = useState<DiveView | null>(props.initialView);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 向きはクライアントが持つ（描画にしか効かない）。進む時に move に載せてサーバーへ
+  const [facing, setFacing] = useState<Facing>(props.initialView?.map?.facing ?? 1);
 
   // 表示中のログ（1つずつ・クリックで進める）
   const [queue, setQueue] = useState<BattleLog[]>([]);
@@ -112,6 +117,7 @@ export function DivePlayer(props: {
   /** サーバーから返った状態を取り込み、ログを1つずつ出す準備をする */
   const apply = (v: DiveView) => {
     setView(v);
+    if (v.map) setFacing(v.map.facing);
     setQueue(v.logs);
     setShown([]);
     setTyping(null);
@@ -180,6 +186,30 @@ export function DivePlayer(props: {
     send(() => act(view!.runId, { type: "answer", choiceIndex }));
   const next = () => send(() => act(view!.runId, { type: "next" }));
   const choose = (choice: Choice) => send(() => act(view!.runId, { type: "choice", choice }));
+  const turn = (d: -1 | 1) => setFacing(((facing + d + 4) % 4) as Facing);
+  const step = (sign: 1 | -1) =>
+    send(() =>
+      act(view!.runId, { type: "move", dir: ((facing + (sign < 0 ? 2 : 0)) % 4) as Facing, facing })
+    );
+
+  // キーボード: 探索中だけ（矢印 / WASD）
+  const exploring = view?.phase === "EXPLORE" && queue.length === 0 && typing === null && !busy;
+  useEffect(() => {
+    if (!exploring) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement | null)?.tagName === "INPUT") return;
+      const k = e.key.toLowerCase();
+      if (k === "arrowup" || k === "w") step(1);
+      else if (k === "arrowdown" || k === "s") step(-1);
+      else if (k === "arrowleft" || k === "a") turn(-1);
+      else if (k === "arrowright" || k === "d") turn(1);
+      else return;
+      e.preventDefault();
+    };
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exploring, facing, view?.runId]);
 
   // 決着したらファンファーレ
   useEffect(() => {
@@ -202,7 +232,7 @@ export function DivePlayer(props: {
                   地下{props.baseDepth}階から 潜れます。
                 </p>
                 <p className="mt-0.5 text-[11.5px] text-inksoft">
-                  問いに答えて戦います。正解で攻撃、まちがえると被弾。
+                  迷路を歩いて階段を探す。出会った相手には問いで答える。
                   HPは潜行のあいだ持ち越し。
                 </p>
               </>
@@ -247,35 +277,40 @@ export function DivePlayer(props: {
         )}
       </div>
 
-      {/* 舞台 */}
-      <div className="relative flex min-h-[128px] items-end justify-between rounded-lg border-2 border-line8 bg-quotebg px-4 py-3">
-        <span className="block">
-          <PixelAvatar sprite={props.avatarSprite} px={5} accent={props.avatarAccent} />
-        </span>
-        {v.foe && (
-          <span className="flex flex-col items-center gap-1">
-            <span className="font-pixel text-[10px] tracking-wide text-pinkhot">
-              {v.foe.name}
-              {v.foe.charging && <span className="ml-1 text-lemon">…ためている！</span>}
-              {v.foe.rapid && <span className="ml-1 text-royal2">○×</span>}
-            </span>
-            <span className="h-2 w-[92px] rounded-sm border-2 border-line8 bg-surface">
-              <span
-                className="block h-full bg-pinkhot transition-[width] duration-300"
-                style={{ width: `${(v.foe.hp / v.foe.maxHp) * 100}%` }}
-              />
-            </span>
-            <Image
-              src={`/dungeon/${v.foe.sprite}.png`}
-              alt=""
-              width={v.foe.boss ? 84 : 60}
-              height={v.foe.boss ? 84 : 60}
-              style={{ imageRendering: "pixelated" }}
-              unoptimized
-            />
+      {/* 舞台: 迷路の一人称ビュー（無ければアバターだけ） */}
+      {v.map ? (
+        <div className="relative aspect-[4/3] overflow-hidden rounded-lg border-2 border-line8 bg-[#0b1130]">
+          <FirstPersonView
+            map={v.map}
+            facing={facing}
+            foe={v.foe ? { sprite: v.foe.sprite, boss: v.foe.boss } : null}
+          />
+          <span className="absolute left-2 top-1 font-pixel text-[11px] tracking-widest text-[#cfe1ff] [text-shadow:1px_1px_0_#000]">
+            {FACING_LABEL[facing]}
           </span>
-        )}
-      </div>
+          {v.foe && (
+            <span className="absolute bottom-1.5 left-2 right-2 flex items-center gap-2 font-pixel text-[10px] tracking-wide text-[#ffb3d6] [text-shadow:1px_1px_0_#000]">
+              <span>
+                {v.foe.name}
+                {v.foe.charging && <span className="ml-1 text-lemon">…ためている！</span>}
+                {v.foe.rapid && <span className="ml-1 text-[#9fd0ff]">○×</span>}
+              </span>
+              <span className="h-2 w-[92px] rounded-sm border-2 border-[#cfe1ff]/60 bg-black/50">
+                <span
+                  className="block h-full bg-pinkhot transition-[width] duration-300"
+                  style={{ width: `${(v.foe.hp / v.foe.maxHp) * 100}%` }}
+                />
+              </span>
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="relative flex min-h-[96px] items-end justify-between rounded-lg border-2 border-line8 bg-quotebg px-4 py-3">
+          <span className="block">
+            <PixelAvatar sprite={props.avatarSprite} px={5} accent={props.avatarAccent} />
+          </span>
+        </div>
+      )}
 
       {/* メッセージ（クリックで進む） */}
       <div
@@ -405,18 +440,42 @@ export function DivePlayer(props: {
             </button>
           </div>
         </div>
+      ) : v.phase === "EXPLORE" ? (
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <div className="hidden text-[11px] text-inksoft sm:block">
+            矢印キーでも歩ける。右上の地図は歩いた場所だけ。
+          </div>
+          <div className="grid grid-cols-3 grid-rows-2 gap-1.5">
+            <button onClick={() => step(1)} disabled={busy} aria-label="進む" className="btn8 btn8-start col-start-2 row-start-1 px-4 py-2 text-[13px] disabled:opacity-50">
+              ▲
+            </button>
+            <button onClick={() => turn(-1)} disabled={busy} aria-label="左を向く" className="btn8 col-start-1 row-start-2 px-4 py-2 text-[13px] disabled:opacity-50">
+              ◀
+            </button>
+            <button onClick={() => step(-1)} disabled={busy} aria-label="後ろへ下がる" className="btn8 col-start-2 row-start-2 px-4 py-2 text-[13px] disabled:opacity-50">
+              ▼
+            </button>
+            <button onClick={() => turn(1)} disabled={busy} aria-label="右を向く" className="btn8 col-start-3 row-start-2 px-4 py-2 text-[13px] disabled:opacity-50">
+              ▶
+            </button>
+          </div>
+          <div className="justify-self-end">
+            <button onClick={() => choose("leave")} disabled={busy} className="btn8 py-2 text-[12px] disabled:opacity-50">
+              ▲ 帰る
+            </button>
+          </div>
+        </div>
       ) : v.phase === "CHOICE" ? (
         <div className="grid gap-2 sm:grid-cols-3">
-          <button onClick={() => choose("deep")} disabled={busy} className="btn8 btn8-start py-2 text-[12.5px] disabled:opacity-50">
-            ▼▼ 深く潜る
-            <span className="ml-1 font-pixel text-[9px] text-white/80">+2階</span>
+          <button onClick={() => choose("descend")} disabled={busy} className="btn8 btn8-start py-2 text-[12.5px] disabled:opacity-50">
+            ▼ 降りる
+            <span className="ml-1 font-pixel text-[9px] text-white/80">地下{v.depth + 2}階</span>
           </button>
-          <button onClick={() => choose("careful")} disabled={busy} className="btn8 py-2 text-[12.5px] disabled:opacity-50">
-            ▼ 慎重に進む
-            <span className="ml-1 font-pixel text-[9px] text-inksoft">+1階</span>
+          <button onClick={() => choose("stay")} disabled={busy} className="btn8 py-2 text-[12.5px] disabled:opacity-50">
+            まだ探索する
           </button>
           <button onClick={() => choose("leave")} disabled={busy} className="btn8 py-2 text-[12.5px] disabled:opacity-50">
-            ▲ 引き返す
+            ▲ ここで帰る
           </button>
         </div>
       ) : v.phase === "END" ? (
