@@ -14,11 +14,14 @@ import { GADGETS } from "@/lib/dungeon/content";
 import { foodById, type FoodId } from "@/lib/pets/foods";
 import { baseDepthOf, resolveSlot } from "@/lib/dungeon/run";
 import { getDivePrep } from "@/lib/dungeon/prep";
-import { heroStats } from "@/lib/dungeon/battle";
-import type { BattleCommand } from "@/lib/dungeon/battle";
+import { heroStats, HINT_COST } from "@/lib/dungeon/battle";
+import type { BattleCommand, PendingQuestion } from "@/lib/dungeon/battle";
 import {
   createDiveState,
   enterFloor,
+  askQuestion,
+  needsQuestion,
+  doAnswer,
   doBattle,
   doChoice,
   doNext,
@@ -27,6 +30,16 @@ import {
   type Choice,
   type DiveState,
 } from "@/lib/dungeon/session";
+import {
+  loadCandidates,
+  pickQuestion,
+  pickRiddle,
+  candidateToPending,
+  riddleToPending,
+} from "@/lib/dungeon/quiz-pool";
+import { MONSTERS } from "@/lib/dungeon/content";
+import { riddleById } from "@/lib/dungeon/riddles";
+import { recordAttempt } from "@/lib/quiz/attempt";
 
 const rng = () => Math.random();
 
@@ -46,7 +59,18 @@ export type DiveView = {
   shieldLeft: number;
   charms: number;
   items: { id: string; name: string }[];
-  foe: { name: string; sprite: string; hp: number; maxHp: number; boss: boolean; charging: boolean } | null;
+  foe: {
+    name: string;
+    sprite: string;
+    hp: number;
+    maxHp: number;
+    boss: boolean;
+    charging: boolean;
+    rapid: boolean;
+    /** いまの問い（正解は含まない） */
+    question: Omit<PendingQuestion, "askedAt"> | null;
+  } | null;
+  hintCost: number;
   logs: DiveState["logs"];
   ending: DiveState["ending"];
   loot: { gadgets: string[]; foods: string[] };
@@ -79,8 +103,22 @@ function toView(runId: string, s: DiveState): DiveView {
           maxHp: s.foe.maxHp,
           boss: s.foe.boss,
           charging: !!s.foe.charging,
+          rapid: !!s.foe.rapid,
+          question: s.foe.question
+            ? {
+                source: s.foe.question.source,
+                id: s.foe.question.id,
+                kind: s.foe.question.kind,
+                topic: s.foe.question.topic,
+                prompt: s.foe.question.prompt,
+                choices: s.foe.question.choices,
+                difficulty: s.foe.question.difficulty,
+                hidden: s.foe.question.hidden,
+              }
+            : null,
         }
       : null,
+    hintCost: HINT_COST,
     logs: s.logs,
     ending: s.ending,
     loot: {
@@ -103,7 +141,56 @@ export async function getActiveDive(): Promise<DiveView | null> {
     orderBy: { createdAt: "desc" },
   });
   if (!run?.state) return null;
-  return toView(run.id, run.state as unknown as DiveState);
+  let state = normalizeState(run.state);
+  if (needsQuestion(state)) {
+    // 古い形式の状態（問いを持たない戦闘）や、選定前に閉じた潜行の続き
+    state = await ensureQuestion(user.id, state);
+    await prisma.dungeonRun.update({ where: { id: run.id }, data: { state: state as unknown as object } });
+  }
+  return toView(run.id, state);
+}
+
+/** DBから読んだ状態を今の形に揃える（以前の潜行に無かった項目を補う） */
+function normalizeState(raw: unknown): DiveState {
+  const s = raw as DiveState;
+  return { ...s, askedIds: Array.isArray(s.askedIds) ? s.askedIds : [] };
+}
+
+/** 戦闘中で問いが無ければ選んで載せる。バンクが空なら ○× で成立させる */
+async function ensureQuestion(userId: string, state: DiveState): Promise<DiveState> {
+  if (!needsQuestion(state) || !state.foe) return state;
+  const foe = state.foe;
+  const topics = MONSTERS.find((m) => m.id === foe.id)?.topics ?? [];
+  const now = Date.now();
+  if (!foe.rapid) {
+    const candidates = await loadCandidates(userId);
+    const picked = pickQuestion({
+      candidates,
+      topics,
+      depth: state.depth,
+      charging: !!foe.charging,
+      askedIds: state.askedIds,
+      rng,
+    });
+    if (picked) return askQuestion(state, candidateToPending(picked, now));
+  }
+  const riddle = pickRiddle({ topics, askedIds: state.askedIds, rng });
+  if (riddle) return askQuestion(state, riddleToPending(riddle, now));
+  // 問いが一つも無い（マスタが空）ことは無いが、型のために
+  return state;
+}
+
+/** 出題中の問いの正解を引く。バンクの問題が消えていれば null */
+async function answerOf(q: PendingQuestion): Promise<{ answerIndex: number; note: string | null } | null> {
+  if (q.source === "riddle") {
+    const r = riddleById(q.id);
+    return r ? { answerIndex: r.answer ? 0 : 1, note: r.note } : null;
+  }
+  const row = await prisma.quizQuestion.findUnique({
+    where: { id: q.id },
+    select: { answerIndex: true, explanation: true },
+  });
+  return row ? { answerIndex: row.answerIndex, note: row.explanation } : null;
 }
 
 /** 潜行を開始する。枠がなければエラー文言を返す */
@@ -161,6 +248,7 @@ export async function startDive(): Promise<
     charms: prep.charms,
   });
   state = enterFloor(state, rng);
+  state = await ensureQuestion(user.id, state);
 
   // slot の @@unique が二重潜行を弾く（並行リクエストでも1つしか通らない）
   const run = await prisma.dungeonRun.create({
@@ -177,10 +265,11 @@ export async function startDive(): Promise<
   return { ok: true, view: toView(run.id, state) };
 }
 
-/** 潜行中のコマンド。command は行動の種類だけで、数値は一切受け取らない */
+/** 潜行中のコマンド。送られてくるのは行動の種類と選択肢の番号だけで、数値は一切受け取らない */
 export async function act(
   runId: string,
   action:
+    | { type: "answer"; choiceIndex: number }
     | { type: "battle"; command: BattleCommand }
     | { type: "next" }
     | { type: "choice"; choice: Choice }
@@ -191,11 +280,49 @@ export async function act(
     return { ok: false, error: "この探索は もう終わっています。" };
   }
 
-  let state = run.state as unknown as DiveState;
+  let state = normalizeState(run.state);
 
   // フェーズと行動の整合はサーバーが判定する（不正な組み合わせは黙って無視）
-  if (action.type === "battle" && state.phase === "BATTLE") {
-    state = doBattle(state, action.command, rng);
+  if (action.type === "answer" && state.phase === "BATTLE" && state.foe?.question) {
+    const q = state.foe.question;
+    const idx = action.choiceIndex;
+    if (!Number.isInteger(idx) || idx < 0 || idx >= q.choices.length || q.hidden.includes(idx)) {
+      return { ok: true, view: toView(run.id, state) };
+    }
+    const key = await answerOf(q);
+    if (!key) {
+      // 問題が消えていた。この問いは無かったことにして選び直す
+      state = { ...state, foe: { ...state.foe, question: undefined } };
+    } else {
+      const correct = idx === key.answerIndex;
+      const elapsedMs = Date.now() - q.askedAt;
+      state = doAnswer(state, { correct, elapsedMs, note: key.note }, rng);
+      if (q.source === "bank") {
+        // 良問バンクの記録に乗せる（復習ボックス・スキル検証に効く。EXPとしたくは数えない）
+        await recordAttempt({
+          userId: user.id,
+          questionId: q.id,
+          chosenIndex: idx,
+          correct,
+          topic: q.topic,
+          source: "dungeon",
+        });
+      }
+    }
+  } else if (action.type === "battle" && state.phase === "BATTLE") {
+    let hintHide: number[] | undefined;
+    if (action.command === "hint" && state.foe?.question?.kind === "choice") {
+      const q = state.foe.question;
+      const key = await answerOf(q);
+      if (key) {
+        const wrong = q.choices
+          .map((_, i) => i)
+          .filter((i) => i !== key.answerIndex && !q.hidden.includes(i));
+        // 不正解のうち2つをランダムに消す
+        hintHide = wrong.sort(() => rng() - 0.5).slice(0, 2);
+      }
+    }
+    state = doBattle(state, action.command, rng, { hintHide });
   } else if (action.type === "next" && (state.phase === "EVENT" || state.phase === "INTRO")) {
     state = doNext(state);
   } else if (action.type === "choice" && state.phase === "CHOICE") {
@@ -211,6 +338,9 @@ export async function act(
     revalidatePath("/home");
     return { ok: true, view: toView(run.id, state) };
   }
+
+  // 戦闘が続くなら次の問いを載せる
+  state = await ensureQuestion(user.id, state);
 
   await prisma.dungeonRun.update({
     where: { id: run.id },

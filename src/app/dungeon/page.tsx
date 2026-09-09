@@ -1,5 +1,5 @@
-// ダンジョン（Issue #3）: 育てたアバターのフルオート探索と戦利品コレクション。
-// 挑戦は1日1回+週報週ボーナス1回（依存させない設計・タイマーなし）。
+// ダンジョン（Issue #3）: 問いに答えてモンスターを倒し、戦利品を集める。
+// 挑戦は1日3回上限（依存させない設計・タイマーなし）。
 // コンテンツの拡充は src/lib/dungeon/content.ts に足すだけ。
 
 import Image from "next/image";
@@ -45,12 +45,12 @@ export default async function DungeonPage() {
   return (
     <div className="space-y-7">
       <div>
-        <PixelLabel>DUNGEON — コマンド探索</PixelLabel>
+        <PixelLabel>DUNGEON — 問いに答えて倒す</PixelLabel>
         <PixelTitle as="h1" className="text-3xl text-royal">
           ダンジョン
         </PixelTitle>
         <p className="mt-1 text-[13px] text-inksoft">
-          育てたアバターで潜る。どこまで行くかは、きみが決める。
+          知っていることが、そのまま強さになる。どこまで行くかは、きみが決める。
         </p>
       </div>
 

@@ -7,6 +7,8 @@
 //  - **敗走しても戦利品は持ち帰れる**。手ぶらで終わる体験を構造的に無くすため
 //    （初回の潜行が面白くない最大の原因が「48.9%が手ぶら」だった）。
 //  - 初回の潜行は宝箱を確定で出す。「持ち帰る楽しさ」を必ず1回は体験させる。
+//  - 戦闘は「問いに答えて倒す」。問いの選定はDBが要るので session-actions が行い、
+//    ここは askQuestion で受け取った問いを状態に載せて、正誤の結果を解決するだけ。
 
 import {
   MONSTERS,
@@ -20,12 +22,15 @@ import {
 import { FOODS, rollFood, foodById, type FoodId } from "@/lib/pets/foods";
 import {
   foeStats,
+  resolveAnswer,
   resolveTurn,
   type BattleCommand,
   type BattleLog,
   type Fighter,
   type Foe,
+  type PendingQuestion,
   type Rng,
+  type TurnResult,
 } from "./battle";
 
 /** 1回の潜行で進める最大の階数（日課として重くなりすぎない上限） */
@@ -34,6 +39,9 @@ export const MAX_FLOORS = 10;
 export const BOSS_MIN_DEPTH = 5;
 const BOSS_RATE = 0.28;
 const FOOD_DROP_RATE = 0.5;
+/** この深度より浅い雑魚戦は、一定確率で ○×高速ラウンドになる */
+export const RAPID_MAX_DEPTH = 4;
+const RAPID_RATE = 0.5;
 /** どうぐ（ごはん）1つの回復量は最大HPのこの割合 */
 const HEAL_RATIO = 0.3;
 
@@ -60,6 +68,8 @@ export type DiveState = {
   gotGadgets: string[];
   gotFoods: string[];
   foe: Foe | null;
+  /** この潜行で出した問い（"bank:<id>" / "riddle:<id>"）。同じ問いは二度出さない */
+  askedIds: string[];
   phase: Phase;
   /** 直前に起きたことの表示用ログ */
   logs: BattleLog[];
@@ -101,6 +111,7 @@ export function createDiveState(params: {
     gotGadgets: [],
     gotFoods: [],
     foe: null,
+    askedIds: [],
     phase: "INTRO",
     logs: [],
     ending: null,
@@ -194,6 +205,7 @@ export function enterFloor(s: DiveState, rng: Rng): DiveState {
       rng
     );
     const fs = foeStats(st.depth, false);
+    const rapid = st.depth < RAPID_MAX_DEPTH && rng() < RAPID_RATE;
     st.foe = {
       id: mon.id,
       name: mon.name,
@@ -203,9 +215,11 @@ export function enterFloor(s: DiveState, rng: Rng): DiveState {
       maxHp: fs.maxHp,
       atk: fs.atk,
       def: fs.def,
+      ...(rapid ? { rapid: true } : {}),
     };
     st.phase = "BATTLE";
     st.logs = [{ text: mon.encounter }];
+    if (rapid) st.logs.push({ text: "○×で たたみかけてくる！" });
     return st;
   }
 
@@ -274,34 +288,30 @@ export function enterFloor(s: DiveState, rng: Rng): DiveState {
 // コマンドの解決
 // ---------------------------------------------------------------------------
 
-/** 戦闘コマンド1回ぶん。決着したら phase を進める */
-export function doBattle(s: DiveState, command: BattleCommand, rng: Rng): DiveState {
-  const st = { ...s };
-  if (!st.foe || st.phase !== "BATTLE") return st;
-
-  const hero: Fighter = {
-    name: "きみ",
-    hp: st.hp,
-    maxHp: st.maxHp,
-    atk: st.atk,
-    def: st.def,
+/** 問いを状態に載せる（選定は session-actions が行う） */
+export function askQuestion(s: DiveState, q: PendingQuestion): DiveState {
+  if (!s.foe) return s;
+  const key = `${q.source}:${q.id}`;
+  return {
+    ...s,
+    foe: { ...s.foe, question: q },
+    askedIds: s.askedIds.includes(key) ? s.askedIds : [...s.askedIds, key],
   };
-  // どうぐは持っているごはんの先頭を使う
-  const itemId = st.items[0];
-  const def = itemId ? foodById(itemId) : null;
-  const r = resolveTurn({
-    hero,
-    foe: st.foe,
-    sp: st.sp,
-    command,
-    rng,
-    canFlee: !st.foe.boss,
-    charms: st.charms,
-    item: def
-      ? { id: def.id, name: def.name, heal: Math.round(st.maxHp * HEAL_RATIO) }
-      : undefined,
-  });
+}
 
+/** 戦闘中の問いに答えられる状態か（問いが載っていない BATTLE は問いを選ぶ必要がある） */
+export function needsQuestion(s: DiveState): boolean {
+  return s.phase === "BATTLE" && !!s.foe && !s.foe.question;
+}
+
+function heroOf(st: DiveState): Fighter {
+  return { name: "きみ", hp: st.hp, maxHp: st.maxHp, atk: st.atk, def: st.def };
+}
+
+/** 1ターンの結果を潜行の状態に反映する（勝敗・盾・戦利品・逃走） */
+function applyTurn(s: DiveState, r: TurnResult, rng: Rng): DiveState {
+  const st = { ...s };
+  if (!st.foe) return st;
   st.hp = r.hero.hp;
   st.sp = r.sp;
   st.foe = r.foe;
@@ -355,7 +365,62 @@ export function doBattle(s: DiveState, command: BattleCommand, rng: Rng): DiveSt
     return st;
   }
 
+  // 続行。問いが片付いたなら外す（次の問いは session-actions が選ぶ）
+  if (r.questionDone) st.foe = { ...st.foe, question: undefined };
   return st;
+}
+
+/**
+ * 問いへの解答。正誤は呼び出し側（正解を知っているサーバー）が判定して渡す。
+ * note は解説（正誤どちらでも、結果の直後に出す＝学びの瞬間を戦闘の中に置く）。
+ */
+export function doAnswer(
+  s: DiveState,
+  params: { correct: boolean; elapsedMs: number; note?: string | null },
+  rng: Rng
+): DiveState {
+  if (!s.foe || s.phase !== "BATTLE" || !s.foe.question) return s;
+  const r = resolveAnswer({
+    hero: heroOf(s),
+    foe: s.foe,
+    sp: s.sp,
+    correct: params.correct,
+    elapsedMs: params.elapsedMs,
+    rng,
+  });
+  if (params.note) {
+    // 結果の一言（正解/まちがい）の直後に解説を挟む
+    r.logs.splice(1, 0, { text: params.note });
+  }
+  return applyTurn(s, r, rng);
+}
+
+/** 解答以外の戦闘コマンド1回ぶん。決着したら phase を進める */
+export function doBattle(
+  s: DiveState,
+  command: BattleCommand,
+  rng: Rng,
+  opts: { hintHide?: number[] } = {}
+): DiveState {
+  if (!s.foe || s.phase !== "BATTLE") return s;
+
+  // どうぐは持っているごはんの先頭を使う
+  const itemId = s.items[0];
+  const def = itemId ? foodById(itemId) : null;
+  const r = resolveTurn({
+    hero: heroOf(s),
+    foe: s.foe,
+    sp: s.sp,
+    command,
+    rng,
+    canFlee: !s.foe.boss,
+    charms: s.charms,
+    hintHide: opts.hintHide,
+    item: def
+      ? { id: def.id, name: def.name, heal: Math.round(s.maxHp * HEAL_RATIO) }
+      : undefined,
+  });
+  return applyTurn(s, r, rng);
 }
 
 /**

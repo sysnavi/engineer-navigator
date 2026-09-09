@@ -33,7 +33,7 @@ export const ONBOARDING_TIPS: Tip[] = [
     id: "nc-dungeon",
     onboarding: 3,
     emoji: "🗺",
-    text: "育てたアバターでダンジョンに潜ろう。深いほどレアな戦利品が眠ってる",
+    text: "ダンジョンは問いに答えて進む。知ってることが、そのまま強さになる",
     href: "/dungeon",
   },
   {

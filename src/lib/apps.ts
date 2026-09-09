@@ -45,7 +45,7 @@ export const APPS: AppDef[] = [
   { id: "roleplay", href: "/roleplay", name: "役割演習", ext: ".sim", group: "manabu", desc: "リーダーの難題をAIとロールプレイ" },
   { id: "genba", href: "/genba", name: "げんば", ext: ".sim", group: "kasegu", desc: "案件を選び面接を突破、現場を乗り切ってENを稼ぐ" },
   { id: "shop", href: "/shop", name: "おかいもの", ext: ".cat", group: "okaimono", desc: "稼いだENで家具をそろえて、マイホームを豊かに" },
-  { id: "dungeon", href: "/dungeon", name: "ダンジョン", ext: ".log", group: "asobu", desc: "育てたアバターがフルオートで探索" },
+  { id: "dungeon", href: "/dungeon", name: "ダンジョン", ext: ".log", group: "asobu", desc: "問いに答えてモンスターを倒す" },
   { id: "yomoyama", href: "/yomoyama", name: "よもやま", ext: ".log", group: "asobu", desc: "現場の話をハンドル名で共有" },
   { id: "discover", href: "/discover", name: "発見", ext: ".net", group: "asobu", desc: "みんなの成長の道筋から学ぶ" },
   { id: "walk", href: "/walk", name: "おさんぽ", ext: ".sav", group: "asobu", desc: "うちの子とのんびり外を歩く" },

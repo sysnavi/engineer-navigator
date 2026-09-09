@@ -1,14 +1,15 @@
 "use client";
 
-// コマンド選択制ダンジョン（松）のUI。
+// ダンジョン（問いに答えて倒す）のUI。
 //
-// 【前の問題】フルオートの紙芝居が毎秒42文字で流れ、13.8秒で終わっていた。
-// 読む間もなく、選択も無く、半分は手ぶらで帰る体験だった。
+// 【前の問題】コマンド戦闘は「たたかう連打、ボスがためたら まもる」で終わり、
+// エンジニアであることが戦闘に乗っていなかった。
 //
 // 【この画面の原則】
 //  - **待つ**。メッセージは1つずつ出して、必ずクリックで進める。勝手に進まない。
-//  - **見せる**。HP/SP/敵HPを常に出す。判断に必要な情報を隠さない。
-//  - **選ばせる**。戦闘はコマンド、階層移動は深さの選択。結果は自分の判断のもの。
+//  - **見せる**。HP/SP/敵HP/問いを常に出す。判断に必要な情報を隠さない。
+//  - **選ばせる**。戦闘は問いへの解答（か、見送るか）、階層移動は深さの選択。
+//    正誤もダメージもサーバーが決める。クライアントは選択肢の番号しか送らない。
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
@@ -55,7 +56,8 @@ const TYPE_MS = 55;
 
 function fxSound(fx: BattleLog["fx"]) {
   if (fx === "crit") seCrit();
-  else if (fx === "hit") seHit();
+  else if (fx === "hit" || fx === "correct") seHit();
+  else if (fx === "wrong") seHurt();
   else if (fx === "guard") blip(300, 0.09, "triangle");
   else if (fx === "heal") seCoin();
   else if (fx === "miss") blip(140, 0.1, "triangle");
@@ -174,6 +176,8 @@ export function DivePlayer(props: {
   const begin = () => send(() => startDive());
   const battle = (command: BattleCommand) =>
     send(() => act(view!.runId, { type: "battle", command }));
+  const answer = (choiceIndex: number) =>
+    send(() => act(view!.runId, { type: "answer", choiceIndex }));
   const next = () => send(() => act(view!.runId, { type: "next" }));
   const choose = (choice: Choice) => send(() => act(view!.runId, { type: "choice", choice }));
 
@@ -198,8 +202,8 @@ export function DivePlayer(props: {
                   地下{props.baseDepth}階から 潜れます。
                 </p>
                 <p className="mt-0.5 text-[11.5px] text-inksoft">
-                  コマンドを選んで戦います。HPは潜行のあいだ持ち越し。
-                  深く潜るほど強い相手が出ますが、宝も増えます。
+                  問いに答えて戦います。正解で攻撃、まちがえると被弾。
+                  HPは潜行のあいだ持ち越し。
                 </p>
               </>
             ) : (
@@ -253,6 +257,7 @@ export function DivePlayer(props: {
             <span className="font-pixel text-[10px] tracking-wide text-pinkhot">
               {v.foe.name}
               {v.foe.charging && <span className="ml-1 text-lemon">…ためている！</span>}
+              {v.foe.rapid && <span className="ml-1 text-royal2">○×</span>}
             </span>
             <span className="h-2 w-[92px] rounded-sm border-2 border-line8 bg-surface">
               <span
@@ -302,48 +307,103 @@ export function DivePlayer(props: {
         <p className="text-center font-pixel text-[10px] tracking-wide text-inksoft">
           （クリックで はやく送る）
         </p>
-      ) : v.phase === "BATTLE" ? (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          <button onClick={() => battle("attack")} disabled={busy} className="btn8 btn8-start py-2 text-[12.5px] disabled:opacity-50">
-            ⚔ たたかう
-          </button>
-          <button onClick={() => battle("guard")} disabled={busy} className="btn8 py-2 text-[12.5px] disabled:opacity-50">
-            🛡 まもる
-          </button>
-          <button
-            onClick={() => battle("special")}
-            disabled={busy || v.sp < 3}
-            title={v.sp < 3 ? "SPが たりない" : "SPを3つかう"}
-            className="btn8 btn8-ok py-2 text-[12.5px] disabled:opacity-40"
-          >
-            ✦ ひっさつ
-          </button>
-          <button
-            onClick={() => battle("item")}
-            disabled={busy || v.items.length === 0}
-            className="btn8 py-2 text-[12.5px] disabled:opacity-40"
-          >
-            🍙 どうぐ{v.items.length > 0 && `(${v.items.length})`}
-          </button>
-          {v.charms > 0 && (
-            <button
-              onClick={() => battle("charm")}
-              disabled={busy}
-              title="AIメンターに相談した日だけ持てる。HPが全快する"
-              className="btn8 py-2 text-[12.5px] disabled:opacity-40"
-              style={{ borderColor: "var(--lemon)" }}
+      ) : v.phase === "BATTLE" && v.foe?.question ? (
+        <div className="space-y-2">
+          {/* 問い */}
+          <div className="rounded-lg border-[2.5px] border-line8 bg-surface p-3 shadow-hard-sm">
+            <div className="flex items-center gap-1.5 font-pixel text-[10px] tracking-wide">
+              <span className="chip8 chip8-info">{v.foe.question.topic}</span>
+              {v.foe.question.difficulty === 3 && (
+                <span className="chip8 text-pinkhot">難問</span>
+              )}
+              {v.foe.question.source === "bank" && (
+                <span className="text-inksoft">良問バンク</span>
+              )}
+            </div>
+            <p className="mt-2 whitespace-pre-wrap text-[13.5px] font-bold leading-relaxed">
+              {v.foe.question.prompt}
+            </p>
+            <div
+              className={
+                v.foe.question.kind === "truefalse"
+                  ? "mt-3 grid grid-cols-2 gap-2"
+                  : "mt-3 space-y-2"
+              }
             >
-              ✨ おふだ({v.charms})
+              {v.foe.question.choices.map((c, idx) => {
+                const hidden = v.foe!.question!.hidden.includes(idx);
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => answer(idx)}
+                    disabled={busy || hidden}
+                    className={`flex w-full items-center gap-2.5 rounded-lg border-2 border-line8 px-3 py-2.5 text-left text-[13px] shadow-hard-sm transition-transform active:translate-x-[1px] active:translate-y-[1px] disabled:cursor-default ${
+                      hidden ? "bg-surface2 text-inksoft line-through opacity-50" : "bg-win"
+                    }`}
+                  >
+                    {v.foe!.question!.kind === "choice" && (
+                      <span className="font-pixel text-[11px] text-inksoft">
+                        {String.fromCharCode(65 + idx)}
+                      </span>
+                    )}
+                    <span className="flex-1">{c}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 解答以外のコマンド */}
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            <button
+              onClick={() => battle("pass")}
+              disabled={busy}
+              title="この問いを見送る。敵の攻撃は軽く受ける"
+              className="btn8 py-2 text-[12px] disabled:opacity-50"
+            >
+              🛡 パス
             </button>
-          )}
-          <button
-            onClick={() => battle("flee")}
-            disabled={busy || !v.canFlee}
-            title={v.canFlee ? "" : "ボスからは にげられない"}
-            className="btn8 py-2 text-[12.5px] disabled:opacity-40"
-          >
-            💨 にげる
-          </button>
+            <button
+              onClick={() => battle("hint")}
+              disabled={busy || v.sp < v.hintCost || v.foe.question.kind !== "choice"}
+              title={
+                v.foe.question.kind !== "choice"
+                  ? "○×には きかない"
+                  : v.sp < v.hintCost
+                    ? "SPが たりない"
+                    : `SPを${v.hintCost}つかって 選択肢を2つ消す`
+              }
+              className="btn8 btn8-ok py-2 text-[12px] disabled:opacity-40"
+            >
+              ✦ ヒント
+            </button>
+            <button
+              onClick={() => battle("item")}
+              disabled={busy || v.items.length === 0}
+              className="btn8 py-2 text-[12px] disabled:opacity-40"
+            >
+              🍙 どうぐ{v.items.length > 0 && `(${v.items.length})`}
+            </button>
+            {v.charms > 0 && (
+              <button
+                onClick={() => battle("charm")}
+                disabled={busy}
+                title="AIメンターに相談した日だけ持てる。HPが全快する"
+                className="btn8 py-2 text-[12px] disabled:opacity-40"
+                style={{ borderColor: "var(--lemon)" }}
+              >
+                ✨ おふだ({v.charms})
+              </button>
+            )}
+            <button
+              onClick={() => battle("flee")}
+              disabled={busy || !v.canFlee}
+              title={v.canFlee ? "" : "ボスからは にげられない"}
+              className="btn8 py-2 text-[12px] disabled:opacity-40"
+            >
+              💨 にげる
+            </button>
+          </div>
         </div>
       ) : v.phase === "CHOICE" ? (
         <div className="grid gap-2 sm:grid-cols-3">

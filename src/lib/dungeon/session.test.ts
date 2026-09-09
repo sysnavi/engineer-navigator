@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  askQuestion,
   createDiveState,
+  doAnswer,
   doChoice,
   doNext,
   enterFloor,
+  needsQuestion,
   MAX_FLOORS,
   type DiveState,
 } from "./session";
@@ -95,5 +98,69 @@ describe("enterFloor（ボスの出現）", () => {
   it("ボス撃破後は二度目のボスを出さない（探索を続けても再戦にならない）", () => {
     const st = enterFloor(baseState({ depth: 6, bossDefeated: true }), () => 0);
     expect(st.foe?.boss ?? false).toBe(false);
+  });
+});
+
+describe("戦闘（問いに答えて倒す）", () => {
+  const q = {
+    source: "bank" as const,
+    id: "q1",
+    kind: "choice" as const,
+    topic: "SQL",
+    prompt: "?",
+    choices: ["a", "b", "c", "d"],
+    difficulty: 2 as const,
+    askedAt: 0,
+    hidden: [],
+  };
+  function inBattle(): DiveState {
+    // rng=0.99 は ENCOUNTER 以外の抽選に落ちるので、直接 foe を置く
+    const st = baseState({ floor: 1, phase: "BATTLE" });
+    return {
+      ...st,
+      foe: { id: "nullpo", name: "ヌルポ", sprite: "mon-nullpo", boss: false, hp: 30, maxHp: 30, atk: 8, def: 2 },
+    };
+  }
+
+  it("遭遇直後は問いが無く、needsQuestion が真になる", () => {
+    const st = inBattle();
+    expect(needsQuestion(st)).toBe(true);
+    const asked = askQuestion(st, q);
+    expect(needsQuestion(asked)).toBe(false);
+    expect(asked.askedIds).toEqual(["bank:q1"]);
+  });
+
+  it("正解すると敵が削れ、問いが片付いて次の問いが要る状態になる", () => {
+    const st = doAnswer(askQuestion(inBattle(), q), { correct: true, elapsedMs: 99_999 }, () => 0.5);
+    expect(st.foe?.hp).toBeLessThan(30);
+    expect(st.hp).toBe(80);
+    expect(needsQuestion(st)).toBe(true);
+  });
+
+  it("不正解だと解説が結果の直後に出る", () => {
+    const st = doAnswer(askQuestion(inBattle(), q), { correct: false, elapsedMs: 0, note: "解説です" }, () => 0.5);
+    expect(st.hp).toBeLessThan(80);
+    expect(st.logs[1].text).toBe("解説です");
+  });
+
+  it("敗走しても盾があれば踏みとどまる", () => {
+    const st = { ...askQuestion(inBattle(), q), hp: 1, shieldLeft: 1 };
+    const after = doAnswer(st, { correct: false, elapsedMs: 0 }, () => 0.5);
+    expect(after.phase).toBe("EVENT");
+    expect(after.shieldLeft).toBe(0);
+    expect(after.hp).toBeGreaterThan(0);
+  });
+
+  it("問いが載っていない戦闘では解答を受け付けない", () => {
+    const st = inBattle();
+    expect(doAnswer(st, { correct: true, elapsedMs: 0 }, () => 0.5)).toBe(st);
+  });
+
+  it("浅い階の雑魚は ○×高速ラウンドになることがある", () => {
+    // rng: ボス判定は depth<5 で不要 / イベント抽選 0（ENCOUNTER）/ モンスター抽選 0 / rapid 判定 0
+    const st = enterFloor(baseState({ depth: 2 }), () => 0);
+    expect(st.foe?.rapid).toBe(true);
+    const deep = enterFloor(baseState({ depth: 8, bossDefeated: true }), () => 0);
+    expect(deep.foe?.rapid ?? false).toBe(false);
   });
 });
