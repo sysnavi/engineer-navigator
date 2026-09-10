@@ -314,7 +314,7 @@ export async function act(
     | { type: "move"; dir: Facing; facing: Facing }
     | { type: "next" }
     | { type: "choice"; choice: Choice }
-): Promise<{ ok: true; view: DiveView } | { ok: false; error: string }> {
+): Promise<{ ok: true; view: DiveView; noop?: boolean } | { ok: false; error: string }> {
   const user = await requireFullAccountUser();
   const run = await prisma.dungeonRun.findUnique({ where: { id: runId } });
   if (!run || run.userId !== user.id || run.status !== "ACTIVE" || !run.state) {
@@ -377,7 +377,9 @@ export async function act(
   ) {
     state = doChoice(state, action.choice, rng);
   } else {
-    return { ok: true, view: toView(run.id, state) };
+    // フェーズに合わない行動は無視。noop を返してクライアントに「表示をやり直すな」と伝える
+    // （長押し歩行がイベント中に届いた時、文字送りが毎回リセットされて無限ループになった）
+    return { ok: true, view: toView(run.id, state), noop: true };
   }
 
   if (state.phase === "END") {

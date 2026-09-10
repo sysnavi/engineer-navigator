@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateFloor, distances, isOpen, cellKey, findEvent, markSeen, DIRS } from "./map";
+import { generateFloor, distances, isOpen, cellKey, findEvent, markSeen, DIRS, EVENT_SPACING } from "./map";
 
 function seeded(seed: number) {
   let s = seed | 0;
@@ -42,7 +42,20 @@ describe("generateFloor（迷路）", () => {
       for (const [key, kind] of Object.entries(m.events)) {
         const [x, y] = key.split(",").map(Number);
         expect(isOpen(m, x, y)).toBe(true);
-        if (kind !== "STAIRS") expect(d[y][x]).toBeGreaterThanOrEqual(2);
+        if (kind !== "STAIRS") expect(d[y][x]).toBeGreaterThanOrEqual(EVENT_SPACING);
+      }
+    }
+  });
+
+  it("イベント同士は離れている（一歩ごとに何かが起きない）", () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const m = generateFloor({ rng: seeded(seed), boss: false, firstDive: false });
+      const pts = Object.keys(m.events).map((k) => k.split(",").map(Number));
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = i + 1; j < pts.length; j++) {
+          const d = Math.abs(pts[i][0] - pts[j][0]) + Math.abs(pts[i][1] - pts[j][1]);
+          expect(d).toBeGreaterThanOrEqual(EVENT_SPACING);
+        }
       }
     }
   });

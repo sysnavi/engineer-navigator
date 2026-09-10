@@ -6,7 +6,8 @@
 //  - 入口は (1,1)。階段は入口から最も遠いマス（BFS）。
 //  - イベント（遭遇/宝箱/罠/休憩/ボス）はマスに事前配置し、踏んだ時に session.ts が解決する。
 //    解決したら events から消す（階段だけは残る）。罠は見えない、それ以外は見える。
-//  - 大きさは 9×9（1階 8〜12手）。日課の 3〜5 分に収める。
+//  - 大きさは 11×11。イベント同士は 3 マス以上離す（一歩ごとに何かが起きる密度にしない）。
+//    歩くこと自体は止まらない（フレーバーの一言はたまにしか出ない・session.ts）。
 
 import type { Rng } from "./battle";
 
@@ -28,7 +29,9 @@ export type FloorMap = {
   stairs: [number, number];
 };
 
-export const MAP_SIZE = 9;
+export const MAP_SIZE = 11;
+/** イベント同士の最小間隔（マンハッタン距離）。入口からもこれだけ離す */
+export const EVENT_SPACING = 3;
 export const DIRS: ReadonlyArray<readonly [number, number]> = [
   [0, -1],
   [1, 0],
@@ -144,11 +147,24 @@ export function generateFloor(params: {
   const open: [number, number][] = [];
   for (let y = 1; y < n - 1; y++) {
     for (let x = 1; x < n - 1; x++) {
-      if (isOpen(base, x, y) && dist[y][x] >= 2 && !events[cellKey(x, y)]) open.push([x, y]);
+      if (isOpen(base, x, y) && dist[y][x] >= EVENT_SPACING && !events[cellKey(x, y)]) {
+        open.push([x, y]);
+      }
     }
   }
-  const take = (): [number, number] | undefined =>
-    open.length ? open.splice(Math.floor(rng() * open.length), 1)[0] : undefined;
+  const placed: [number, number][] = [far];
+  const farEnough = ([x, y]: [number, number]) =>
+    placed.every(([px, py]) => Math.abs(x - px) + Math.abs(y - py) >= EVENT_SPACING);
+  /** 置いたイベントから十分離れたマスを選ぶ。無ければどこでも（小さな迷路の保険） */
+  const take = (): [number, number] | undefined => {
+    const pool = open.filter(farEnough);
+    const from = pool.length ? pool : open;
+    if (!from.length) return undefined;
+    const c = from[Math.floor(rng() * from.length)];
+    open.splice(open.indexOf(c), 1);
+    placed.push(c);
+    return c;
+  };
   const place = (kind: CellKind) => {
     const c = take();
     if (c) events[cellKey(c[0], c[1])] = kind;
@@ -162,6 +178,7 @@ export function generateFloor(params: {
     const spot = around[0];
     if (spot) {
       events[cellKey(spot[0], spot[1])] = "BOSS";
+      placed.push(spot);
       const i = open.findIndex(([x, y]) => x === spot[0] && y === spot[1]);
       if (i >= 0) open.splice(i, 1);
     }
