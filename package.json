@@ -15,6 +15,7 @@
     "triage:report": "tsx scripts/triage/report.ts",
     "sns:capture": "playwright test -c playwright.sns.config.ts",
     "sns:post": "tsx scripts/sns/post.ts",
+    "insights:post": "tsx scripts/insights/post.ts",
     "check": "npm run typecheck && npm run lint && npm run test",
     "check:release": "npm run check && npm run test:e2e",
     "postinstall": "prisma generate",

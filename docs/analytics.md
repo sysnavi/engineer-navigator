@@ -109,6 +109,32 @@ GROUP BY 1 ORDER BY 2 DESC;
 
 注意: 無料枠の Neon は自動サスペンドするので最初の読み込みが遅い。
 
+## 5. 週次テコ入れ提案（Slack・土曜朝）
+
+毎週土曜 07:30 JST に `.github/workflows/weekly-insights.yml` が本番の `POST /api/jobs/weekly-insights` を
+叩き、返ってきた本文を `#engineer-navigator` に投稿する（`scripts/insights/post.ts`）。
+
+```mermaid
+flowchart LR
+  cron["GitHub Actions<br/>土曜 07:30 JST"] -->|"POST + Bearer JOB_SECRET"| api["Vercel<br/>/api/jobs/weekly-insights"]
+  api --> q["getVisitorAnalytics<br/>今週 / 先週"]
+  q --> d["diagnose()<br/>ルール診断（insights.ts）"]
+  d --> ai["Claude で3つに絞って文章化<br/>（キー無し/失敗ならルール本文）"]
+  ai --> cron
+  cron -->|"Bot Token"| slack["Slack #engineer-navigator"]
+```
+
+- **診断はルール、AI は文章化だけ**。`src/lib/analytics/insights.ts` の `diagnose()` が
+  「ゲストが少ない→集客」「ファネルの最大落差→その段の対策」「既存アカウント衝突」「OAuth失敗率」
+  「D7定着」「週報未使用」「WAU前週比」を決定的に判定する（テストは insights.test.ts）。
+  AI は所見を土台に最大3つへ絞り、行動を具体化する。数字を作らないよう system で縛る
+- **手動実行**: Actions の「来訪者分析の週次提案」→ Run workflow。`no_ai` でルール診断のみ、`dry_run` で投稿なし
+- **ローカル確認**: `JOB_SECRET=<.envの値> npm run insights:post -- --dry-run`（本番を叩く。ローカルの
+  dev サーバーに向けるなら `APP_URL=http://localhost:3000`）
+- **必要な設定**: Vercel の環境変数 `JOB_SECRET`（長いランダム文字列）と GitHub Secrets の `JOB_SECRET`
+  を同じ値にする。`SLACK_BOT_TOKEN` はトリアージと共用。JOB_SECRET が Vercel に無いと API は 503 を返す
+- AI 呼び出しは週1回・ユーザーに紐づかないため、ユーザー別のレート制限（assertAiAllowed）は通していない
+
 ## 次の一手（データが溜まったら）
 - ファネルの落差が「登録案内を見た→連携を始めた」なら、案内の文言・ボタンの位置を変えて2週比較
 - 「既存アカウントと衝突」が月に数件出るなら、ゲストのデータを既存アカウントへマージする導線

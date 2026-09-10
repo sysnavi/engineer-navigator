@@ -1,0 +1,57 @@
+# 週次テコ入れ提案（docs/analytics.md）
+#
+#  本番の POST /api/jobs/weekly-insights を叩き、来訪者分析（ゲスト→登録ファネル・定着・
+#  機能利用）から「今週やること3つ」を受け取って Slack #engineer-navigator に流す。
+#  集計と AI 文章化は Vercel 側（本番DB・Claude API があるのはそこだけ）。ここは取りに行って投稿するだけ。
+#
+#  必要な設定: Secrets JOB_SECRET（Vercel の JOB_SECRET と同じ値）・SLACK_BOT_TOKEN（トリアージと共用）
+#              Variables APP_URL（任意・既定は engineer-navigator.vercel.app）・SLACK_TRIAGE_CHANNEL（任意）
+name: 来訪者分析の週次提案（土曜朝）
+
+on:
+  schedule:
+    # 毎週土曜 07:30 JST（= 金曜 22:30 UTC）。トリアージ（07:00）の後に来る
+    - cron: "30 22 * * 5"
+  workflow_dispatch:
+    inputs:
+      no_ai:
+        description: "AI を使わずルール診断だけで出す"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Slack に投稿せずログに出すだけ"
+        type: boolean
+        default: false
+
+concurrency:
+  group: weekly-insights
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+
+      # scripts/triage/slack.ts（Bot 投稿）を tsx で動かすためだけ。Prisma 生成などは不要
+      - run: npm ci --ignore-scripts
+
+      - name: 提案を取得して Slack に投稿
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          JOB_SECRET: ${{ secrets.JOB_SECRET }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_TRIAGE_CHANNEL: ${{ vars.SLACK_TRIAGE_CHANNEL }}
+        run: >
+          npx tsx scripts/insights/post.ts
+          ${{ inputs.no_ai && '--no-ai' || '' }}
+          ${{ inputs.dry_run && '--dry-run' || '' }}

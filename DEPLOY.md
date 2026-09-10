@@ -48,6 +48,7 @@ DATABASE_URL="<neon-direct-url>" ADMIN_INVITE_TOKEN="<長いランダム文字�
    | `DATABASE_URL_DIRECT` | Neon の **direct** 接続文字列（ビルド時の自動マイグレーション用） | ✅ |
    | `ANTHROPIC_API_KEY` | Claude APIキー | ✅ |
    | `ADMIN_INVITE_TOKEN` | 手順2で使った値と同じ | ✅ |
+   | `JOB_SECRET` | 週次テコ入れ提案ジョブの認証（GitHub Secrets の `JOB_SECRET` と同じ値。docs/analytics.md） | 任意 |
    | `VOYAGE_API_KEY` | RAG検索用（未設定でも動く／RAGはスキップ） | 任意 |
    | `AI_RATE_PER_MINUTE` / `AI_RATE_PER_DAY` / `AI_AUTO_SUSPEND_PER_DAY` | レート上限の上書き | 任意 |
 
