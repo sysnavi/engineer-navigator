@@ -43,7 +43,8 @@ AGENTS.md の決まりごとを破らずに直せる。**1つでも外れたら�
 1. https://api.slack.com/apps → Create New App → From scratch
 2. OAuth & Permissions → Bot Token Scopes に `chat:write` / `files:write` / `files:read` を追加
 3. Install to Workspace → `xoxb-...` を控える
-4. `#engineer-navigator` はプライベートチャンネルなので、チャンネル内で `/invite @<アプリ名>` して Bot を入れる
+4. `#engineer-navigator`（公開チャンネル）で `/invite @<アプリ名>` して Bot を入れる
+   （公開でも画像付き投稿は Bot がチャンネルに参加している必要がある）
 
 ### 2. GitHub の Secrets / Variables
 

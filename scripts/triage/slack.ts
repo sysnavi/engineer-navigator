@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 
 const TOKEN = process.env.SLACK_BOT_TOKEN;
-// #engineer-navigator（private）。変える場合は環境変数で上書き
+// #engineer-navigator（公開チャンネル）。変える場合は環境変数で上書き
 export const CHANNEL = process.env.SLACK_TRIAGE_CHANNEL ?? "C0C03HE4H2B";
 
 export type PostResult = { ok: boolean; ts?: string; skipped?: boolean };
