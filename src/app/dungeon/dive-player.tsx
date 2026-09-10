@@ -57,6 +57,53 @@ const seFanfare = () =>
 /** 1文字あたりの表示間隔。以前は24ms（毎秒42文字）で速すぎた */
 const TYPE_MS = 55;
 
+/** 振動（Android/Chrome）。無い環境では何もしない */
+function buzz(ms: number) {
+  try {
+    navigator.vibrate?.(ms);
+  } catch {
+    /* 無視 */
+  }
+}
+
+// --- 操作パッドのアイコン ---
+// 文字の ▲◀ はピクセルフォントにグリフが無くフォールバックで描かれ、letter-spacing も乗って
+// 中央からズレる。SVG で描けばボタンの中心にぴたりと乗る。
+function TriIcon(props: { dir: "up" | "down"; size?: number }) {
+  const n = props.size ?? 16;
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width={n}
+      height={n}
+      aria-hidden
+      className="shrink-0"
+      style={props.dir === "down" ? { transform: "rotate(180deg)" } : undefined}
+    >
+      <path d="M8 2.5 L14 13 H2 Z" fill="currentColor" />
+    </svg>
+  );
+}
+/** 曲がり矢印（道路標識の「左折」）。◀ だと「左に歩く」に見えるが、実際は向きを変えるだけ */
+function TurnIcon(props: { dir: "left" | "right"; size?: number }) {
+  const n = props.size ?? 20;
+  return (
+    <svg viewBox="0 0 16 16" width={n} height={n} aria-hidden className="shrink-0">
+      <g
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        transform={props.dir === "right" ? "translate(16 0) scale(-1 1)" : undefined}
+      >
+        <path d="M11.5 14 V8.5 A3.5 3.5 0 0 0 8 5 H4.5" />
+        <path d="M7 2.5 L4.5 5 L7 7.5" />
+      </g>
+    </svg>
+  );
+}
+
 function fxSound(fx: BattleLog["fx"]) {
   if (fx === "crit") seCrit();
   else if (fx === "hit" || fx === "correct") seHit();
@@ -102,6 +149,8 @@ export function DivePlayer(props: {
   const [error, setError] = useState<string | null>(null);
   // 向きはクライアントが持つ（描画にしか効かない）。進む時に move に載せてサーバーへ
   const [facing, setFacing] = useState<Facing>(props.initialView?.map?.facing ?? 1);
+  // 「出口」は誤タップで潜行が終わる危険ボタンなので、ひと呼吸（確認行）を挟む
+  const [leaveConfirm, setLeaveConfirm] = useState(false);
 
   // 表示中のログ（1つずつ・クリックで進める）
   const [queue, setQueue] = useState<BattleLog[]>([]);
@@ -116,7 +165,13 @@ export function DivePlayer(props: {
 
   /** サーバーから返った状態を取り込み、ログを1つずつ出す準備をする */
   const apply = (v: DiveView) => {
+    // 歩いたのに位置が変わらない＝壁。少し強めに振動させて「ぶつかった」を手に伝える
+    const prev = view;
+    if (prev?.map && v.map && prev.phase === "EXPLORE" && v.phase === "EXPLORE") {
+      buzz(prev.map.x === v.map.x && prev.map.y === v.map.y ? 40 : 12);
+    }
     setView(v);
+    setLeaveConfirm(false);
     if (v.map) setFacing(v.map.facing);
     setQueue(v.logs);
     setShown([]);
@@ -186,30 +241,77 @@ export function DivePlayer(props: {
     send(() => act(view!.runId, { type: "answer", choiceIndex }));
   const next = () => send(() => act(view!.runId, { type: "next" }));
   const choose = (choice: Choice) => send(() => act(view!.runId, { type: "choice", choice }));
-  const turn = (d: -1 | 1) => setFacing(((facing + d + 4) % 4) as Facing);
+  const turn = (d: -1 | 1) => {
+    buzz(8);
+    setFacing(((facing + d + 4) % 4) as Facing);
+  };
   const step = (sign: 1 | -1) =>
     send(() =>
       act(view!.runId, { type: "move", dir: ((facing + (sign < 0 ? 2 : 0)) % 4) as Facing, facing })
     );
 
-  // キーボード: 探索中だけ（矢印 / WASD）
-  const exploring = view?.phase === "EXPLORE" && queue.length === 0 && typing === null && !busy;
+  // 「すすむ」長押しで歩き続ける。間隔ごとに最新の step を呼ぶ（busy 中は send が弾くので詰まらない）
+  const stepRef = useRef(step);
   useEffect(() => {
-    if (!exploring) return;
+    stepRef.current = step;
+  });
+  const hold = useRef<{ timer: ReturnType<typeof setTimeout> | null; loop: ReturnType<typeof setInterval> | null; ran: boolean }>({
+    timer: null,
+    loop: null,
+    ran: false,
+  });
+  const holdStart = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    holdStop();
+    hold.current.ran = false;
+    hold.current.timer = setTimeout(() => {
+      hold.current.ran = true;
+      stepRef.current(1);
+      hold.current.loop = setInterval(() => stepRef.current(1), 240);
+    }, 380);
+  };
+  const holdStop = () => {
+    if (hold.current.timer) clearTimeout(hold.current.timer);
+    if (hold.current.loop) clearInterval(hold.current.loop);
+    hold.current.timer = null;
+    hold.current.loop = null;
+  };
+  /** 長押しの後に発火する click は無視する（離した瞬間にもう1歩進んでしまうのを防ぐ） */
+  const forwardClick = () => {
+    if (hold.current.ran) {
+      hold.current.ran = false;
+      return;
+    }
+    step(1);
+  };
+  useEffect(() => holdStop, []);
+
+  // キーボード: 探索中だけ（矢印 / WASD）
+  // 探索フェーズのあいだは矢印キーのデフォルト（ページスクロール）を常に止める。
+  // 以前は「動ける瞬間」だけリスナーを付けていたので、サーバー往復中や文字送り中に
+  // 押した矢印がブラウザに渡ってページが上下に滑っていた。
+  const inExplore = view?.phase === "EXPLORE";
+  const exploring = inExplore && queue.length === 0 && typing === null && !busy;
+  useEffect(() => {
+    if (!inExplore) return;
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement | null)?.tagName === "INPUT") return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
+      const isNav = k === "arrowup" || k === "arrowdown" || k === "arrowleft" || k === "arrowright" || k === "w" || k === "a" || k === "s" || k === "d";
+      if (!isNav) return;
+      e.preventDefault();
+      if (!exploring) return;
       if (k === "arrowup" || k === "w") step(1);
       else if (k === "arrowdown" || k === "s") step(-1);
       else if (k === "arrowleft" || k === "a") turn(-1);
       else if (k === "arrowright" || k === "d") turn(1);
-      else return;
-      e.preventDefault();
     };
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exploring, facing, view?.runId]);
+  }, [inExplore, exploring, facing, view?.runId]);
 
   // 決着したらファンファーレ
   useEffect(() => {
@@ -279,7 +381,9 @@ export function DivePlayer(props: {
 
       {/* 舞台: 迷路の一人称ビュー（無ければアバターだけ） */}
       {v.map ? (
-        <div className="relative aspect-[4/3] overflow-hidden rounded-lg border-2 border-line8 bg-[#0b1130]">
+        // PC では横幅いっぱいの 4:3 が縦 1000px 級になり操作パッドが画面外へ出ていた。
+        // 高さを画面の 52%（上限 520px）で頭打ちにし、幅はそれに合わせて中央寄せ
+        <div className="relative mx-auto aspect-[4/3] w-full overflow-hidden rounded-lg border-2 border-line8 bg-[#0b1130] sm:max-w-[calc(min(52dvh,520px)*4/3)]">
           <FirstPersonView
             map={v.map}
             facing={facing}
@@ -441,28 +545,96 @@ export function DivePlayer(props: {
           </div>
         </div>
       ) : v.phase === "EXPLORE" ? (
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-          <div className="hidden text-[11px] text-inksoft sm:block">
-            矢印キーでも歩ける。右上の地図は歩いた場所だけ。
+        // 操作パッド。いちばん押す「すすむ」を横幅いっぱいの太いバーに、回転は両脇の曲がり矢印。
+        // 後退と出口は 2 段目に小さく、出口は確認を挟む（潜行が終わる危険ボタン）
+        <div className="space-y-2 select-none [touch-action:manipulation]">
+          <div className="grid grid-cols-[auto_1fr_auto] gap-2">
+            <button
+              type="button"
+              onClick={() => turn(-1)}
+              disabled={busy}
+              aria-label="左を向く"
+              className="btn8 grid h-14 w-[72px] place-items-center p-0 tracking-normal disabled:opacity-50 sm:w-24"
+            >
+              <span className="flex flex-col items-center gap-0.5 leading-none">
+                <TurnIcon dir="left" />
+                <span className="font-pixel text-[9px]">左</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={forwardClick}
+              onPointerDown={holdStart}
+              onPointerUp={holdStop}
+              onPointerLeave={holdStop}
+              onPointerCancel={holdStop}
+              onContextMenu={(e) => e.preventDefault()}
+              disabled={busy}
+              aria-label="進む"
+              title="長押しで歩きつづける"
+              className="btn8 btn8-start flex h-14 items-center justify-center gap-2 p-0 text-[14px] tracking-normal disabled:opacity-50"
+            >
+              <TriIcon dir="up" size={18} />
+              <span>すすむ</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => turn(1)}
+              disabled={busy}
+              aria-label="右を向く"
+              className="btn8 grid h-14 w-[72px] place-items-center p-0 tracking-normal disabled:opacity-50 sm:w-24"
+            >
+              <span className="flex flex-col items-center gap-0.5 leading-none">
+                <TurnIcon dir="right" />
+                <span className="font-pixel text-[9px]">右</span>
+              </span>
+            </button>
           </div>
-          <div className="grid grid-cols-3 grid-rows-2 gap-1.5">
-            <button onClick={() => step(1)} disabled={busy} aria-label="進む" className="btn8 btn8-start col-start-2 row-start-1 px-4 py-2 text-[13px] disabled:opacity-50">
-              ▲
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => step(-1)}
+              disabled={busy}
+              aria-label="後ろへ下がる"
+              className="btn8 flex h-10 items-center gap-1.5 px-3 text-[11.5px] tracking-normal opacity-80 disabled:opacity-40"
+            >
+              <TriIcon dir="down" size={12} />
+              もどる
             </button>
-            <button onClick={() => turn(-1)} disabled={busy} aria-label="左を向く" className="btn8 col-start-1 row-start-2 px-4 py-2 text-[13px] disabled:opacity-50">
-              ◀
-            </button>
-            <button onClick={() => step(-1)} disabled={busy} aria-label="後ろへ下がる" className="btn8 col-start-2 row-start-2 px-4 py-2 text-[13px] disabled:opacity-50">
-              ▼
-            </button>
-            <button onClick={() => turn(1)} disabled={busy} aria-label="右を向く" className="btn8 col-start-3 row-start-2 px-4 py-2 text-[13px] disabled:opacity-50">
-              ▶
-            </button>
-          </div>
-          <div className="justify-self-end">
-            <button onClick={() => choose("leave")} disabled={busy} className="btn8 py-2 text-[12px] disabled:opacity-50">
-              ▲ 帰る
-            </button>
+            <span className="hidden flex-1 text-center text-[11px] text-inksoft sm:block">
+              矢印キー / WASD でも歩ける。すすむ長押しで歩きつづける。
+            </span>
+            {leaveConfirm ? (
+              <span className="flex items-center gap-1.5 text-[11.5px] font-bold">
+                ここで帰る？
+                <button
+                  type="button"
+                  onClick={() => choose("leave")}
+                  disabled={busy}
+                  className="btn8 h-10 px-3 text-[11.5px] tracking-normal disabled:opacity-50"
+                  style={{ borderColor: "var(--pink-hot)" }}
+                >
+                  🚪 帰る
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeaveConfirm(false)}
+                  className="btn8 h-10 px-3 text-[11.5px] tracking-normal"
+                >
+                  やめる
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setLeaveConfirm(true)}
+                disabled={busy}
+                title="戦利品を持って地上へ戻る"
+                className="btn8 h-10 px-3 text-[11.5px] tracking-normal disabled:opacity-50"
+              >
+                🚪 出口
+              </button>
+            )}
           </div>
         </div>
       ) : v.phase === "CHOICE" ? (
@@ -475,7 +647,7 @@ export function DivePlayer(props: {
             まだ探索する
           </button>
           <button onClick={() => choose("leave")} disabled={busy} className="btn8 py-2 text-[12.5px] disabled:opacity-50">
-            ▲ ここで帰る
+            🚪 ここで帰る
           </button>
         </div>
       ) : v.phase === "END" ? (
