@@ -19,6 +19,7 @@ import type { BattleCommand } from "@/lib/dungeon/battle";
 import type { Choice } from "@/lib/dungeon/session";
 import type { Facing } from "@/lib/dungeon/map";
 import { FirstPersonView } from "./first-person-view";
+import { useDungeonBgm, DungeonBgmToggle } from "./bgm";
 
 const FACING_LABEL = ["N", "E", "S", "W"];
 
@@ -151,6 +152,8 @@ export function DivePlayer(props: {
   const [facing, setFacing] = useState<Facing>(props.initialView?.map?.facing ?? 1);
   // 「出口」は誤タップで潜行が終わる危険ボタンなので、ひと呼吸（確認行）を挟む
   const [leaveConfirm, setLeaveConfirm] = useState(false);
+  // BGM: 潜行中ずっと流し、決着でフェードアウト（ファンファーレ／敗走音の後ろで消える）
+  const bgm = useDungeonBgm(view != null && view.phase !== "END");
 
   // 表示中のログ（1つずつ・クリックで進める）
   const [queue, setQueue] = useState<BattleLog[]>([]);
@@ -246,7 +249,10 @@ export function DivePlayer(props: {
     }
   };
 
-  const begin = () => send(() => startDive());
+  const begin = () => {
+    bgm.start(); // クリックの中で鳴らし始める（往復の後だと自動再生制限に掛かる）
+    return send(() => startDive());
+  };
   const battle = (command: BattleCommand) =>
     send(() => act(view!.runId, { type: "battle", command }));
   const answer = (choiceIndex: number) =>
@@ -406,6 +412,7 @@ export function DivePlayer(props: {
             🛡 盾 {v.shieldLeft}
           </span>
         )}
+        <DungeonBgmToggle on={bgm.on} vol={bgm.vol} onToggle={bgm.toggle} onVol={bgm.setVol} />
       </div>
 
       {/* 舞台: 迷路の一人称ビュー（無ければアバターだけ） */}

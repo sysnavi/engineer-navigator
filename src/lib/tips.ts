@@ -180,6 +180,12 @@ export const TIPS: Tip[] = [
     href: "/dungeon",
   },
   {
+    id: "dungeon-bgm",
+    emoji: "♪",
+    text: "ダンジョンにBGMがついたよ。うるさければ潜行中の右上で止めたり小さくしたりできる",
+    href: "/dungeon",
+  },
+  {
     id: "dungeon-loot",
     emoji: "🎒",
     text: "ダンジョンは敗走しても戦利品は持ち帰れるよ。無理せず引き返すのも判断のうち",
