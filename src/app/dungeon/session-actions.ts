@@ -35,10 +35,9 @@ import {
 import { cellKey, type CellKind, type Facing } from "@/lib/dungeon/map";
 import {
   loadCandidates,
-  pickQuestion,
-  pickRiddle,
-  candidateToPending,
-  riddleToPending,
+  loadRecentAsked,
+  pickBattleQuestion,
+  riddleAnswerIndex,
 } from "@/lib/dungeon/quiz-pool";
 import { MONSTERS } from "@/lib/dungeon/content";
 import { riddleById } from "@/lib/dungeon/riddles";
@@ -196,35 +195,36 @@ function normalizeState(raw: unknown): DiveState {
   return s;
 }
 
-/** 戦闘中で問いが無ければ選んで載せる。バンクが空なら ○× で成立させる */
+/** 戦闘中で問いが無ければ選んで載せる（順位は quiz-pool.ts 冒頭）。バンクが空でも TSマスタで成立させる */
 async function ensureQuestion(userId: string, state: DiveState): Promise<DiveState> {
   if (!needsQuestion(state) || !state.foe) return state;
   const foe = state.foe;
   const topics = MONSTERS.find((m) => m.id === foe.id)?.topics ?? [];
-  const now = Date.now();
-  if (!foe.rapid) {
-    const candidates = await loadCandidates(userId);
-    const picked = pickQuestion({
-      candidates,
-      topics,
-      depth: state.depth,
-      charging: !!foe.charging,
-      askedIds: state.askedIds,
-      rng,
-    });
-    if (picked) return askQuestion(state, candidateToPending(picked, now));
-  }
-  const riddle = pickRiddle({ topics, askedIds: state.askedIds, rng });
-  if (riddle) return askQuestion(state, riddleToPending(riddle, now));
+  const [candidates, recentIds] = await Promise.all([
+    // ○×高速ラウンドはバンクを使わないので引かない
+    foe.rapid ? Promise.resolve([]) : loadCandidates(userId),
+    loadRecentAsked(userId),
+  ]);
+  const q = pickBattleQuestion({
+    candidates,
+    topics,
+    depth: state.depth,
+    charging: !!foe.charging,
+    askedIds: state.askedIds,
+    recentIds,
+    rapid: !!foe.rapid,
+    rng,
+    now: Date.now(),
+  });
   // 問いが一つも無い（マスタが空）ことは無いが、型のために
-  return state;
+  return q ? askQuestion(state, q) : state;
 }
 
 /** 出題中の問いの正解を引く。バンクの問題が消えていれば null */
 async function answerOf(q: PendingQuestion): Promise<{ answerIndex: number; note: string | null } | null> {
   if (q.source === "riddle") {
     const r = riddleById(q.id);
-    return r ? { answerIndex: r.answer ? 0 : 1, note: r.note } : null;
+    return r ? { answerIndex: riddleAnswerIndex(r), note: r.note } : null;
   }
   const row = await prisma.quizQuestion.findUnique({
     where: { id: q.id },
@@ -413,6 +413,8 @@ async function persistEnd(userId: string, runId: string, s: DiveState) {
         status: "DONE",
         state: undefined,
         depth: s.depth,
+        // 次の潜行で「最近出た問い」を後回しにするために残す
+        askedIds: s.askedIds,
         steps: [
           {
             kind: "RESULT",
