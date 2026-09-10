@@ -86,6 +86,10 @@ export type DiveState = {
   map: FloorMap | null;
   /** この潜行で出した問い（"bank:<id>" / "riddle:<id>"）。同じ問いは二度出さない */
   askedIds: string[];
+  /** 直前に出した歩行中の一言（同じ文を続けない） */
+  lastStroll?: number;
+  /** 直前に遭遇した敵（同じ敵を続けない） */
+  lastFoeId?: string;
   phase: Phase;
   /** 直前に起きたことの表示用ログ */
   logs: BattleLog[];
@@ -190,15 +194,23 @@ export function enterFloor(s: DiveState, rng: Rng): DiveState {
   return st;
 }
 
-/** 歩いている時のフレーバー（イベントの無いマス） */
-const STROLL_LINES = [
+/** 歩いている時のフレーバー（イベントの無いマス）。たまにしか出さない */
+export const STROLL_LINES = [
   "石の床が続いている。",
   "遠くで水の落ちる音がする。",
   "たいまつが小さく揺れた。",
   "壁に古いコメントが刻まれている。「// TODO: あとで直す」",
   "足元にセミコロンが落ちていた。",
-  "どこかで fan の音がする。",
+  "どこかでファンの音がする。",
+  "風が通った。この先に空間がある。",
+  "壁の苔が「deprecated」の形に見える。",
+  "足音がひとつ多い気がした。気のせいだ。",
+  "床に古いログが散らばっている。読めない。",
+  "遠くで扉の閉まる音。",
+  "たいまつの油が減ってきた。",
 ];
+/** 一言が出る確率。毎歩出すと「一歩ごとにイベント」に感じる */
+const STROLL_RATE = 0.22;
 
 /**
  * 迷路を1マス進む。壁なら何も起きない。
@@ -216,7 +228,13 @@ export function doMove(s: DiveState, move: Move, rng: Rng): DiveState {
   const st: DiveState = { ...s, map, logs: [] };
   const ev = findEvent(map, nx, ny);
   if (!ev) {
-    st.logs = [{ text: STROLL_LINES[map.seen.length % STROLL_LINES.length] }];
+    // 何も無いマス。基本は黙って歩く（logs が空ならUIは前の表示を残す）
+    if (rng() < STROLL_RATE) {
+      let i = Math.floor(rng() * STROLL_LINES.length);
+      if (i === s.lastStroll) i = (i + 1) % STROLL_LINES.length;
+      st.lastStroll = i;
+      st.logs = [{ text: STROLL_LINES[i] }];
+    }
     return st;
   }
   if (ev === "STAIRS") {
@@ -261,13 +279,11 @@ export function resolveCell(s: DiveState, kind: CellKind, rng: Rng): DiveState {
   }
 
   if (kind === "ENCOUNTER") {
-    const mon = pick(
-      MONSTERS.filter((m) => !m.boss && !m.retired && m.minDepth <= st.depth).map((m) => ({
-        ...m,
-        weight: m.weight ?? 1,
-      })),
-      rng
-    );
+    // 同じ敵の連続は避ける（浅い階は候補が少なく、続くと単調に見える）
+    const all = MONSTERS.filter((m) => !m.boss && !m.retired && m.minDepth <= st.depth);
+    const pool = all.length > 1 ? all.filter((m) => m.id !== st.lastFoeId) : all;
+    const mon = pick(pool.map((m) => ({ ...m, weight: m.weight ?? 1 })), rng);
+    st.lastFoeId = mon.id;
     const fs = foeStats(st.depth, false);
     const rapid = st.depth < RAPID_MAX_DEPTH && rng() < RAPID_RATE;
     st.foe = {

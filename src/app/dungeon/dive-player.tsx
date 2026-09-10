@@ -173,6 +173,13 @@ export function DivePlayer(props: {
     setView(v);
     setLeaveConfirm(false);
     if (v.map) setFacing(v.map.facing);
+    if (v.phase === "EXPLORE") {
+      // 歩いている間は文字送りで止めない。一言があれば即時に出し、無ければ前の表示を残す
+      setQueue([]);
+      if (v.logs.length > 0) setShown(v.logs);
+      setTyping(null);
+      return;
+    }
     setQueue(v.logs);
     setShown([]);
     setTyping(null);
@@ -219,14 +226,19 @@ export function DivePlayer(props: {
     setQueue(rest);
   };
 
-  const send = async (fn: () => Promise<{ ok: true; view: DiveView } | { ok: false; error: string }>) => {
+  const send = async (
+    fn: () => Promise<{ ok: true; view: DiveView; noop?: boolean } | { ok: false; error: string }>
+  ) => {
     if (busy) return;
     setBusy(true);
     setError(null);
     try {
       const r = await fn();
-      if (r.ok) apply(r.view);
-      else setError(r.error);
+      // 何も起きなかった（フェーズに合わない行動）なら表示を触らない。
+      // ここで apply すると文字送りが最初からやり直しになる
+      if (r.ok) {
+        if (!r.noop) apply(r.view);
+      } else setError(r.error);
     } catch {
       setError("うまく つながらなかった。もういちど。");
     } finally {
@@ -260,6 +272,10 @@ export function DivePlayer(props: {
     loop: null,
     ran: false,
   });
+  const phaseRef = useRef(view?.phase);
+  useEffect(() => {
+    phaseRef.current = view?.phase;
+  });
   const holdStart = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     holdStop();
@@ -267,7 +283,15 @@ export function DivePlayer(props: {
     hold.current.timer = setTimeout(() => {
       hold.current.ran = true;
       stepRef.current(1);
-      hold.current.loop = setInterval(() => stepRef.current(1), 240);
+      hold.current.loop = setInterval(() => {
+        // イベントや戦闘に入ったら歩くのをやめる。十字キーが消えると pointerup が
+        // ボタンに届かず、止めないと「進む」を送り続けてしまう
+        if (phaseRef.current !== "EXPLORE") {
+          holdStop();
+          return;
+        }
+        stepRef.current(1);
+      }, 240);
     }, 380);
   };
   const holdStop = () => {
@@ -285,6 +309,11 @@ export function DivePlayer(props: {
     step(1);
   };
   useEffect(() => holdStop, []);
+  // 探索フェーズを抜けたら長押しは必ず止める（ボタンが消えても止まるように）
+  const phaseNow = view?.phase;
+  useEffect(() => {
+    if (phaseNow !== "EXPLORE") holdStop();
+  }, [phaseNow]);
 
   // キーボード: 探索中だけ（矢印 / WASD）
   // 探索フェーズのあいだは矢印キーのデフォルト（ページスクロール）を常に止める。

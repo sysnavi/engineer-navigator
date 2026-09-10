@@ -116,6 +116,18 @@ describe("doMove（迷路を歩く）", () => {
     expect(after.map!.seen.length).toBeGreaterThan(m.seen.length);
   });
 
+  it("何も無いマスは基本だまって歩く（一言はたまにだけ・同じ文は続かない）", () => {
+    const st = exploring();
+    const m = st.map!;
+    const dir = (m.cells[1][2] === "." ? 1 : 2) as Facing;
+    const clean = { ...st, map: { ...m, events: {} } };
+    const quiet = doMove(clean, { dir, facing: dir }, () => 0.99);
+    expect(quiet.logs).toEqual([]);
+    const talk = doMove({ ...clean, lastStroll: 0 }, { dir, facing: dir }, () => 0);
+    expect(talk.logs.length).toBe(1);
+    expect(talk.lastStroll).not.toBe(0);
+  });
+
   it("探索中でなければ何も起きない", () => {
     const st = exploring({ phase: "EVENT" } as Partial<DiveState>);
     expect(doMove({ ...st, phase: "EVENT" }, { dir: 1, facing: 1 }, seeded(2))).toEqual({ ...st, phase: "EVENT" });
@@ -150,6 +162,12 @@ describe("resolveCell（マスのイベント）", () => {
     expect(st.foe?.rapid).toBe(true);
     const deep = resolveCell(exploring({ depth: 8 }), "ENCOUNTER", () => 0);
     expect(deep.foe?.rapid ?? false).toBe(false);
+  });
+
+  it("同じ敵は続けて出ない", () => {
+    const a = resolveCell(exploring({ depth: 2 }), "ENCOUNTER", () => 0);
+    const b = resolveCell({ ...exploring({ depth: 2 }), lastFoeId: a.foe!.id }, "ENCOUNTER", () => 0);
+    expect(b.foe!.id).not.toBe(a.foe!.id);
   });
 
   it("ボスは boss=true の敵として出る", () => {
