@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { GuardedLink } from "@/components/nav-guard";
 import { TIPS, ONBOARDING_TIPS, type Tip } from "@/lib/tips";
+import { isNativeApp } from "@/lib/speech/recognition";
 
 // サイトTIPSトースト。ページを開いて数秒後に右下へさりげなく出す。状態はlocalStorage。
 // - 通常: 1日1回まで・未読からランダム。
@@ -58,13 +59,19 @@ function pickRandom(pool: Tip[], seen: string[]): Pick | null {
   return { tip: pool[Math.floor(Math.random() * pool.length)], resetSeen: true };
 }
 
+// 通常巡回の対象。アプリ版（Capacitor）では webOnly（「ホーム画面に追加」等）を除く。
+// isNativeApp はCapacitorの有無を見るだけの判定（音声入力とは無関係だが定義は一箇所に保つ）。
+function tipPool(native: boolean = isNativeApp()): Tip[] {
+  return native ? TIPS.filter((t) => !t.webOnly) : TIPS;
+}
+
 // 新規期間: まずオンボーディングを優先度順に。消化しきったら通常ランダムへ合流。
 function pickNewcomer(seen: string[]): Pick | null {
   const nextOnboarding = [...ONBOARDING_TIPS]
     .sort((a, b) => (a.onboarding ?? 99) - (b.onboarding ?? 99))
     .find((t) => !seen.includes(t.id));
   if (nextOnboarding) return { tip: nextOnboarding };
-  return pickRandom(TIPS, seen);
+  return pickRandom(tipPool(), seen);
 }
 
 export function TipsToast(props: { newcomer?: boolean }) {
@@ -82,7 +89,7 @@ export function TipsToast(props: { newcomer?: boolean }) {
 
     const pick = props.newcomer
       ? pickNewcomer(state.seen)
-      : pickRandom(TIPS, state.seen);
+      : pickRandom(tipPool(), state.seen);
     if (!pick) return;
 
     const showTimer = setTimeout(() => {
