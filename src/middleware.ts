@@ -1,18 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, DEV_COOKIE } from "@/lib/session";
+import { SESSION_COOKIE, DEV_COOKIE, PATHNAME_HEADER } from "@/lib/session";
 
 // 未認証アクセスのゲート（edge）。cookie の有無だけを見る軽量チェックで、
 // トークンの正当性は各ページの getCurrentUser が DB で検証する。
 // ローカル開発(DEV_LOGIN_ENABLED=true)ではゲートしない。
 
 export function middleware(req: NextRequest) {
+  // 表示中のパスをサーバー側へ渡す（ゲストがどの機能で弾かれたかの記録に使う。
+  // src/lib/guest.ts）。Server Action の POST もページURLに飛ぶので同じ経路で取れる
+  const reqHeaders = new Headers(req.headers);
+  reqHeaders.set(PATHNAME_HEADER, req.nextUrl.pathname);
+  const next = () => NextResponse.next({ request: { headers: reqHeaders } });
+
   if (process.env.DEV_LOGIN_ENABLED === "true") {
-    return NextResponse.next();
+    return next();
   }
   const hasSession = !!req.cookies.get(SESSION_COOKIE)?.value;
   const hasDev = !!req.cookies.get(DEV_COOKIE)?.value;
   if (hasSession || hasDev) {
-    return NextResponse.next();
+    return next();
   }
   const url = req.nextUrl.clone();
   url.pathname = "/welcome";

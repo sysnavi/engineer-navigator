@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import { generateHandle } from "@/lib/oauth";
 import type { Role } from "@/generated/prisma/enums";
+import { track, EVENT } from "@/lib/analytics/track";
+import { PATHNAME_HEADER } from "@/lib/session";
 
 // ゲストセッション（Issue #18）— 登録なしで「育てて潜る」コア体験だけ触れる一時アカウント。
 //
@@ -39,8 +41,22 @@ export function assertNotGuest(user: { role: Role }): void {
 export async function requireFullAccountUser() {
   const { getCurrentUser } = await import("@/lib/auth");
   const user = await getCurrentUser();
+  if (isGuest(user)) {
+    await track(EVENT.guestGate, { userId: user.id, props: { app: await currentApp(), via: "action" } });
+  }
   assertNotGuest(user);
   return user;
+}
+
+/** middleware が付けたパスから「どの機能で弾かれたか」を機能IDに丸める（/report/123 → report） */
+async function currentApp(): Promise<string> {
+  try {
+    const { headers } = await import("next/headers");
+    const path = (await headers()).get(PATHNAME_HEADER) ?? "";
+    return path.split("/").filter(Boolean)[0] ?? "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 
 /**
@@ -52,7 +68,11 @@ export async function requireFullAccount() {
   const { getCurrentUser } = await import("@/lib/auth");
   const { redirect } = await import("next/navigation");
   const user = await getCurrentUser();
-  if (isGuest(user)) redirect("/welcome?guest=needsaccount");
+  if (isGuest(user)) {
+    // どの機能に触れて弾かれたかを残す（登録の動機＝ここで最も多い機能。docs/analytics.md）
+    await track(EVENT.guestGate, { userId: user.id, props: { app: await currentApp(), via: "page" } });
+    redirect("/welcome?guest=needsaccount");
+  }
   return user;
 }
 

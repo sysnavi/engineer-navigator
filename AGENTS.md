@@ -12,6 +12,7 @@ SESエンジニアの成長をデータ化するアプリ。構想・設計は d
 - docs/data-model.md — スキーマの設計判断（AI提案→本人承認フローは構造で強制）
 - docs/dev-infra.md — 開発・テスト・リリース基盤の図解（E2EのDB分離・CIの構成）
 - docs/bug-triage.md — 日次バグトリアージ（機能ツアー→Slack報告→軽微なら自動修正PR）
+- docs/analytics.md — 来訪者分析（サーバー側イベント・ゲスト→登録ファネル・/admin/analytics・Vercel Analytics・Looker Studio）
 
 ## スタック
 Next.js 16 (App Router / Server Actions) + Prisma 7 + PostgreSQL 16 (pgvector, port 5433) + Claude API

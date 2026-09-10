@@ -11,6 +11,7 @@ import {
 } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { AI_LIMITS } from "@/lib/usage";
+import { StatCard } from "@/app/admin/stat-card";
 
 const ROLE_LABELS: Record<string, string> = {
   ENGINEER: "エンジニア",
@@ -18,20 +19,6 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN: "管理者",
   GUEST: "ゲスト",
 };
-
-function StatCard(props: { label: string; value: number | string; hint?: string }) {
-  return (
-    <div className="rounded-lg border-[2.5px] border-line8 bg-surface px-4 py-3 shadow-hard-sm">
-      <p className="font-pixel text-[10px] tracking-wide text-inksoft">
-        {props.label}
-      </p>
-      <p className="mt-1 font-pixel text-2xl text-royal">{props.value}</p>
-      {props.hint && (
-        <p className="mt-0.5 text-[10.5px] text-inksoft">{props.hint}</p>
-      )}
-    </div>
-  );
-}
 
 export default async function AdminPage() {
   const me = await getCurrentUser();
@@ -122,6 +109,9 @@ export default async function AdminPage() {
           </p>
         </div>
         <div className="flex shrink-0 flex-col gap-1.5">
+          <Link href="/admin/analytics" className="btn8 btn8-start px-3 py-1.5 text-center text-[12px]">
+            📈 来訪者分析
+          </Link>
           <Link
             href="/admin/inquiries"
             className={`btn8 px-3 py-1.5 text-center text-[12px] ${openInquiries > 0 ? "btn8-start" : ""}`}

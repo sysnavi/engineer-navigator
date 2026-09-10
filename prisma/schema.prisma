@@ -57,6 +57,9 @@ model User {
   // アカウント停止（スパム・過剰なAI利用対策）。null=有効。値がある間はAI機能を拒否。
   suspendedAt   DateTime?
   suspendReason String?
+  // ゲスト→本登録の昇格日時（来訪者分析用）。null=ゲストとして作られていない、
+  // またはまだゲスト。createdAt との差が「お試しから登録までの日数」になる。
+  promotedAt    DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -82,6 +85,7 @@ model User {
   yomoyamaComments YomoyamaComment[]
   yomoyamaReports  YomoyamaReport[]
   visits           UserVisit[]
+  appEvents        AppEvent[]
   avatarGenerations AvatarGeneration[]
   dungeonRuns      DungeonRun[]
   ownedGadgets     OwnedGadget[]
@@ -297,6 +301,24 @@ model UserVisit {
   date   DateTime @db.Date
 
   @@unique([userId, date])
+}
+
+// 来訪者分析のイベント（docs/analytics.md）。サーバー側（Route Handler / Server Action）
+// から src/lib/analytics.ts の track() で書く。広告ブロッカーや WKWebView の影響を
+// 受けないよう、クライアントJSからは送らない。
+//  - name は src/lib/analytics.ts の EVENT 定数のみ（自由文字列にしない）
+//  - props に個人情報・自由入力テキストを入れない（アプリID・プロバイダ名・結果コード程度）
+//  - userId は未ログイン時 null（OAuth開始など）。ユーザー削除で一緒に消える
+model AppEvent {
+  id        String   @id @default(cuid())
+  name      String
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String?
+  props     Json?
+  createdAt DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@index([userId, createdAt])
 }
 
 // よもやま掲示板（Phase 6）: 現場の悲喜こもごもをハンドル名で共有。

@@ -15,6 +15,7 @@ import { Taskbar } from "@/components/shell/taskbar";
 import { GuardedLink } from "@/components/nav-guard";
 import { Visitor } from "@/components/pets/visitor";
 import { PresenceHint } from "@/components/pets/presence-hint";
+import { PublicAnalytics } from "@/components/public-analytics";
 import {
   ensureTodayEncounter,
   getPendingVisitor,
@@ -197,6 +198,8 @@ export default async function RootLayout({
           />
         )}
         {!visitor && presence && <PresenceHint kind={presence} />}
+        {/* 公開ページだけの流入計測（cookieなし・docs/analytics.md） */}
+        <PublicAnalytics />
       </body>
     </html>
   );

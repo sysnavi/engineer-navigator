@@ -3,6 +3,7 @@ import { getOptionalUser } from "@/lib/auth";
 import { createAuthSession, AUTH_SESSION_DAYS } from "@/lib/auth-session";
 import { SESSION_COOKIE, OAUTH_STATE_COOKIE } from "@/lib/session";
 import { resolveOAuthLogin } from "@/lib/oauth-login";
+import { track, EVENT } from "@/lib/analytics/track";
 import {
   MOBILE_DEEPLINK,
   MOBILE_OAUTH_COOKIE,
@@ -30,10 +31,14 @@ function cleanupCookies(res: NextResponse) {
   return res;
 }
 
-function fail(req: NextRequest, reason: string) {
+async function fail(req: NextRequest, provider: string, reason: string) {
   // モバイルフローの失敗はアプリへ戻す（ブラウザシートに置き去りにしない）。
   // 判定はstateパラメータの形式で行う（cookieに依存しない）
   const state = req.nextUrl.searchParams.get("state");
+  // 来訪者分析: 途中離脱（denied）や通信失敗がどれだけあるかを残す
+  await track(EVENT.oauthResult, {
+    props: { provider, outcome: "fail", reason, mobile: isMobileState(state) },
+  });
   const dest = isMobileState(state)
     ? `${MOBILE_DEEPLINK}?error=${encodeURIComponent(reason)}`
     : (() => {
@@ -49,7 +54,7 @@ export async function GET(
   ctx: { params: Promise<{ provider: string }> }
 ) {
   const { provider } = await ctx.params;
-  if (!isOAuthProvider(provider)) return fail(req, "provider");
+  if (!isOAuthProvider(provider)) return fail(req, provider, "provider");
 
   const state = req.nextUrl.searchParams.get("state");
 
@@ -57,14 +62,14 @@ export async function GET(
   let mobileVerifierHash: string | null = null;
   if (isMobileState(state)) {
     mobileVerifierHash = state ? verifyMobileState(state) : null;
-    if (!mobileVerifierHash) return fail(req, "state");
+    if (!mobileVerifierHash) return fail(req, provider, "state");
   } else {
     const saved = req.cookies.get(OAUTH_STATE_COOKIE)?.value;
-    if (!state || !saved || state !== saved) return fail(req, "state");
+    if (!state || !saved || state !== saved) return fail(req, provider, "state");
   }
 
   const code = req.nextUrl.searchParams.get("code");
-  if (!code) return fail(req, "denied"); // ユーザーが認可画面でキャンセル等
+  if (!code) return fail(req, provider, "denied"); // ユーザーが認可画面でキャンセル等
 
   let hash: string;
   try {
@@ -72,7 +77,7 @@ export async function GET(
     hash = providerHash(provider, sub); // sub はここで捨てる（保存しない）
   } catch (e) {
     console.error(`oauth ${provider} callback failed:`, e);
-    return fail(req, "exchange");
+    return fail(req, provider, "exchange");
   }
 
   // モバイル: 身元解決はWebView側のexchangeに委ねる（ゲスト昇格等のcookie文脈が

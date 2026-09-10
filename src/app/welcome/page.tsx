@@ -1,6 +1,9 @@
+import Link from "next/link";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { enabledProviders, PROVIDER_LABELS } from "@/lib/oauth";
 import { PixelAvatar } from "@/components/pixel-avatar";
+import { getOptionalUser } from "@/lib/auth";
+import { track, EVENT } from "@/lib/analytics/track";
 
 // 公開ランディング。ログイン手段は OAuth（Google/GitHub・PIIゼロ）と招待リンクの併存。
 
@@ -72,6 +75,17 @@ export default async function WelcomePage({
   const { invalid, oauth_error, guest, tr } = await searchParams;
   const providers = enabledProviders();
 
+  // ゲストがログインしたままここに来るケース（登録限定の機能で弾かれた／ロゴから戻った）。
+  // 以前は「ためしてみる」ボタンをもう一度見せるだけで、弾かれた理由も登録の導線も
+  // 出していなかった（guest=needsaccount を無視していた）。お試し中の人には
+  // 「連携すれば引き継がれる」ことと、そのボタンだけを見せる。
+  const current = await getOptionalUser();
+  const asGuest = current?.role === "GUEST";
+  const needsAccount = asGuest && guest === "needsaccount";
+  if (needsAccount) {
+    await track(EVENT.guestNeedsAccount, { userId: current!.id });
+  }
+
   return (
     <div className="mx-auto max-w-lg space-y-6 py-8">
       {/* ヒーロー（Issue #15）。スクショ画像を置かず、実際のアバターを
@@ -131,8 +145,28 @@ export default async function WelcomePage({
         </div>
       )}
 
+      {asGuest && (
+        <Window title="UNLOCK" titleEm=".cfg" barClass="!bg-pinkhot">
+          <PixelLabel className="!text-pinkhot">
+            {needsAccount ? "その機能は、登録すると使えます" : "お試し中です"}
+          </PixelLabel>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-ink">
+            {needsAccount
+              ? "週報・AIメンター・経歴書などは登録後に開きます。"
+              : "いまはゲストとして遊んでいます。"}
+            下の <b>Google / GitHub</b> で連携するだけで登録できます（メール・本名は受け取りません）。
+            <b>育てたアバター・戦利品・腕試しの記録はそのまま引き継がれます</b>。
+          </p>
+          <Link href="/" className="btn8 mt-3 inline-block text-[12px]">
+            ← お試しを続ける
+          </Link>
+        </Window>
+      )}
+
       {/* 登録前にコア体験を触ってもらう入口（Issue #18）。
-          GETだとプリフェッチやクローラでアカウントが量産されるためPOSTで叩く。 */}
+          GETだとプリフェッチやクローラでアカウントが量産されるためPOSTで叩く。
+          すでにゲストの人には出さない（押しても / に戻るだけで意味がない） */}
+      {!asGuest && (
       <Window title="TRY" titleEm=".exe">
         <p className="text-[13.5px] leading-relaxed">
           登録なしで、いますぐ<b>アバターを育てて、ダンジョンに潜る</b>ところまで試せます。
@@ -153,11 +187,12 @@ export default async function WelcomePage({
           </p>
         )}
       </Window>
+      )}
 
       {providers.length > 0 && (
-        <Window title="LOGIN" titleEm=".exe">
+        <Window title={asGuest ? "REGISTER" : "LOGIN"} titleEm=".exe">
           <p className="text-[13.5px] leading-relaxed">
-            お持ちのアカウントでログインできます。
+            {asGuest ? "連携して登録します。" : "お持ちのアカウントでログインできます。"}
             <b>メールアドレスや名前は受け取りません</b>——「同じ人が戻ってきた」
             ことの確認にだけ使います。
           </p>
@@ -169,12 +204,14 @@ export default async function WelcomePage({
                 data-oauth-start={p}
                 className="btn8 btn8-start block text-center text-[13px]"
               >
-                ▶ {PROVIDER_LABELS[p]} でログイン / はじめる
+                ▶ {PROVIDER_LABELS[p]} で{asGuest ? "連携して登録" : "ログイン / はじめる"}
               </a>
             ))}
           </div>
           <p className="mt-2 text-[11px] text-inksoft">
-            はじめての方はアカウントが自動で作られます（ハンドル名は後から変更できます）。
+            {asGuest
+              ? "いまのゲストがそのまま本アカウントになります（別のデータに置き換わることはありません）。"
+              : "はじめての方はアカウントが自動で作られます（ハンドル名は後から変更できます）。"}
           </p>
         </Window>
       )}

@@ -5,3 +5,6 @@ export const SESSION_COOKIE = "en_session";
 export const DEV_COOKIE = "dev-user";
 // OAuthフローの state（CSRF対策）を一時保存する cookie 名
 export const OAUTH_STATE_COOKIE = "en_oauth_state";
+
+// middleware が付ける「表示中のパス」ヘッダ（ゲストの遮断イベントの帰属に使う）
+export const PATHNAME_HEADER = "x-en-pathname";

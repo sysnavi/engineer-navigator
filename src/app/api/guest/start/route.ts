@@ -3,6 +3,7 @@ import { SESSION_COOKIE } from "@/lib/session";
 import { createAuthSession, AUTH_SESSION_DAYS } from "@/lib/auth-session";
 import { canIssueGuest, createGuestUser, recordGuestIssue } from "@/lib/guest";
 import { getOptionalUser } from "@/lib/auth";
+import { track, EVENT } from "@/lib/analytics/track";
 
 // ゲストセッションの発行（Issue #18）。/welcome の「▶ ためしてみる」から叩かれる。
 // GETではなくPOSTなのは、リンクのプリフェッチやクローラでアカウントが
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest) {
 
   const user = await createGuestUser();
   recordGuestIssue(ip);
+  await track(EVENT.guestStart, { userId: user.id });
 
   const token = await createAuthSession(user.id);
   // 入口は「育てて潜る」のコアループ。まずマイホームでアバターに会わせる

@@ -363,6 +363,16 @@ tour("admin-inquiries", "問い合わせ管理: 表示とフィルタ切替", ["
   await assertHealthy();
 });
 
+tour("admin-analytics", "来訪者分析: ファネル・定着・機能利用の各表が出る", ["/admin/analytics"], async ({ page, loginAs, assertHealthy }) => {
+  await loginAs("admin");
+  await open(page, "/admin/analytics");
+  await expect(page.getByRole("heading", { name: "来訪者分析" })).toBeVisible();
+  await expect(page.getByText("お試し開始")).toBeVisible();
+  await expect(page.getByText("登録完了")).toBeVisible();
+  await expect(page.getByRole("link", { name: /管理ダッシュボード/ })).toBeVisible();
+  await assertHealthy();
+});
+
 tour("admin-guard", "権限: エンジニアは /admin に入れない（404になる）", ["/admin"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await page.goto("/admin");

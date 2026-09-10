@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { notify } from "@/lib/notify";
 import { GUEST_BLOCKED_MESSAGE } from "@/lib/guest";
+import { track, EVENT } from "@/lib/analytics/track";
 
 // スパム・いたずらによる過剰なトークン消費を防ぐレート制限＆アカウント停止。
 // すべてのAI呼び出しの入口で assertAiAllowed() を通す（トークンを使う前に弾く）。
@@ -70,6 +71,7 @@ export async function assertAiAllowed(
   // ゲストはAI機能を一切使えない（Issue #18）。全AI入口がこの関数を通るので、
   // ここで弾けば画面ごとの個別ガードの漏れを防げる。
   if (user.role === "GUEST") {
+    await track(EVENT.guestGate, { userId, props: { app: `ai:${kind}`, via: "ai" } });
     throw new AiBlockedError("GUEST", GUEST_BLOCKED_MESSAGE);
   }
   if (user.suspendedAt) {

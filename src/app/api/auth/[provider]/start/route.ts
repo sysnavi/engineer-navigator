@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { getOptionalUser } from "@/lib/auth";
+import { track, EVENT } from "@/lib/analytics/track";
 import { OAUTH_STATE_COOKIE } from "@/lib/session";
 import { isVerifierHash, signMobileState } from "@/lib/mobile-login";
 import {
@@ -24,6 +26,13 @@ export async function GET(
   }
 
   const isMobile = req.nextUrl.searchParams.get("client") === "mobile";
+  // 来訪者分析: 誰が（ゲストか）どこから（Web/アプリ）OAuthを始めたか。
+  // モバイルはアプリ内ブラウザで開くため cookie が無く current は null になる
+  const current = await getOptionalUser();
+  await track(EVENT.oauthStart, {
+    userId: current?.id,
+    props: { provider, guest: current?.role === "GUEST", mobile: isMobile },
+  });
   const vh = req.nextUrl.searchParams.get("vh") ?? "";
   if (isMobile) {
     if (!isVerifierHash(vh)) {
