@@ -40,9 +40,20 @@ AGENTS.md の決まりごとを破らずに直せる。**1つでも外れたら�
 
 既存の Incoming Webhook（`SLACK_WEBHOOK_URL`）は画像を添付できないので、Bot Token を使う。
 
-1. https://api.slack.com/apps → Create New App → From scratch
-2. OAuth & Permissions → Bot Token Scopes に `chat:write` / `files:write` / `files:read` を追加
-3. Install to Workspace → `xoxb-...` を控える
+1. https://api.slack.com/apps → Create New App → **From a manifest** → ワークスペースを選び、
+   JSON タブに下を貼って Create（Bot と3つの権限が一度に付く）
+   ```json
+   {
+     "display_information": { "name": "engineer-navigator-triage", "description": "日次バグトリアージの報告Bot" },
+     "features": { "bot_user": { "display_name": "engineer-navigator-triage", "always_online": false } },
+     "oauth_config": { "scopes": { "bot": ["chat:write", "files:write", "files:read"] } },
+     "settings": { "org_deploy_enabled": false, "socket_mode_enabled": false, "token_rotation_enabled": false }
+   }
+   ```
+   テンプレート（AI agent / Starter app）から作った場合は OAuth & Permissions → Bot Token Scopes に
+   上の3つが揃っているか確認し、足りなければ追加して Reinstall する
+2. 作成直後の画面か OAuth & Permissions で **Bot token（`xoxb-...`）** を控える（`xapp-` の App token は使わない）
+3. 手元で疎通確認: `SLACK_BOT_TOKEN=xoxb-... npx tsx scripts/triage/slack.ts --text "疎通テスト" --file tour-results/screens/home-desktop.png`
 4. `#engineer-navigator`（公開チャンネル）で `/invite @<アプリ名>` して Bot を入れる
    （公開でも画像付き投稿は Bot がチャンネルに参加している必要がある）
 
@@ -52,7 +63,7 @@ AGENTS.md の決まりごとを破らずに直せる。**1つでも外れたら�
 |---|---|---|---|
 | Secret | `SLACK_BOT_TOKEN` | 上の `xoxb-...` | ✅（無いと console 出力だけになり Slack に届かない） |
 | Secret | `ANTHROPIC_API_KEY` | Claude API キー（修正フェーズ用） | ✅（無いと修正フェーズが失敗する。検出・報告は動く） |
-| Secret | `TRIAGE_GH_TOKEN` | PAT（`repo` 権限、または fine-grained で Contents / Pull requests の Read&Write） | 推奨（下記） |
+| Secret | `TRIAGE_GH_TOKEN` | PAT。sysnavi は Organization で fine-grained が許可されていないため **Classic token（`repo` スコープ）** を使う | 推奨（下記） |
 | Variable | `SLACK_TRIAGE_CHANNEL` | チャンネルID。既定 `C0C03HE4H2B`（#engineer-navigator） | 任意 |
 | Variable | `TRIAGE_MODEL` | 修正フェーズのモデル。既定 `claude-sonnet-5` | 任意 |
 | Variable | `TRIAGE_BUDGET_USD` | 修正フェーズの1回上限。既定 `5` | 任意 |
