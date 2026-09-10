@@ -22,10 +22,13 @@ async function main() {
   const post = JSON.parse(readFileSync(INPUT, "utf8")) as Post;
   if (!existsSync(post.file)) throw new Error(`画像がない: ${post.file}`);
 
-  const dry = process.env.SNS_DRY_RUN === "1" || !loadCreds();
+  // X のキーが無い間は「Slack に今日の1枚を届けて、人が手で X に投稿する」運用。
+  // SNS_DRY_RUN=1 はキーがあっても投稿しない確認用
+  const manual = !loadCreds();
+  const dry = process.env.SNS_DRY_RUN === "1" || manual;
   let url: string | undefined;
   if (dry) {
-    console.log(`[sns] dry-run（${loadCreds() ? "SNS_DRY_RUN=1" : "X のキー未設定"}）\n${post.text}\n  📎 ${post.file}`);
+    console.log(`[sns] ${manual ? "手動投稿モード（X のキー未設定）" : "dry-run（SNS_DRY_RUN=1）"}\n${post.text}\n  📎 ${post.file}`);
   } else {
     const r = await postWithImage(post.text, post.file);
     url = r.url;
@@ -33,10 +36,15 @@ async function main() {
   }
 
   // Slack に控え（画像つき）。失敗しても X への投稿は済んでいるので落とさない
-  const head = dry ? "📸 SNS投稿（dry-run・投稿していません）" : `📸 SNS投稿（X）: ${url}`;
+  const head = manual
+    ? "📸 今日の1枚（X へは手動で投稿してください。画像を保存して、下の本文をコピー）"
+    : dry
+      ? "📸 SNS投稿（dry-run・投稿していません）"
+      : `📸 SNS投稿（X）: ${url}`;
   const runUrl = process.env.RUN_URL ? `\n${process.env.RUN_URL}` : "";
   try {
-    await postWithFile(`${head}\nシーン: ${post.scene}\n> ${post.text.replace(/\n/g, "\n> ")}${runUrl}`, post.file);
+    // 本文はコードブロックで（Slack 上でそのままコピーできる。> 引用だとハッシュタグやURLが装飾される）
+    await postWithFile(`${head}\nシーン: ${post.scene}\n\`\`\`\n${post.text}\n\`\`\`${runUrl}`, post.file);
   } catch (e) {
     console.warn("[sns] Slack への控え投稿に失敗:", e);
   }
