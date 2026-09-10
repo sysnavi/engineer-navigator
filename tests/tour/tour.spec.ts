@@ -15,6 +15,8 @@ import {
 //  - 実 Claude API は呼ばない（ANTHROPIC_API_KEY 空で起動）。AI を叩く操作は
 //    「失敗しても画面が壊れない」ことを確認する形にする（AGENTS.md の仕様）
 //  - 1本 = 1画面（または1導線）。id は画面名ベースで安定させる（Slack報告・ブランチ名になる）
+//  - 第3引数は「そのツアーが訪問する画面」（src/app の page.tsx のルート表記）。
+//    tests/tour/coverage.test.ts が全画面の網羅と、消えた画面の参照を npm run check で検査する
 //  - DB は毎回リセット（seed直後）。テスト間で状態を引き継がない前提で書く
 //  - 新しい画面を足したらここに1本足す
 
@@ -35,7 +37,7 @@ async function open(
 // エンジニア（メイン導線）
 // ---------------------------------------------------------------------------
 
-tour("home", "ホーム: ヒーローとプレイヤーカード・初回チュートリアル @mobile", async ({ page, loginAs, assertHealthy }) => {
+tour("home", "ホーム: ヒーローとプレイヤーカード・初回チュートリアル @mobile", ["/"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await page.goto("/");
   // 初回はチュートリアルが出る（DBリセット直後なので必ず未完了）。閉じられることまで確認
@@ -49,13 +51,13 @@ tour("home", "ホーム: ヒーローとプレイヤーカード・初回チュ�
   await assertHealthy();
 });
 
-tour("welcome", "ウェルカム: 公開ページが表示される @mobile", async ({ page, assertHealthy }) => {
+tour("welcome", "ウェルカム: 公開ページが表示される @mobile", ["/welcome"], async ({ page, assertHealthy }) => {
   await page.goto("/welcome");
   await expect(page.getByRole("heading", { name: /ぜんぶ経験値になる/ })).toBeVisible();
   await assertHealthy();
 });
 
-tour("contact", "お問い合わせ: 公開ページ・カテゴリ選択", async ({ page, loginAs, assertHealthy }) => {
+tour("contact", "お問い合わせ: 公開ページ・カテゴリ選択", ["/contact"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/contact");
   await expect(page.getByRole("heading", { name: "お問い合わせ" })).toBeVisible();
@@ -65,7 +67,7 @@ tour("contact", "お問い合わせ: 公開ページ・カテゴリ選択", asyn
   await assertHealthy();
 });
 
-tour("report", "週報: 入力→自動保存→提出→リザルト（AI解析FAILEDでも提出成功が仕様） @mobile", async ({ page, loginAs, assertHealthy }) => {
+tour("report", "週報: 入力→自動保存→提出→リザルト（AI解析FAILEDでも提出成功が仕様） @mobile", ["/report"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/report");
   await expect(page.getByRole("heading", { name: "今週の週報" })).toBeVisible();
@@ -78,7 +80,7 @@ tour("report", "週報: 入力→自動保存→提出→リザルト（AI解析
   await assertHealthy();
 });
 
-tour("report-interview", "週報インタビュー: 音声入力ボタンと最初の問いかけが出る @mobile", async ({ page, loginAs, assertHealthy }) => {
+tour("report-interview", "週報インタビュー: 音声入力ボタンと最初の問いかけが出る @mobile", ["/report"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/report?mode=interview");
   await expect(page.getByRole("heading", { name: "今週の週報" })).toBeVisible();
@@ -87,14 +89,14 @@ tour("report-interview", "週報インタビュー: 音声入力ボタンと最�
   await assertHealthy();
 });
 
-tour("skills", "スキルマップ: 表示される（seedのエンジニアは未登録の空状態） @mobile", async ({ page, loginAs, assertHealthy }) => {
+tour("skills", "スキルマップ: 表示される（seedのエンジニアは未登録の空状態） @mobile", ["/skills"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/skills");
   await expect(page.getByRole("heading", { name: "スキルマップ" })).toBeVisible();
   await assertHealthy();
 });
 
-tour("resume", "経歴書: 表示とPDF出力リンク", async ({ page, loginAs, assertHealthy }) => {
+tour("resume", "経歴書: 表示とPDF出力リンク", ["/resume"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/resume");
   await expect(page.getByRole("heading", { name: "経歴書" })).toBeVisible();
@@ -105,7 +107,7 @@ tour("resume", "経歴書: 表示とPDF出力リンク", async ({ page, loginAs,
   await assertHealthy();
 });
 
-tour("mentor", "AIメンター: 一覧と「詰まりから提案」（材料なしの案内が出る）", async ({ page, loginAs, assertHealthy }) => {
+tour("mentor", "AIメンター: 一覧と「詰まりから提案」（材料なしの案内が出る）", ["/mentor"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/mentor");
   await expect(page.getByRole("heading", { name: "AIメンター" })).toBeVisible();
@@ -114,7 +116,7 @@ tour("mentor", "AIメンター: 一覧と「詰まりから提案」（材料な
   await assertHealthy();
 });
 
-tour("mentor-session", "AIメンター: 相談開始→セッション画面（AI応答は失敗表示になるが画面は壊れない）", async ({ page, loginAs, assertHealthy }) => {
+tour("mentor-session", "AIメンター: 相談開始→セッション画面（AI応答は失敗表示になるが画面は壊れない）", ["/mentor", "/mentor/[id]"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/mentor");
   await page.locator('input[name="topic"]').fill("機能ツアー: IAMの考え方");
@@ -127,7 +129,7 @@ tour("mentor-session", "AIメンター: 相談開始→セッション画面（A
   await assertHealthy();
 });
 
-tour("plan", "資格学習プラン: 一覧→作成→生成中/失敗の表示（AI生成は非同期・失敗しても画面は壊れない）", async ({ page, loginAs, assertHealthy }) => {
+tour("plan", "資格学習プラン: 一覧→作成→生成中/失敗の表示（AI生成は非同期・失敗しても画面は壊れない）", ["/plan", "/plan/[id]"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/plan");
   await expect(page.getByRole("heading", { name: "資格学習プラン" })).toBeVisible();
@@ -142,7 +144,7 @@ tour("plan", "資格学習プラン: 一覧→作成→生成中/失敗の表示
   await assertHealthy();
 });
 
-tour("quiz", "良問バンク: 一覧→腕試しへ", async ({ page, loginAs, assertHealthy }) => {
+tour("quiz", "良問バンク: 一覧→腕試しへ", ["/quiz", "/quiz/play"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/quiz");
   await expect(page.getByRole("heading", { name: "良問バンク" })).toBeVisible();
@@ -151,7 +153,7 @@ tour("quiz", "良問バンク: 一覧→腕試しへ", async ({ page, loginAs, a
   await assertHealthy();
 });
 
-tour("quiz-daily", "今日の一問: 選択肢を選ぶと正誤フィードバックが出る（1日1問なので desktop のみ）", async ({ page, loginAs, assertHealthy }) => {
+tour("quiz-daily", "今日の一問: 選択肢を選ぶと正誤フィードバックが出る（1日1問なので desktop のみ）", ["/quiz/daily"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/quiz/daily");
   await expect(page.getByRole("heading", { name: "今日の一問" })).toBeVisible();
@@ -161,7 +163,7 @@ tour("quiz-daily", "今日の一問: 選択肢を選ぶと正誤フィードバ�
   await assertHealthy();
 });
 
-tour("quiz-play", "腕試し: お題つきで出題→1問解答→次へ", async ({ page, loginAs, assertHealthy }) => {
+tour("quiz-play", "腕試し: お題つきで出題→1問解答→次へ", ["/quiz/play"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/quiz/play?topic=AWS%20IAM");
   await expect(page.getByRole("heading", { name: "腕試し" })).toBeVisible();
@@ -171,14 +173,14 @@ tour("quiz-play", "腕試し: お題つきで出題→1問解答→次へ", asyn
   await assertHealthy();
 });
 
-tour("quiz-review", "復習ボックス: 空状態が表示される", async ({ page, loginAs, assertHealthy }) => {
+tour("quiz-review", "復習ボックス: 空状態が表示される", ["/quiz/review"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/quiz/review");
   await expect(page.getByRole("heading", { name: "復習ボックス" })).toBeVisible();
   await assertHealthy();
 });
 
-tour("quiz-new", "問題を作る: フォームが出て領域チップが押せる", async ({ page, loginAs, assertHealthy }) => {
+tour("quiz-new", "問題を作る: フォームが出て領域チップが押せる", ["/quiz/new"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/quiz/new");
   await expect(page.getByRole("heading", { name: "問題を作る" })).toBeVisible();
@@ -186,7 +188,7 @@ tour("quiz-new", "問題を作る: フォームが出て領域チップが押せ
   await assertHealthy();
 });
 
-tour("roleplay", "役割シミュレーター: シナリオ一覧とシャッフル", async ({ page, loginAs, assertHealthy }) => {
+tour("roleplay", "役割シミュレーター: シナリオ一覧とシャッフル", ["/roleplay"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/roleplay");
   await expect(page.getByRole("heading", { name: "役割シミュレーター" })).toBeVisible();
@@ -195,7 +197,7 @@ tour("roleplay", "役割シミュレーター: シナリオ一覧とシャッフ
   await assertHealthy();
 });
 
-tour("roleplay-session", "役割シミュレーター: START→演習画面（AIの導入セリフ生成に失敗しても開ける）", async ({ page, loginAs, assertHealthy }) => {
+tour("roleplay-session", "役割シミュレーター: START→演習画面（AIの導入セリフ生成に失敗しても開ける）", ["/roleplay", "/roleplay/[id]"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/roleplay");
   await page.getByRole("button", { name: /START/ }).first().click();
@@ -205,7 +207,7 @@ tour("roleplay-session", "役割シミュレーター: START→演習画面（AI
   await assertHealthy();
 });
 
-tour("genba", "げんば: 案件一覧→面接へ→辞退して戻る（AI不使用の決定的ロジック） @mobile", async ({ page, loginAs, assertHealthy }) => {
+tour("genba", "げんば: 案件一覧→面接へ→辞退して戻る（AI不使用の決定的ロジック） @mobile", ["/genba"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/genba");
   await expect(page.getByRole("heading", { name: /GENBA/ })).toBeVisible();
@@ -216,14 +218,14 @@ tour("genba", "げんば: 案件一覧→面接へ→辞退して戻る（AI不�
   await assertHealthy();
 });
 
-tour("genba-album", "きおくのアルバム: 表示される", async ({ page, loginAs, assertHealthy }) => {
+tour("genba-album", "きおくのアルバム: 表示される", ["/genba/album"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/genba/album");
   await expect(page.getByRole("heading", { name: /ALBUM/ })).toBeVisible();
   await assertHealthy();
 });
 
-tour("shop", "おかいもの: 商品が並び、EN不足の商品は買えない @mobile", async ({ page, loginAs, assertHealthy }) => {
+tour("shop", "おかいもの: 商品が並び、EN不足の商品は買えない @mobile", ["/shop"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/shop");
   await expect(page.getByRole("heading", { name: /SHOP/ })).toBeVisible();
@@ -233,7 +235,7 @@ tour("shop", "おかいもの: 商品が並び、EN不足の商品は買えな�
   await assertHealthy();
 });
 
-tour("myhome", "マイホーム: 表示ともようがえ（壁紙の切替が保存される）", async ({ page, loginAs, assertHealthy }) => {
+tour("myhome", "マイホーム: 表示ともようがえ（壁紙の切替が保存される）", ["/home"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/home");
   await expect(page.getByRole("heading", { name: "マイホーム" })).toBeVisible();
@@ -245,14 +247,14 @@ tour("myhome", "マイホーム: 表示ともようがえ（壁紙の切替が�
   await assertHealthy();
 });
 
-tour("walk", "おさんぽ: 表示される（ペット未所持の案内）", async ({ page, loginAs, assertHealthy }) => {
+tour("walk", "おさんぽ: 表示される（ペット未所持の案内）", ["/walk"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/walk");
   await expect(page.getByRole("heading", { name: /WALK/ })).toBeVisible();
   await assertHealthy();
 });
 
-tour("dungeon", "ダンジョン: 潜行が始まり、迷路を歩くと何かが起きる（潜行回数を消費するので desktop のみ）", async ({ page, loginAs, assertHealthy }) => {
+tour("dungeon", "ダンジョン: 潜行が始まり、迷路を歩くと何かが起きる（潜行回数を消費するので desktop のみ）", ["/dungeon"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/dungeon");
   await expect(page.getByRole("heading", { name: "ダンジョン" })).toBeVisible();
@@ -290,7 +292,7 @@ tour("dungeon", "ダンジョン: 潜行が始まり、迷路を歩くと何か�
   await assertHealthy();
 });
 
-tour("yomoyama", "よもやま: 一覧と投稿フォームの開閉", async ({ page, loginAs, assertHealthy }) => {
+tour("yomoyama", "よもやま: 一覧と投稿フォームの開閉", ["/yomoyama"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/yomoyama");
   await expect(page.getByRole("heading", { name: "よもやま" })).toBeVisible();
@@ -300,7 +302,7 @@ tour("yomoyama", "よもやま: 一覧と投稿フォームの開閉", async ({ 
   await assertHealthy();
 });
 
-tour("discover", "みんなの成長: 一覧→公開プロフィールへ", async ({ page, loginAs, assertHealthy }) => {
+tour("discover", "みんなの成長: 一覧→公開プロフィールへ", ["/discover", "/u/[handle]"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/discover");
   await expect(page.getByRole("heading", { name: "みんなの成長" })).toBeVisible();
@@ -310,19 +312,19 @@ tour("discover", "みんなの成長: 一覧→公開プロフィールへ", asy
   await assertHealthy();
 });
 
-tour("public-profile", "公開プロフィール: /u/<handle> が表示される", async ({ page, assertHealthy }) => {
+tour("public-profile", "公開プロフィール: /u/<handle> が表示される", ["/u/[handle]"], async ({ page, assertHealthy }) => {
   await page.goto("/u/engineer-demo");
   await expect(page.getByRole("heading", { name: "エンジニア デモ" })).toBeVisible();
   await assertHealthy();
 });
 
-tour("public-quiz", "良問の公開ページ: /q/<id> が表示される", async ({ page, assertHealthy }) => {
+tour("public-quiz", "良問の公開ページ: /q/<id> が表示される", ["/q/[id]"], async ({ page, assertHealthy }) => {
   await page.goto("/q/quiz-iam-1");
   await expect(page.getByRole("heading", { name: /IAM/ })).toBeVisible();
   await assertHealthy();
 });
 
-tour("mypage", "マイページ: 表示とパレット切替（設定の保存） @mobile", async ({ page, loginAs, assertHealthy }) => {
+tour("mypage", "マイページ: 表示とパレット切替（設定の保存） @mobile", ["/mypage"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await open(page, "/mypage");
   await expect(page.getByRole("heading", { name: "マイページ" })).toBeVisible();
@@ -332,7 +334,7 @@ tour("mypage", "マイページ: 表示とパレット切替（設定の保存�
   await assertHealthy();
 });
 
-tour("not-found", "存在しないURL: 404画面が出る（エラー画面ではなく）", async ({ page, loginAs, assertHealthy }) => {
+tour("not-found", "存在しないURL: 404画面が出る（エラー画面ではなく）", [], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await page.goto("/this-route-does-not-exist");
   await expect(page.getByRole("heading", { name: "ページが見つかりません" })).toBeVisible();
@@ -343,7 +345,7 @@ tour("not-found", "存在しないURL: 404画面が出る（エラー画面で�
 // 管理者・営業
 // ---------------------------------------------------------------------------
 
-tour("admin", "管理ダッシュボード: 管理者で表示→コンテンツ一覧へ", async ({ page, loginAs, assertHealthy }) => {
+tour("admin", "管理ダッシュボード: 管理者で表示→コンテンツ一覧へ", ["/admin", "/admin/content"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("admin");
   await open(page, "/admin");
   await expect(page.getByRole("heading", { name: "管理ダッシュボード" })).toBeVisible();
@@ -352,7 +354,7 @@ tour("admin", "管理ダッシュボード: 管理者で表示→コンテンツ
   await assertHealthy();
 });
 
-tour("admin-inquiries", "問い合わせ管理: 表示とフィルタ切替", async ({ page, loginAs, assertHealthy }) => {
+tour("admin-inquiries", "問い合わせ管理: 表示とフィルタ切替", ["/admin/inquiries"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("admin");
   await open(page, "/admin/inquiries");
   await expect(page.getByRole("heading", { name: "問い合わせ" })).toBeVisible();
@@ -361,7 +363,7 @@ tour("admin-inquiries", "問い合わせ管理: 表示とフィルタ切替", as
   await assertHealthy();
 });
 
-tour("admin-guard", "権限: エンジニアは /admin に入れない（404になる）", async ({ page, loginAs, assertHealthy }) => {
+tour("admin-guard", "権限: エンジニアは /admin に入れない（404になる）", ["/admin"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("engineer");
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "ページが見つかりません" })).toBeVisible();
@@ -369,7 +371,7 @@ tour("admin-guard", "権限: エンジニアは /admin に入れない（404に�
   await assertHealthy();
 });
 
-tour("sales-home", "営業: ホームと週報が開ける", async ({ page, loginAs, assertHealthy }) => {
+tour("sales-home", "営業: ホームと週報が開ける", ["/", "/report"], async ({ page, loginAs, assertHealthy }) => {
   await loginAs("sales");
   await open(page, "/");
   await expect(page.getByText("営業 デモ").first()).toBeVisible();

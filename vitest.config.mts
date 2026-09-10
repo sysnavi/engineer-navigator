@@ -7,7 +7,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    // tests/tour/*.test.ts はツアーの網羅ガード（純ロジック・DB不要）
+    include: ["src/**/*.test.ts", "tests/tour/*.test.ts"],
     env: {
       // db.ts が import 時にクライアントを組み立てるためのダミー（接続はしない）。
       // ユニットテストは純ロジックのみ対象で、DBに触るテストはE2E側の責務。

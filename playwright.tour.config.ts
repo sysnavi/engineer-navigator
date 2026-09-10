@@ -11,6 +11,8 @@ import { E2E_DATABASE_URL, E2E_PORT } from "./tests/e2e/env";
 
 export default defineConfig({
   testDir: "tests/tour",
+  // coverage.test.ts（vitest の網羅ガード）を Playwright が拾わないよう spec だけに限定
+  testMatch: /\.spec\.ts$/,
   timeout: 60_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,

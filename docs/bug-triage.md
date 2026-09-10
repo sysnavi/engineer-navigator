@@ -106,7 +106,10 @@ npm run triage:report             # Slack 報告 + failures.json（SLACK_BOT_TOK
   （Actions の失敗通知を見る）。沈黙＝正常ではない設計
 - ツアーが検出できるのは「壊れている」こと（エラー画面・例外・5xx・導線の断絶）まで。
   見た目の崩れ・文言の違和感は検出できない。それらは従来どおり人の目で拾う
-- 新しい画面を足したら `tests/tour/tour.spec.ts` に1本足す（ツアーの網羅性は手で保つ）
+- 新しい画面を足したら `tests/tour/tour.spec.ts` に1本足す。忘れると `npm run check` の
+  網羅ガード（`tests/tour/coverage.test.ts`: 全 page.tsx を訪問するツアーがあるか）で止まる
+- 既存画面の導線を変えたら同じPRで該当ツアー（`TOUR_ONLY=<id>`）を回して直す（/feature の手順）。
+  ツアーの大半は「開く→見出し→エラーなし」だけなので、文言やレイアウトの変更では壊れない
 
 ## 将来の拡張候補（未実装）
 

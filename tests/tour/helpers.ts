@@ -93,15 +93,22 @@ export async function captureScreen(page: Page, info: TestInfo) {
 
 /**
  * ツアー1本を定義する。TOUR_ONLY=<id> が指定されていれば他は skip。
- * タイトルは "<id> | <説明>" の形式で、report.ts がこの形を前提に id を取り出す。
+ * - タイトルは "<id> | <説明>" の形式で、report.ts がこの形を前提に id を取り出す
+ * - routes はこのツアーが訪問する画面（src/app の page.tsx のルート表記。例 "/mentor/[id]"）。
+ *   tests/tour/coverage.test.ts が「全画面に対応するツアーがあるか」「存在しない画面を
+ *   参照していないか」を npm run check で検査する。実行時は注釈としてレポートに残すだけ
  */
 type TourBody = Parameters<typeof test>[2];
 
-export function tour(id: string, title: string, fn: TourBody) {
+export function tour(id: string, title: string, routes: string[], fn: TourBody) {
   if (!/^[a-z0-9-]+$/.test(id)) {
     throw new Error(`tour id は英小文字・数字・ハイフンのみ: ${id}`);
   }
   const only = process.env.TOUR_ONLY;
   const t = only && only !== id ? test.skip : test;
-  t(`${id} | ${title}`, fn!);
+  t(
+    `${id} | ${title}`,
+    { annotation: [{ type: "routes", description: routes.join(" ") || "(none)" }] },
+    fn!
+  );
 }
