@@ -60,9 +60,113 @@ export const test = base.extend<Fixtures>({
       ).toHaveCount(0);
       expect(serverErrors, "5xx レスポンスがあった").toEqual([]);
       expect(pageErrors, "未捕捉の例外が発生した").toEqual([]);
+
+      // レイアウトの構造チェック。LAYOUT_REPORT_ONLY=1 なら落とさずログに出す（閾値調整用）
+      const info = test.info();
+      const issues = await scanLayout(page, info.project.name === "mobile");
+      for (const i of issues) {
+        info.annotations.push({ type: `layout:${i.kind}`, description: i.detail });
+      }
+      const failing = issues.filter((i) => LAYOUT_FAILING.includes(i.kind));
+      if (process.env.LAYOUT_REPORT_ONLY) {
+        for (const i of issues) console.log(`[layout] ${info.title} [${info.project.name}] ${i.kind}: ${i.detail}`);
+      } else {
+        expect(failing.map((i) => `${i.kind}: ${i.detail}`), "レイアウトの崩れ").toEqual([]);
+      }
     });
   },
 });
+
+// ---------------------------------------------------------------------------
+// レイアウトの構造チェック（docs/bug-triage.md「崩れの検出」）
+// ピクセル比較はしない。崩れの大半を占める「横スクロール」「固定要素がボタンを覆う」
+// 「タップ領域が小さすぎる」を DOM から決定的に判定する（基準画像不要・毎朝全画面で走る）。
+// ---------------------------------------------------------------------------
+
+// overflow / covered は失敗扱い、tiny は警告（落とさず Slack のサマリにぶら下げる）。
+// 「×」のような小さな閉じるボタンはレトロ風ウィンドウ枠の意図的なデザインなので、
+// 崩れではなく「気づき」として流す
+export type LayoutIssue = { kind: "overflow" | "covered" | "tiny"; detail: string };
+export const LAYOUT_FAILING: LayoutIssue["kind"][] = ["overflow", "covered"];
+
+export async function scanLayout(page: Page, mobile: boolean): Promise<LayoutIssue[]> {
+  return page.evaluate((mobile) => {
+    const issues: { kind: "overflow" | "covered" | "tiny"; detail: string }[] = [];
+    const vw = document.documentElement.clientWidth;
+    const vh = window.innerHeight;
+    const describe = (el: Element) => {
+      const cls =
+        typeof el.className === "string" && el.className.trim()
+          ? "." + el.className.trim().split(/\s+/).slice(0, 2).join(".")
+          : "";
+      const text = (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 24);
+      return `<${el.tagName.toLowerCase()}${el.id ? "#" + el.id : ""}${cls}>${text ? `「${text}」` : ""}`;
+    };
+    const visible = (el: Element) => {
+      const cs = getComputedStyle(el);
+      if (cs.display === "none" || cs.visibility === "hidden" || cs.opacity === "0") return false;
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    };
+
+    // 1. 横スクロール（ページ幅がビューポートを超える）。はみ出している最内側の要素を添える
+    const sw = document.documentElement.scrollWidth;
+    if (sw > vw + 1) {
+      const all = [...document.body.querySelectorAll("*")].filter(
+        (el) => visible(el) && getComputedStyle(el).position !== "fixed" && el.getBoundingClientRect().right > vw + 1
+      );
+      const innermost = all.filter((el) => !all.some((o) => o !== el && el.contains(o)));
+      issues.push({
+        kind: "overflow",
+        detail: `横スクロールが発生（ページ幅 ${sw}px > 画面幅 ${vw}px）: ${innermost.slice(0, 3).map(describe).join(" / ")}`,
+      });
+    }
+
+    // 2. 固定要素（fixed）が操作要素を覆っている（モーダルが開いていればモーダル内だけを見る）
+    const modal = document.querySelector('[aria-modal="true"]');
+    const root = modal ?? document.body;
+    const controls = [...root.querySelectorAll("a[href], button, input, select, textarea")].filter(
+      (el) => {
+        if (!visible(el)) return false;
+        const r = el.getBoundingClientRect();
+        return r.top >= 0 && r.bottom <= vh && r.left >= 0 && r.right <= vw && r.width >= 8 && r.height >= 8;
+      }
+    );
+    const covered: string[] = [];
+    for (const el of controls) {
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (!hit || el.contains(hit) || hit.contains(el)) continue;
+      let fixed: Element | null = null;
+      for (let c: Element | null = hit; c && c !== document.body; c = c.parentElement) {
+        // sticky はスクロールで下に潜った要素を一時的に覆うのが通常挙動なので対象外
+        if (getComputedStyle(c).position === "fixed") { fixed = c; break; }
+      }
+      if (!fixed || fixed.contains(el)) continue;
+      // トースト・ライブリージョンは一時的に出るものなので対象外
+      if (fixed.closest('[role="status"], [aria-live]')) continue;
+      covered.push(`${describe(fixed)} が ${describe(el)} を覆っている`);
+    }
+    for (const d of covered.slice(0, 5)) issues.push({ kind: "covered", detail: d });
+
+    // 3. タップ領域が小さすぎる（スマホのみ）。テキストリンクは対象外、ボタンだけ
+    if (mobile) {
+      const tiny = [...root.querySelectorAll("button")]
+        .filter(visible)
+        .filter((el) => {
+          const r = el.getBoundingClientRect();
+          return r.height < 24 || r.width < 24;
+        })
+        .slice(0, 5)
+        .map((el) => {
+          const r = el.getBoundingClientRect();
+          return `${describe(el)} が ${Math.round(r.width)}×${Math.round(r.height)}px`;
+        });
+      for (const d of tiny) issues.push({ kind: "tiny", detail: d });
+    }
+    return issues;
+  }, mobile);
+}
 
 export { expect };
 
