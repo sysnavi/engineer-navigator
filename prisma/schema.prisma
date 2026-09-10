@@ -169,6 +169,9 @@ model DungeonRun {
   // クライアントはコマンド名しか送らない（改ざん耐性）。
   status    String   @default("DONE") // "ACTIVE"=潜行中 / "DONE"=決着済み
   state     Json? // 潜行中の生の状態（HP/SP/敵/持ち物…）。DONEになったらnull
+  // この潜行で出した問い（"bank:<id>" / "riddle:<id>"）。決着時に state から写す。
+  // 次の潜行で「最近出た問い」を後回しにするために読む（日をまたいで同じ問いが続くのを防ぐ）
+  askedIds  String[] @default([])
 
   @@unique([userId, slot])
   @@index([userId, createdAt])

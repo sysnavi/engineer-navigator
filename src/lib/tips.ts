@@ -192,6 +192,12 @@ export const TIPS: Tip[] = [
     href: "/dungeon",
   },
   {
+    id: "dungeon-topics",
+    emoji: "❓",
+    text: "ダンジョンの相手は得意分野の問いを出してくる。○×と四択が混ざって、最近出た問いは しばらく出ないよ",
+    href: "/dungeon",
+  },
+  {
     id: "rare-visitor",
     emoji: "👾",
     text: "ごくたまに、画面の左下に見知らぬキャラが遊びにくることがあるよ。見かけたら話しかけてみて",
