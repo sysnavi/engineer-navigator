@@ -62,6 +62,10 @@ DATABASE_URL="<neon-direct-url>" ADMIN_INVITE_TOKEN="<長いランダム文字�
 2. **マイページ → ADMIN パネル** で招待リンクを発行（目印は任意）。
 3. 表示された `…/join/…` のURLを各エンジニアに配る。受け取った人はそれを開くだけで利用開始（登録不要）。
 4. 不要になった招待は **失効** ボタンで無効化。荒らし・過剰利用のアカウントは同パネルで **停止**。
+5. 別の端末で Google/GitHub ログインして作られたアカウント（ENGINEER で作られる）を管理者にしたいときは、
+   管理者でログインした状態で **/admin のユーザー表 → 「🛡 管理者にする」**。
+   管理者が誰も入れない状態からの復旧は CLI で:
+   `DATABASE_URL="<neon-direct-url>" npx tsx scripts/set-role.ts <handle> ADMIN`
 
 ## 5. OAuthログインを有効にする（Issue #8・Google / GitHub）
 

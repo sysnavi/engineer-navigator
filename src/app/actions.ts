@@ -337,6 +337,32 @@ export async function setUserSuspended(userId: string, suspend: boolean) {
   revalidatePath("/mypage");
 }
 
+// ロール変更（管理者のみ）。本番はOAuthで入るとENGINEERで作られるため、
+// 別端末のアカウントを管理者にする等の昇格/降格はここから行う（DB直叩き不要）。
+// 自分自身は変更不可（最後の管理者が自分を降格して誰も入れなくなる事故を防ぐ）。
+// GUESTは対象外（昇格はOAuth連携の正規ルート src/lib/oauth-login.ts のみ）。
+export async function setUserRole(userId: string, role: "ENGINEER" | "ADMIN") {
+  const me = await getCurrentUser();
+  if (me.role !== "ADMIN") {
+    throw new Error("この操作は管理者のみ実行できます");
+  }
+  if (userId === me.id) {
+    throw new Error("自分自身のロールは変更できません");
+  }
+  if (role !== "ENGINEER" && role !== "ADMIN") {
+    throw new Error("不正なロールです");
+  }
+  const target = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (target.role === "GUEST") {
+    throw new Error("ゲストは昇格できません（本人のOAuth連携で昇格します）");
+  }
+  await prisma.user.update({ where: { id: userId }, data: { role } });
+  revalidatePath("/admin");
+}
+
 // ---------------------------------------------------------------------------
 // 招待リンク（管理者のみ発行/失効） + ログアウト
 // ---------------------------------------------------------------------------

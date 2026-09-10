@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
   setUserSuspended,
+  setUserRole,
   createInviteLink,
   revokeInvite,
 } from "@/app/actions";
@@ -15,6 +16,7 @@ const ROLE_LABELS: Record<string, string> = {
   ENGINEER: "エンジニア",
   SALES: "営業",
   ADMIN: "管理者",
+  GUEST: "ゲスト",
 };
 
 function StatCard(props: { label: string; value: number | string; hint?: string }) {
@@ -247,16 +249,40 @@ export default async function AdminPage() {
                     </td>
                     <td className="px-2 text-right">
                       {!isSelf && (
-                        <form
-                          action={setUserSuspended.bind(null, u.id, !suspended)}
-                          className="inline"
-                        >
-                          <button
-                            className={`btn8 px-2.5 py-1 text-[10px] ${suspended ? "btn8-ok" : ""}`}
+                        <div className="inline-flex flex-wrap justify-end gap-1">
+                          {/* ロール切替（GUESTは本人のOAuth連携でのみ昇格するので出さない） */}
+                          {u.role !== "GUEST" && (
+                            <form
+                              action={setUserRole.bind(
+                                null,
+                                u.id,
+                                u.role === "ADMIN" ? "ENGINEER" : "ADMIN"
+                              )}
+                              className="inline"
+                            >
+                              <button
+                                className="btn8 px-2.5 py-1 text-[10px]"
+                                title={
+                                  u.role === "ADMIN"
+                                    ? "管理者権限を外してエンジニアに戻す"
+                                    : "このユーザーに管理者権限を付ける"
+                                }
+                              >
+                                {u.role === "ADMIN" ? "👤 一般に戻す" : "🛡 管理者にする"}
+                              </button>
+                            </form>
+                          )}
+                          <form
+                            action={setUserSuspended.bind(null, u.id, !suspended)}
+                            className="inline"
                           >
-                            {suspended ? "▶ 復帰" : "⛔ 停止"}
-                          </button>
-                        </form>
+                            <button
+                              className={`btn8 px-2.5 py-1 text-[10px] ${suspended ? "btn8-ok" : ""}`}
+                            >
+                              {suspended ? "▶ 復帰" : "⛔ 停止"}
+                            </button>
+                          </form>
+                        </div>
                       )}
                     </td>
                   </tr>
