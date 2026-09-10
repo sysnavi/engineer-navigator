@@ -168,11 +168,12 @@ export function Visitor(props: {
       <div className="w-full max-w-md overflow-hidden rounded-xl border-[2.5px] border-line8 bg-win shadow-hard">
         <div className="flex items-center justify-between bg-ink px-3 py-1.5 font-pixel text-[10.5px] tracking-[0.12em] text-white">
           <span>VISITOR.sys — {species.name}</span>
-          {phase !== "befriended" && (
-            <button onClick={close} className="text-white hover:text-pinkhot" aria-label="とじる">
-              ×
-            </button>
-          )}
+          {/* どのフェーズでも閉じられること。仲間になった直後に × を消すと、ダンジョン等の
+              別画面から話しかけた人が「マイホームで会う」（画面遷移）以外の出口を失い、
+              遊んでいた画面に戻れなくなる。名前は未決定でも種族名で保存済みなので閉じて問題ない */}
+          <button onClick={close} className="text-white hover:text-pinkhot" aria-label="とじる">
+            ×
+          </button>
         </div>
         <div className="p-4">
           <div className="mb-3 flex justify-center">
@@ -287,9 +288,15 @@ export function Visitor(props: {
                   <p className="text-[13px]">
                     <b>{petName}</b> はマイホームに住みはじめた！
                   </p>
-                  <GuardedLink href="/home" className="btn8 btn8-start inline-block px-5 py-2 text-[12.5px]" onClick={close}>
-                    ▶ マイホームで会う
-                  </GuardedLink>
+                  <div className="flex flex-col items-center gap-2">
+                    <GuardedLink href="/home" className="btn8 btn8-start inline-block px-5 py-2 text-[12.5px]" onClick={close}>
+                      ▶ マイホームで会う
+                    </GuardedLink>
+                    {/* ダンジョン・おさんぽ等の途中で仲間にした人向け。遷移せずに元の画面へ戻る */}
+                    <button type="button" className="btn8 px-5 py-2 text-[12px]" onClick={close}>
+                      いまの画面にもどる
+                    </button>
+                  </div>
                 </>
               )}
             </div>
