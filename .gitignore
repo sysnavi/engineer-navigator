@@ -15,6 +15,7 @@
 /test-results/
 /playwright-report/
 /tour-results/
+/sns-results/
 
 # next.js
 /.next/

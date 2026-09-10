@@ -1,0 +1,100 @@
+# SNS 投稿 Bot（日次・docs/sns-bot.md）
+#
+#  1. 使い捨てDBでアプリを起動し、見栄えする状態（仲間・所持金・戦利品）を作る
+#  2. テスト用アカウントでゲーム画面を1つ操作し、スマホ画面そのままを撮る（tests/sns/scenes.spec.ts）
+#  3. 撮った画像を X に投稿し、控えを Slack #engineer-navigator に流す（scripts/sns/post.ts）
+#
+# 言葉で説明せず、遊んでいる画面で楽しさを伝え続けるのが目的。本文は一言 + ハッシュタグ + URL だけ。
+# バグトリアージ（bug-triage.yml）と同じDB構成。実 Claude API は呼ばない（無料・決定的）。
+name: SNS投稿（日次）
+
+on:
+  schedule:
+    # 毎日 12:30 JST（= 03:30 UTC）。昼休みのタイムラインに載せる
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+    inputs:
+      scene:
+        description: "シーン（空なら日付で巡回）: quiz-play / dungeon / walk / myhome / genba / shop / quiz-daily / home"
+        type: string
+        default: ""
+      dry_run:
+        description: "X には投稿せず、Slack に控えだけ流す"
+        type: boolean
+        default: false
+
+concurrency:
+  group: sns-post
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: navi
+          POSTGRES_PASSWORD: navi
+          POSTGRES_DB: engineer_navigator
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U navi"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+
+      - run: npm ci
+
+      - name: Playwrightブラウザのキャッシュ
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Playwrightブラウザの準備
+        run: npx playwright install --with-deps chromium
+
+      # ---- 1-2. 今日の1枚を撮る --------------------------------------------
+      - name: 今日の1枚を撮る
+        env:
+          SNS_SCENE: ${{ inputs.scene }}
+          SNS_TAIL: ${{ vars.SNS_TAIL }}
+        run: npm run sns:capture
+
+      # ---- 3. X に投稿 → Slack に控え -------------------------------------
+      - name: Xに投稿
+        id: post
+        env:
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+          SNS_DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_TRIAGE_CHANNEL: ${{ vars.SLACK_TRIAGE_CHANNEL }}
+        run: npm run sns:post
+
+      - name: 撮影結果を保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sns-results
+          path: sns-results/
+          retention-days: 30

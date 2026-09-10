@@ -13,6 +13,7 @@ SESエンジニアの成長をデータ化するアプリ。構想・設計は d
 - docs/dev-infra.md — 開発・テスト・リリース基盤の図解（E2EのDB分離・CIの構成）
 - docs/bug-triage.md — 日次バグトリアージ（機能ツアー→Slack報告→軽微なら自動修正PR）
 - docs/analytics.md — 来訪者分析（サーバー側イベント・ゲスト→登録ファネル・/admin/analytics・Vercel Analytics・Looker Studio）
+- docs/sns-bot.md — SNS投稿Bot（日次でゲーム画面を遊んで撮り、画像でXに投稿。控えはSlack）
 
 ## スタック
 Next.js 16 (App Router / Server Actions) + Prisma 7 + PostgreSQL 16 (pgvector, port 5433) + Claude API
@@ -27,6 +28,8 @@ npm run check             # 型 + lint + ユニットテスト。コード変更
 npm run test:e2e          # E2Eスモーク（Playwright）。DB起動が前提
 npm run check:release     # check + E2E。リリース（mainへのpush）前に必ず通すこと
 npm run test:tour         # 機能ツアー（全画面一周・日次トリアージの検出部）。TOUR_ONLY=<id> で1本だけ
+npm run sns:capture       # SNS投稿用の「今日の1枚」を撮る（docs/sns-bot.md）。SNS_SCENE=<id> でシーン固定
+npm run sns:post          # 撮った1枚をXに投稿（キー未設定ならdry-run）
 ```
 
 ## Skills（.claude/skills/・コミット対象）
