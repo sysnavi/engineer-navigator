@@ -9,7 +9,8 @@
 import { postText } from "../triage/slack";
 
 async function main() {
-  const appUrl = (process.env.APP_URL ?? "https://engineer-navigator.vercel.app").replace(/\/$/, "");
+  // CI では Variables 未設定でも空文字が渡るので ?? ではなく || で既定に落とす（slack.ts と同じ）
+  const appUrl = (process.env.APP_URL || "https://engineer-navigator.vercel.app").replace(/\/$/, "");
   const secret = process.env.JOB_SECRET;
   if (!secret) throw new Error("JOB_SECRET が未設定です");
   const noAi = process.argv.includes("--no-ai");
