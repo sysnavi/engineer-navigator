@@ -124,3 +124,19 @@ test("ダンジョン: 潜行が始まり、迷路を歩くと何かが起きる
   }
   await expect(anyNext.first()).toBeVisible();
 });
+
+// ゲスト開放機能（GUEST_ALLOWED_APPS）の回帰テスト。ダンジョンのサーバーアクションが
+// 登録限定ガード（requireFullAccountUser）を通していて、ゲストだと画面ごと
+// 「うまく読み込めませんでした」になっていた（2026-07〜09 気づかれずに放置）。
+test("ゲスト: ためしてみる→ダンジョンで潜行が始まる", async ({ page, context, baseURL }) => {
+  // 存在しないdevユーザーを指せば未ログイン扱いになる（デモユーザーに落ちない）
+  await context.addCookies([{ name: "dev-user", value: "nobody@e2e.invalid", url: baseURL! }]);
+  await page.goto("/welcome");
+  await page.getByRole("button", { name: /ためしてみる/ }).click();
+  await page.waitForURL(/\/home/);
+
+  await page.goto("/dungeon");
+  await closeTutorialIfShown(page);
+  await page.getByRole("button", { name: /潜る/ }).click();
+  await expect(page.getByText(/地下\d+階/).first()).toBeVisible();
+});

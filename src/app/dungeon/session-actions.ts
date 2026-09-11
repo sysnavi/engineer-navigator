@@ -5,10 +5,13 @@
 // 【改ざん耐性】判定は全部サーバー。クライアントから来るのはコマンド名だけで、
 // HPやダメージなどの数値は一切受け取らない。状態は DungeonRun.state に持つ。
 // 潜行枠は slot の @@unique が構造で守る（連打・並行リクエストも安全）。
+//
+// 【ゲスト】ダンジョンはゲストに解放しているコア体験（GUEST_ALLOWED_APPS）。
+// requireFullAccountUser を使うとゲストで例外になり、画面ごと読み込めなくなる。
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { requireFullAccountUser } from "@/lib/guest";
+import { getCurrentUser } from "@/lib/auth";
 import { getPlayerStats } from "@/lib/exp";
 import { GADGETS } from "@/lib/dungeon/content";
 import { foodById, type FoodId } from "@/lib/pets/foods";
@@ -164,7 +167,7 @@ function viewMap(m: NonNullable<DiveState["map"]>): NonNullable<DiveView["map"]>
 
 /** 進行中の潜行があれば返す（リロードしても続きから） */
 export async function getActiveDive(): Promise<DiveView | null> {
-  const user = await requireFullAccountUser();
+  const user = await getCurrentUser();
   const run = await prisma.dungeonRun.findFirst({
     where: { userId: user.id, status: "ACTIVE" },
     orderBy: { createdAt: "desc" },
@@ -237,7 +240,7 @@ async function answerOf(q: PendingQuestion): Promise<{ answerIndex: number; note
 export async function startDive(): Promise<
   { ok: true; view: DiveView } | { ok: false; error: string }
 > {
-  const user = await requireFullAccountUser();
+  const user = await getCurrentUser();
 
   // すでに潜行中ならそれを返す（二重開始の防止）
   const active = await getActiveDive();
@@ -315,7 +318,7 @@ export async function act(
     | { type: "next" }
     | { type: "choice"; choice: Choice }
 ): Promise<{ ok: true; view: DiveView; noop?: boolean } | { ok: false; error: string }> {
-  const user = await requireFullAccountUser();
+  const user = await getCurrentUser();
   const run = await prisma.dungeonRun.findUnique({ where: { id: runId } });
   if (!run || run.userId !== user.id || run.status !== "ACTIVE" || !run.state) {
     return { ok: false, error: "この探索は もう終わっています。" };
