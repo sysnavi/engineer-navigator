@@ -193,7 +193,9 @@ export default async function RootLayout({
           <Visitor
             encounterId={visitor.encounterId}
             speciesId={visitor.species.id}
-            aiEnabled={!!process.env.ANTHROPIC_API_KEY}
+            // ゲストはAI機能を使えない（assertAiAllowed で弾かれる）ので入口ごと出さない。
+            // 定型の選択肢だけでも仲間にはできる
+            aiEnabled={!!process.env.ANTHROPIC_API_KEY && role !== "GUEST"}
             revisit={visitor.revisit}
           />
         )}

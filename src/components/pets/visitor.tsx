@@ -80,12 +80,22 @@ export function Visitor(props: {
   const sendAi = () => {
     const text = aiInput.trim();
     if (!text || pending) return;
-    const log: AiTurn[] = [...aiLog, { role: "user", text }];
+    const prev = aiLog;
+    const log: AiTurn[] = [...prev, { role: "user", text }];
     setAiLog(log);
     setAiInput("");
+    setError(null);
     startTransition(async () => {
       try {
         const r = await aiTalkStep(props.encounterId, log);
+        if (!r.ok) {
+          // 届かなかった発言はログから外して入力欄に戻す（返事のない発言が積み上がると
+          // 3往復のカウントも会話ログもずれるため）
+          setAiLog(prev);
+          setAiInput(text);
+          setError(r.error);
+          return;
+        }
         setAiLog((l) => [...l, { role: "pet", text: r.reply }]);
         if (r.verdict) {
           setTimeout(() => {
@@ -99,6 +109,8 @@ export function Visitor(props: {
           }, 1600);
         }
       } catch (e) {
+        setAiLog(prev);
+        setAiInput(text);
         setError(e instanceof Error ? e.message : "会話に失敗しました");
       }
     });
@@ -247,7 +259,8 @@ export function Visitor(props: {
                 <input
                   value={aiInput}
                   onChange={(e) => setAiInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendAi()}
+                  // 日本語IMEの変換確定の Enter で送信しない（確定前の文字が送られ、残りが入力欄に残る）
+                  onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && sendAi()}
                   maxLength={200}
                   placeholder="はなしかけてみる…（3往復で気持ちが決まる）"
                   className="field8 flex-1"
