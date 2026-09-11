@@ -40,7 +40,7 @@ export function ResultModal(props: {
       aria-modal="true"
       aria-label="提出リザルト"
     >
-      <div className="absolute inset-0 bg-ink/45" onClick={onClose} />
+      <div className="absolute inset-0 bg-scrim/45" onClick={onClose} />
       <div className="result8-pop relative w-full max-w-md overflow-hidden rounded-xl border-[3px] border-line8 bg-win shadow-hard">
         <div className="flex items-center gap-2 bg-royal px-3 py-2 font-pixel text-[12px] tracking-wide text-white">
           <span className="inline-flex gap-1.5" aria-hidden="true">

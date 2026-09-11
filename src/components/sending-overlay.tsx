@@ -19,7 +19,7 @@ export function SendingOverlay(props: {
       role="status"
       aria-live="polite"
     >
-      <div className="absolute inset-0 bg-ink/25" />
+      <div className="absolute inset-0 bg-scrim/25" />
       <div className="relative flex flex-col items-center gap-2 rounded-xl border-[3px] border-line8 bg-win px-8 py-6 text-center shadow-hard">
         <LoadingAlien size={72} />
         <p className="font-pixel text-2xl tracking-wider text-royal">

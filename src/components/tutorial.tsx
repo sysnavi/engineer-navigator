@@ -62,7 +62,7 @@ export function Tutorial(props: { defaultOpen: boolean; guest?: boolean }) {
       aria-modal="true"
       aria-label="はじめかたガイド"
     >
-      <div className="absolute inset-0 bg-ink/45" onClick={finish} />
+      <div className="absolute inset-0 bg-scrim/45" onClick={finish} />
       {/* 体験ステップ（げんば）は背が高くなるので、パネルは画面内に収めて本文側をスクロールさせる */}
       <div className="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-xl border-[3px] border-line8 bg-win shadow-hard">
         <div className="flex shrink-0 items-center gap-2 bg-royal px-3 py-2 font-pixel text-[12px] tracking-wide text-white">

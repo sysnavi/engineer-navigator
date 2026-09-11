@@ -166,7 +166,7 @@ export function Visitor(props: {
   return (
     <div className="no-print fixed inset-0 z-50 grid place-items-center bg-[rgba(18,35,95,0.55)] p-4">
       <div className="w-full max-w-md overflow-hidden rounded-xl border-[2.5px] border-line8 bg-win shadow-hard">
-        <div className="flex items-center justify-between bg-ink px-3 py-1.5 font-pixel text-[10.5px] tracking-[0.12em] text-white">
+        <div className="flex items-center justify-between bg-titlebar px-3 py-1.5 font-pixel text-[10.5px] tracking-[0.12em] text-white">
           <span>VISITOR.sys — {species.name}</span>
           {/* どのフェーズでも閉じられること。仲間になった直後に × を消すと、ダンジョン等の
               別画面から話しかけた人が「マイホームで会う」（画面遷移）以外の出口を失い、

@@ -62,7 +62,7 @@ export function Taskbar(props: {
       {/* ===== スタートメニュー（PC）/ ドロワー（モバイル） ===== */}
       {menuOpen && (
         <div
-          className="no-print fixed inset-0 z-40 bg-ink/35 sm:bg-transparent"
+          className="no-print fixed inset-0 z-40 bg-scrim/35 sm:bg-transparent"
           onClick={() => setMenuOpen(false)}
         >
           <nav

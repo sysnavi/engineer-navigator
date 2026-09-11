@@ -119,7 +119,7 @@ export function TalkPanel(props: {
       aria-modal="true"
       aria-label={`${props.petName}とはなす`}
     >
-      <div className="absolute inset-0 bg-ink/45" onClick={props.onClose} />
+      <div className="absolute inset-0 bg-scrim/45" onClick={props.onClose} />
       <div className="relative mb-[calc(54px+env(safe-area-inset-bottom))] flex max-h-[76vh] w-full max-w-[440px] flex-col overflow-hidden rounded-t-xl border-[3px] border-b-0 border-line8 bg-win shadow-hard sm:mb-0 sm:max-h-[85vh] sm:max-w-[380px] sm:rounded-xl sm:border-b-[3px]">
         <div className="flex shrink-0 items-center gap-2 bg-royal px-2.5 py-1.5 font-pixel text-[11px] tracking-wide text-white">
           <span className="mx-auto h-1 w-10 rounded-full bg-white/70 sm:hidden" aria-hidden="true" />

@@ -83,7 +83,7 @@ export function ChatComposer(props: {
       </div>
 
       {expanded && (
-        <div className="fixed inset-0 z-40 flex flex-col bg-ink/50 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] sm:p-6">
+        <div className="fixed inset-0 z-40 flex flex-col bg-scrim/50 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)] sm:p-6">
           <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-3 rounded-lg border-2 border-line8 bg-win p-3 shadow-hard-sm sm:p-4">
             <textarea
               value={input}

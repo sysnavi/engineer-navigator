@@ -26,6 +26,11 @@
   --ach-bg: #f9ecfd;
   --ach-stripe: #fbeff8;
   --ach-ink: #12235f;
+  /* 暗い面（システム窓の見出しバー / モーダル背後の暗幕）。明るいパレットでは文字色(--ink)の
+     濃紺をそのまま使う。--ink は「文字色」なので、ダークパレットでは明るくなり面には使えない
+     （bg-ink に白文字だと midnight で白地に白文字になった）。面に使うのはこちら */
+  --titlebar: var(--ink);
+  --scrim: var(--ink);
   /* fixed across palettes */
   --pink-hot: #f24e9c; /* ACTION only */
   --lemon: #ffd84d;
@@ -91,6 +96,8 @@
   --ach-bg: #2a1837;
   --ach-stripe: #35204a;
   --ach-ink: #f3e3ff;
+  --titlebar: #050a1e;
+  --scrim: #000000;
   color-scheme: dark;
 }
 :root[data-palette="sunset"] {
@@ -121,6 +128,8 @@
   --color-sky8: var(--sky8);
   --color-peri: var(--peri);
   --color-ink: var(--ink);
+  --color-titlebar: var(--titlebar);
+  --color-scrim: var(--scrim);
   --color-inksoft: var(--ink-soft);
   --color-win: var(--win);
   --color-line8: var(--line);

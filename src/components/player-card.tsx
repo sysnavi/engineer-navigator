@@ -15,7 +15,7 @@ export function PlayerCard(props: {
     <div
       className={`w-full overflow-hidden rounded-lg border-[2.5px] border-line8 bg-win text-ink shadow-[3px_3px_0_rgba(0,0,0,0.4)] ${props.className ?? ""}`}
     >
-      <div className="flex items-center justify-between bg-ink px-3 py-1.5 font-pixel text-[10.5px] tracking-[0.12em] text-white">
+      <div className="flex items-center justify-between bg-titlebar px-3 py-1.5 font-pixel text-[10.5px] tracking-[0.12em] text-white">
         <span>PLAYER_FILE.sav</span>
         <span aria-hidden="true">▮▮▮</span>
       </div>

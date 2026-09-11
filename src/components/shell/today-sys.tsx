@@ -77,7 +77,7 @@ export async function TodaySys(props: { userId: string }) {
 
   return (
     <div className="overflow-hidden rounded-lg border-[2.5px] border-line8 bg-win shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
-      <div className="flex items-center justify-between bg-ink px-3 py-1.5 font-pixel text-[10.5px] tracking-[0.12em] text-white">
+      <div className="flex items-center justify-between bg-titlebar px-3 py-1.5 font-pixel text-[10.5px] tracking-[0.12em] text-white">
         <span>
           TODAY<span className="text-peri">.sys</span> — きょうの状態
         </span>

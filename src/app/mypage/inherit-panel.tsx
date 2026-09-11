@@ -71,7 +71,7 @@ export function InheritPanel(props: {
           aria-modal="true"
         >
           <div className="w-full max-w-md overflow-hidden rounded-xl border-[2.5px] border-line8 bg-win shadow-hard">
-            <div className="flex items-center justify-between bg-ink px-3 py-1.5 font-pixel text-[10.5px] tracking-[0.12em] text-white">
+            <div className="flex items-center justify-between bg-titlebar px-3 py-1.5 font-pixel text-[10.5px] tracking-[0.12em] text-white">
               <span>INHERIT.sys</span>
               <span aria-hidden="true">▮▮▮</span>
             </div>
