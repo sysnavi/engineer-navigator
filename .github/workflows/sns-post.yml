@@ -15,7 +15,11 @@ on:
   workflow_dispatch:
     inputs:
       scene:
-        description: "シーン（空なら日付で巡回）: quiz-play / dungeon / walk / myhome / genba / shop / quiz-daily / home"
+        description: "シーン（空なら巡回）: quiz-play / walk / genba / dungeon / quiz-daily / visitor / shop / myhome / home"
+        type: string
+        default: ""
+      seed:
+        description: "中身の乱数の種（空なら実行ごとに別の絵。YYYY-MM-DD を入れるとその日の定期実行と同じ絵）"
         type: string
         default: ""
       dry_run:
@@ -75,6 +79,9 @@ jobs:
       - name: 今日の1枚を撮る
         env:
           SNS_SCENE: ${{ inputs.scene }}
+          # 定期実行は空 = JST の日付（毎日ちがう絵・同じ日は同じ絵）。
+          # 手動実行は seed 未指定なら実行IDを使い、押すたびに別の絵になるようにする
+          SNS_SEED: ${{ inputs.seed || (github.event_name == 'workflow_dispatch' && format('run-{0}', github.run_id)) || '' }}
           SNS_TAIL: ${{ vars.SNS_TAIL }}
         run: npm run sns:capture
 

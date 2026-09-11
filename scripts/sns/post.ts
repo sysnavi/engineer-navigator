@@ -13,7 +13,16 @@ import { loadCreds, postWithImage } from "./x";
 
 const INPUT = "sns-results/post.json";
 
-type Post = { scene: string; caption: string; text: string; file: string; takenAt: string };
+type Post = {
+  scene: string;
+  seed?: string;
+  caption: string;
+  text: string;
+  file: string;
+  /** その日の条件の要約（パレット・天気・時間帯…。src/lib/sns/plan.ts の describePlan） */
+  details?: string;
+  takenAt: string;
+};
 
 async function main() {
   if (!existsSync(INPUT)) {
@@ -44,7 +53,8 @@ async function main() {
   const runUrl = process.env.RUN_URL ? `\n${process.env.RUN_URL}` : "";
   try {
     // 本文はコードブロックで（Slack 上でそのままコピーできる。> 引用だとハッシュタグやURLが装飾される）
-    await postWithFile(`${head}\nシーン: ${post.scene}\n\`\`\`\n${post.text}\n\`\`\`${runUrl}`, post.file);
+    const scene = `シーン: ${post.scene}${post.details ? `（${post.details}）` : ""}`;
+    await postWithFile(`${head}\n${scene}\n\`\`\`\n${post.text}\n\`\`\`${runUrl}`, post.file);
   } catch (e) {
     console.warn("[sns] Slack への控え投稿に失敗:", e);
   }
@@ -55,7 +65,7 @@ async function main() {
   if (process.env.GITHUB_STEP_SUMMARY) {
     appendFileSync(
       process.env.GITHUB_STEP_SUMMARY,
-      `## 📸 SNS投稿\n\n- シーン: \`${post.scene}\`\n- ${url ? `[投稿を見る](${url})` : "dry-run（投稿していない）"}\n\n\`\`\`\n${post.text}\n\`\`\`\n`
+      `## 📸 SNS投稿\n\n- シーン: \`${post.scene}\`（seed \`${post.seed ?? "-"}\`）\n- 条件: ${post.details ?? "-"}\n- ${url ? `[投稿を見る](${url})` : "dry-run（投稿していない）"}\n\n\`\`\`\n${post.text}\n\`\`\`\n`
     );
   }
 }
