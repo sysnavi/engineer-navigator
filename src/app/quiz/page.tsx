@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { getOrCreateDaily } from "@/lib/quiz/daily";
 import { reviewSummary } from "@/lib/quiz/review";
-import { CERTIFICATIONS } from "@/lib/certifications";
+import { CERTIFICATIONS, countTopic } from "@/lib/certifications";
 import { StreakBar } from "@/components/streak-bar";
 
 // 良問バンクのハブ。今日の一問 / 復習 / 腕試し / 資格の範囲 / 統計・良問ランキング。
@@ -216,7 +216,7 @@ export default async function QuizHubPage() {
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {c.chapters.map((ch) => {
-                  const n = countByTopic.get(ch.topic) ?? 0;
+                  const n = countTopic(ch.topic, countByTopic);
                   return n > 0 ? (
                     <Link
                       key={ch.id}
