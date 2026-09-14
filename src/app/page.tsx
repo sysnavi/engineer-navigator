@@ -21,7 +21,7 @@ function Chip(props: {
     props.tone === "hot"
       ? "bg-pinkhot text-white"
       : props.tone === "sun"
-        ? "bg-lemon text-ink"
+        ? "bg-lemon text-onlemon"
         : "bg-win text-ink";
   return (
     <span

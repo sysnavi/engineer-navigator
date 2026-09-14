@@ -80,7 +80,7 @@ export default async function GenbaAlbumPage() {
           <Window key={theme.id} title={theme.name} titleEm=".mem">
             <p className="mb-2 flex items-center justify-between gap-2">
               <span className="text-[11px] opacity-60">{theme.flavor}</span>
-              <span className="font-pixel shrink-0 border-2 border-[var(--ink)] bg-[var(--lemon)] px-1.5 py-[1px] text-[10px]">
+              <span className="font-pixel shrink-0 border-2 border-onlemon bg-lemon text-onlemon px-1.5 py-[1px] text-[10px]">
                 {theme.era}
               </span>
             </p>

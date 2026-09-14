@@ -87,7 +87,7 @@ function Stars(props: { n: number }) {
 
 function EnBadge(props: { balance: number }) {
   return (
-    <span className="font-pixel inline-flex items-center gap-1 border-2 border-[var(--ink)] bg-[var(--lemon)] px-2 py-[2px] text-[12px] tabular-nums">
+    <span className="font-pixel inline-flex items-center gap-1 border-2 border-onlemon bg-lemon text-onlemon px-2 py-[2px] text-[12px] tabular-nums">
       {props.balance.toLocaleString()} <em className="not-italic text-[10px]">EN</em>
     </span>
   );
@@ -212,13 +212,13 @@ function OfficeView(props: {
               <div className="flex items-start justify-between gap-2">
                 <h2 className="text-[15px] font-bold">{o.title}</h2>
                 {o.era ? (
-                  <span className="font-pixel shrink-0 border-2 border-[var(--ink)] bg-[var(--lemon)] px-1.5 py-[2px] text-[10px]">
+                  <span className="font-pixel shrink-0 border-2 border-onlemon bg-lemon text-onlemon px-1.5 py-[2px] text-[10px]">
                     {o.era.period}
                   </span>
                 ) : (
                   <span className="flex shrink-0 items-center gap-2">
                     {o.revisit && (
-                      <span className="font-pixel border-2 border-[var(--ink)] bg-[var(--lemon)] px-1.5 py-[2px] text-[10px]">
+                      <span className="font-pixel border-2 border-onlemon bg-lemon text-onlemon px-1.5 py-[2px] text-[10px]">
                         再訪
                       </span>
                     )}
@@ -248,7 +248,7 @@ function OfficeView(props: {
                         s.ownedLevel >= s.level
                           ? "bg-[var(--good,#2e9e5b)] text-white"
                           : s.ownedLevel > 0
-                            ? "bg-[var(--lemon)]"
+                            ? "bg-lemon text-onlemon"
                             : "bg-white/50"
                       }`}
                     >

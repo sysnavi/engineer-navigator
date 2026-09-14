@@ -172,7 +172,7 @@ export function VoiceInterview(props: {
     speaking: {
       icon: "🔊",
       label: "質問を読んでいます — タップでスキップ",
-      cls: "bg-lemon text-ink",
+      cls: "bg-lemon text-onlemon",
     },
     listening: {
       icon: "🎤",
@@ -188,7 +188,7 @@ export function VoiceInterview(props: {
     done: {
       icon: "★",
       label: "材料がそろいました！",
-      cls: "bg-lemon text-ink",
+      cls: "bg-lemon text-onlemon",
     },
   };
   const o = orb[phase];

@@ -155,7 +155,7 @@ export default async function ShopPage() {
             </span>
           </p>
           <div className="shrink-0 text-right">
-            <span className="font-pixel border-2 border-[var(--ink)] bg-[var(--lemon)] px-2 py-[2px] text-[13px] tabular-nums">
+            <span className="font-pixel border-2 border-onlemon bg-lemon text-onlemon px-2 py-[2px] text-[13px] tabular-nums">
               {balance.toLocaleString()} <em className="not-italic text-[10px]">EN</em>
             </span>
             <p className="mt-1.5 font-pixel text-[10px] tabular-nums text-inksoft">

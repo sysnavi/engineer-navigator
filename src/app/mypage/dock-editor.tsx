@@ -64,7 +64,7 @@ export function DockEditor(props: { apps: AppDef[]; initial: string[] }) {
               {on && (
                 <span
                   aria-label={`${order + 1}番目`}
-                  className="ml-auto grid h-5 w-5 shrink-0 place-items-center rounded border-2 border-line8 bg-lemon font-pixel text-[11px] text-ink"
+                  className="ml-auto grid h-5 w-5 shrink-0 place-items-center rounded border-2 border-line8 bg-lemon font-pixel text-[11px] text-onlemon"
                 >
                   {order + 1}
                 </span>

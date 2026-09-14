@@ -34,6 +34,8 @@
   /* fixed across palettes */
   --pink-hot: #f24e9c; /* ACTION only */
   --lemon: #ffd84d;
+  /* lemon の上に載せる文字・枠。--ink はダークパレットで明るくなり黄色地で読めなくなるので固定 */
+  --on-lemon: #12235f;
   /* semantic (condition) — 意味が変わらないよう全パレット固定 */
   --good: #2e9e5b;
   --warn: #e8a013;
@@ -138,6 +140,7 @@
   --color-quotebg: var(--quote-bg);
   --color-pinkhot: var(--pink-hot);
   --color-lemon: var(--lemon);
+  --color-onlemon: var(--on-lemon);
   --color-good: var(--good);
   --color-warn: var(--warn);
   --color-crit: var(--crit);
@@ -422,7 +425,7 @@ body::before {
     border-radius: 5px;
     padding: 1px 7px;
     background: var(--lemon);
-    color: #12235f;
+    color: var(--on-lemon);
     box-shadow: 2px 2px 0 var(--hard);
   }
   .quote8 {
