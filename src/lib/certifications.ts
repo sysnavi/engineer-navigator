@@ -18,6 +18,18 @@ export type CertChapter = {
   title: string;
   /** 腕試しのお題 = QuizQuestion.topic。★この文字列が唯一の正 */
   topic: string;
+  /**
+   * この章の範囲として一緒に出す既存お題。
+   *
+   * カタログ制定より前に作られた問題は "ネットワーク" "セキュリティ" のような
+   * 別語彙の topic を持っていて、topic 完全一致では資格の範囲から永久に引けない
+   * （良問バンクに問題はあるのに「まだありません」と出る）。新しく作る問題は
+   * 必ず topic を使う前提のまま、既存の山を受け取るための片側通行の受け口。
+   *
+   * ★エイリアスに他の章の topic を書かないこと（二重計上になる）。
+   *   src/lib/certifications.test.ts で防いでいる。
+   */
+  topicAliases?: string[];
   /** この章で押さえること。AIの計画生成・出題生成のヒントに使う */
   focus: string;
 };
@@ -55,6 +67,7 @@ export const CERTIFICATIONS: CertDef[] = [
         id: "ip-management",
         title: "マネジメント系（開発・PM・サービス）",
         topic: "IPA マネジメント系",
+        topicAliases: ["障害対応"],
         focus: "システム開発の流れ、プロジェクトマネジメント、サービスマネジメント、システム監査",
       },
       {
@@ -67,18 +80,21 @@ export const CERTIFICATIONS: CertDef[] = [
         id: "ip-network",
         title: "テクノロジ系・ネットワーク",
         topic: "ネットワーク基礎",
+        topicAliases: ["ネットワーク", "TCP/IP", "HTTP"],
         focus: "LAN/WAN、TCP/IPとIPアドレス、プロトコル、無線とインターネットの仕組み",
       },
       {
         id: "ip-security",
         title: "テクノロジ系・セキュリティ",
         topic: "情報セキュリティ基礎",
+        topicAliases: ["セキュリティ"],
         focus: "情報資産と脅威、リスクマネジメント、暗号と認証、情報セキュリティマネジメント",
       },
       {
         id: "ip-new-tech",
         title: "新しい技術とデータ活用",
         topic: "IT新技術トレンド",
+        topicAliases: ["生成AI活用"],
         focus: "AI・機械学習、IoT、ビッグデータ、アジャイル、DXの考え方",
       },
     ],
@@ -107,18 +123,21 @@ export const CERTIFICATIONS: CertDef[] = [
         id: "fe-database",
         title: "科目A・データベース",
         topic: "データベース基礎",
+        topicAliases: ["SQL"],
         focus: "関係モデル、正規化、SQL（結合・集約）、トランザクションとACID、排他制御",
       },
       {
         id: "fe-network",
         title: "科目A・ネットワーク",
         topic: "ネットワーク基礎",
+        topicAliases: ["ネットワーク", "TCP/IP", "HTTP"],
         focus: "OSI参照モデルとTCP/IP、IPアドレスとサブネット、ルーティング、主要プロトコル",
       },
       {
         id: "fe-security",
         title: "科目A/B・情報セキュリティ",
         topic: "情報セキュリティ基礎",
+        topicAliases: ["セキュリティ"],
         focus: "脅威と攻撃手法、暗号方式、認証とアクセス制御、セキュリティ管理。科目Bでも必出",
       },
       {
@@ -159,24 +178,28 @@ export const CERTIFICATIONS: CertDef[] = [
         id: "ap-network",
         title: "ネットワーク設計",
         topic: "ネットワーク設計",
+        topicAliases: ["ネットワーク", "HTTP"],
         focus: "サブネット設計、ルーティング、負荷分散、DNS/HTTP/TLS、性能とボトルネック",
       },
       {
         id: "ap-security",
         title: "情報セキュリティ（午後必須）",
         topic: "情報セキュリティ設計",
+        topicAliases: ["セキュリティ"],
         focus: "リスク分析、認証認可設計、暗号運用、インシデント対応。午後で唯一の必須問題",
       },
       {
         id: "ap-architecture",
         title: "システムアーキテクチャと可用性",
         topic: "システムアーキテクチャ",
+        topicAliases: ["パフォーマンスチューニング", "設計"],
         focus: "冗長化、キャパシティ計画、稼働率計算、キャッシュ、非機能要件の考え方",
       },
       {
         id: "ap-pm",
         title: "プロジェクトマネジメントとサービス",
         topic: "プロジェクトマネジメント",
+        topicAliases: ["プロジェクト", "障害対応"],
         focus: "WBS、アローダイアグラムとクリティカルパス、EVM、SLA、ITサービス管理",
       },
       {
@@ -212,6 +235,7 @@ export const CERTIFICATIONS: CertDef[] = [
         id: "saa-network",
         title: "ネットワークとVPC",
         topic: "AWS VPC・ネットワーク",
+        topicAliases: ["AWS"],
         focus: "サブネット、ルートテーブル、セキュリティグループとNACL、NAT、エンドポイント",
       },
       {
@@ -277,6 +301,7 @@ export const CERTIFICATIONS: CertDef[] = [
         id: "jstqb-design",
         title: "第4章 テスト分析と設計",
         topic: "テスト設計技法",
+        topicAliases: ["テスト設計", "テスト"],
         focus: "同値分割、境界値分析、デシジョンテーブル、状態遷移、経験ベース技法、カバレッジ",
       },
       {
@@ -317,6 +342,7 @@ export const CERTIFICATIONS: CertDef[] = [
         id: "lpic-command",
         title: "GNU/Unixコマンドとテキスト処理",
         topic: "Linux コマンド操作",
+        topicAliases: ["Linux"],
         focus: "パイプとリダイレクト、grep/sed/awk、正規表現、プロセス操作、アーカイブ",
       },
       {
@@ -375,11 +401,40 @@ export function findCert(input: string | null | undefined): CertDef | null {
   return null;
 }
 
-/** カタログ全体で使われているお題の一覧（重複排除・出題バッチの対象） */
+/** カタログ全体で使われているお題の一覧（重複排除・出題バッチの対象）。
+ *  エイリアスは含めない＝新しく作る問題の topic は常に「正」だけ */
 export function allCertTopics(): string[] {
   const set = new Set<string>();
   for (const c of CERTIFICATIONS) for (const ch of c.chapters) set.add(ch.topic);
   return [...set];
+}
+
+// お題（正）→ 出題・件数集計で見るお題一覧。同じ topic が複数の資格に出る
+// （"ネットワーク基礎" は ITパスポートと基本情報の両方）ので和集合で持つ。
+const TOPIC_EXPANSION = new Map<string, string[]>();
+for (const c of CERTIFICATIONS) {
+  for (const ch of c.chapters) {
+    if (!ch.topicAliases?.length) continue;
+    const merged = new Set(TOPIC_EXPANSION.get(ch.topic) ?? [ch.topic]);
+    for (const a of ch.topicAliases) merged.add(a);
+    TOPIC_EXPANSION.set(ch.topic, [...merged]);
+  }
+}
+
+/**
+ * お題から、実際に出題対象にするお題の一覧を引く（正 + エイリアス）。
+ * カタログ外のお題はそのまま自分自身だけを返すので、呼び出し側は分岐不要。
+ */
+export function expandTopic(topic: string): string[] {
+  return TOPIC_EXPANSION.get(topic) ?? [topic];
+}
+
+/** お題ごとの件数マップ（groupBy の結果）から、エイリアス込みの合計を出す */
+export function countTopic(
+  topic: string,
+  countByTopic: Map<string, number>
+): number {
+  return expandTopic(topic).reduce((s, t) => s + (countByTopic.get(t) ?? 0), 0);
 }
 
 /** お題からその章を持つ資格を引く（腕試し画面で「どの資格の範囲か」を出す用） */

@@ -4,6 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { mondayOf } from "../src/lib/week";
 import { SEED_QUIZZES } from "./seed-quizzes";
 import { SEED_CERT_QUIZZES } from "./seed-cert-quizzes";
+import { CERT_QUIZZES_EXTRA } from "./quizzes";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -702,7 +703,7 @@ async function main() {
   // 作者は engineer2（デフォルトユーザー engineer が腕試しで解けるように）、
   // 評価者は engineer / engineer3 / admin を順に割り当てる。
   const raters = [engineer.id, engineer3.id, admin.id];
-  for (const q of [...SEED_QUIZZES, ...SEED_CERT_QUIZZES]) {
+  for (const q of [...SEED_QUIZZES, ...SEED_CERT_QUIZZES, ...CERT_QUIZZES_EXTRA]) {
     quizzes.push({
       id: q.id,
       authorId: engineer2.id,

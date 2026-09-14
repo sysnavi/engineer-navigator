@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { PixelTitle, PixelLabel } from "@/components/retro";
+import { expandTopic } from "@/lib/certifications";
 import { QuizPlay } from "./play-client";
 
 // 出題: 自作以外の問題を、未解答→良問(評価高)の順で最大10問。正解は渡さない。
@@ -20,7 +21,8 @@ export default async function QuizPlayPage({
         authorId: { not: user.id },
         // 「もう表示しない」に指定した問題は除外
         hiddenBy: { none: { userId: user.id } },
-        ...(topic ? { topic } : {}),
+        // 資格の章は旧語彙の既存問題もエイリアスで拾う（src/lib/certifications.ts）
+        ...(topic ? { topic: { in: expandTopic(topic) } } : {}),
       },
       take: 100,
       orderBy: { createdAt: "desc" },

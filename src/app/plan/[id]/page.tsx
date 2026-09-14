@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { toggleStudyItem, retryPlanGeneration } from "@/app/actions";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { SubmitButton } from "@/components/submit-button";
+import { countTopic, expandTopic } from "@/lib/certifications";
 import { PlanGenerating } from "./generating";
 
 export default async function PlanDetailPage({
@@ -74,10 +75,13 @@ export default async function PlanDetailPage({
 
   // 各週のお題に、いま何問あるかを数えて出す（0問なら誘導しても空振りになるので出し分ける）。
   const topics = [...new Set(plan.items.map((i) => i.topic).filter((t): t is string => !!t))];
-  const counts = topics.length
+  // 腕試し側と同じくエイリアス（旧語彙の既存問題）も数える。ズレると
+  // 「プランでは0問なのに腕試しでは出る」が起きる
+  const lookupTopics = [...new Set(topics.flatMap(expandTopic))];
+  const counts = lookupTopics.length
     ? await prisma.quizQuestion.groupBy({
         by: ["topic"],
-        where: { topic: { in: topics } },
+        where: { topic: { in: lookupTopics } },
         _count: { _all: true },
       })
     : [];
@@ -173,12 +177,13 @@ export default async function PlanDetailPage({
                 <p className="mt-1 text-[12.5px] text-inksoft">{it.detail}</p>
               )}
               {it.topic &&
-                (countByTopic.get(it.topic) ? (
+                (countTopic(it.topic, countByTopic) ? (
                   <Link
                     href={`/quiz/play?topic=${encodeURIComponent(it.topic)}`}
                     className="btn8 mt-2 inline-block text-[11.5px]"
                   >
-                    ▶ この章の腕試し（{it.topic}・{countByTopic.get(it.topic)}問）
+                    ▶ この章の腕試し（{it.topic}・
+                    {countTopic(it.topic, countByTopic)}問）
                   </Link>
                 ) : (
                   <p className="mt-2 text-[11px] text-inksoft">
