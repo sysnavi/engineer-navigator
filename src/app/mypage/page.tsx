@@ -224,9 +224,21 @@ export default async function MyPage({
           </p>
         )}
         {oauth_error === "already-linked" && (
-          <p className="mt-2 rounded-lg border-2 border-pinkhot bg-quotebg px-3 py-1.5 text-[12px] text-ink">
-            そのアカウントは既に別のユーザーに連携されています。
-          </p>
+          <div className="mt-2 rounded-lg border-2 border-pinkhot bg-quotebg px-3 py-2.5">
+            {/* ログインし直したい人が「連携」経路に迷い込むケース（ゲストで試用中に
+                既存アカウントでログインした等）。連携できない理由と出口をセットで示す */}
+            <p className="text-[12.5px] leading-relaxed text-ink">
+              そのアカウントは、<b>過去にログインしたことがあるアカウント</b>です。
+              いま使っているデータで上書きしてしまわないように、連携はできません。
+              そのアカウントに戻るには、いったんログアウトしてからログインし直してください。
+              （いまのデータはこのアカウントに残ります）
+            </p>
+            <form action={logout} className="mt-2">
+              <button className="btn8 px-3 py-1.5 text-[11px]">
+                ログアウトしてログインし直す
+              </button>
+            </form>
+          </div>
         )}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {identities.map((i) => (
