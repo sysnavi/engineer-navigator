@@ -8,12 +8,14 @@ import { allCertTopics } from "../src/lib/certifications";
 import { isDomainId } from "../src/lib/domains";
 import { SEED_QUIZZES } from "../prisma/seed-quizzes";
 import { SEED_CERT_QUIZZES } from "../prisma/seed-cert-quizzes";
+import { CERT_QUIZZES_EXTRA } from "../prisma/quizzes";
 
-// 資格カタログ向けの問題（SEED_CERT_QUIZZES）だけは topic がカタログに一致する
-// 必要がある。SEED_QUIZZES は "SQL" "エクセル関数" のような自由なお題でよい。
+// 資格カタログ向けの問題だけは topic がカタログに一致する必要がある。
+// SEED_QUIZZES は "SQL" "エクセル関数" のような自由なお題でよい。
 const all = [
   ...SEED_QUIZZES.map((q) => ({ q, mustMatchCatalog: false })),
   ...SEED_CERT_QUIZZES.map((q) => ({ q, mustMatchCatalog: true })),
+  ...CERT_QUIZZES_EXTRA.map((q) => ({ q, mustMatchCatalog: true })),
 ];
 const catalog = new Set(allCertTopics());
 const errors: string[] = [];
