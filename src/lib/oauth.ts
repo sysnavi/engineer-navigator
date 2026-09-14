@@ -22,6 +22,19 @@ export const PROVIDER_LABELS: Record<OAuthProvider, string> = {
   github: "GitHub",
 };
 
+/** プロバイダのエンドポイント（ヘルスチェック src/lib/oauth-health.ts と共用） */
+export const OAUTH_ENDPOINTS = {
+  google: {
+    authorize: "https://accounts.google.com/o/oauth2/v2/auth",
+    token: "https://oauth2.googleapis.com/token",
+  },
+  github: {
+    authorize: "https://github.com/login/oauth/authorize",
+    token: "https://github.com/login/oauth/access_token",
+    user: "https://api.github.com/user",
+  },
+} as const;
+
 function env(name: string): string | undefined {
   const v = process.env[name];
   return v && v.trim() !== "" ? v : undefined;
@@ -70,7 +83,7 @@ export function authorizeUrl(
       state,
       prompt: "select_account",
     });
-    return `https://accounts.google.com/o/oauth2/v2/auth?${q}`;
+    return `${OAUTH_ENDPOINTS.google.authorize}?${q}`;
   }
   const q = new URLSearchParams({
     client_id: id,
@@ -78,7 +91,7 @@ export function authorizeUrl(
     state,
     // scope 指定なし = 公開プロフィールのみ（メール非要求）
   });
-  return `https://github.com/login/oauth/authorize?${q}`;
+  return `${OAUTH_ENDPOINTS.github.authorize}?${q}`;
 }
 
 /** 認可コードをプロバイダ内ユーザーID(sub)に引き換える。メール等は取得しない */
@@ -91,7 +104,7 @@ export async function exchangeCodeForSub(
   const redirect = redirectUri(provider, origin);
 
   if (provider === "google") {
-    const res = await fetch("https://oauth2.googleapis.com/token", {
+    const res = await fetch(OAUTH_ENDPOINTS.google.token, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -114,7 +127,7 @@ export async function exchangeCodeForSub(
   }
 
   // GitHub
-  const res = await fetch("https://github.com/login/oauth/access_token", {
+  const res = await fetch(OAUTH_ENDPOINTS.github.token, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -130,7 +143,7 @@ export async function exchangeCodeForSub(
   if (!res.ok) throw new Error(`github token exchange failed: ${res.status}`);
   const data = (await res.json()) as { access_token?: string };
   if (!data.access_token) throw new Error("github: access_token がありません");
-  const userRes = await fetch("https://api.github.com/user", {
+  const userRes = await fetch(OAUTH_ENDPOINTS.github.user, {
     headers: {
       Authorization: `Bearer ${data.access_token}`,
       Accept: "application/vnd.github+json",
@@ -140,6 +153,52 @@ export async function exchangeCodeForSub(
   const gh = (await userRes.json()) as { id?: number };
   if (!gh.id) throw new Error("github: id がありません");
   return String(gh.id);
+}
+
+// ---------------------------------------------------------------------------
+// ヘルスチェック用プローブ（src/lib/oauth-health.ts が判定する）。
+// 実ユーザーなしで「client_id / client_secret / redirect_uri が本番で通るか」を確かめる:
+// - authorize: 認可URLを1段だけ辿る。Googleは設定不良だと /signin/oauth/error へ302する
+//   （GitHubは未ログインだと何も検証せず /login へ飛ぶので判定材料にならない）
+// - token: わざと無効なcodeで引換を試す。認証が通れば「codeが不正」、Secretが
+//   壊れていれば「クライアント認証失敗」が返るので、エラーの種類で判別できる
+// Secretは応答にもログにも出さない。
+// ---------------------------------------------------------------------------
+export type ProbeResponse = { status: number; location: string | null; body: string };
+
+const PROBE_CODE = "engineer-navigator-healthcheck";
+
+export async function probeAuthorize(
+  provider: OAuthProvider,
+  origin: string
+): Promise<ProbeResponse> {
+  const res = await fetch(authorizeUrl(provider, origin, "healthcheck"), {
+    redirect: "manual",
+  });
+  return { status: res.status, location: res.headers.get("location"), body: "" };
+}
+
+export async function probeToken(
+  provider: OAuthProvider,
+  origin: string
+): Promise<ProbeResponse> {
+  const { id, secret } = credentials(provider);
+  const params: Record<string, string> = {
+    code: PROBE_CODE,
+    client_id: id,
+    client_secret: secret,
+    redirect_uri: redirectUri(provider, origin),
+  };
+  if (provider === "google") params.grant_type = "authorization_code";
+  const res = await fetch(OAUTH_ENDPOINTS[provider].token, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    },
+    body: new URLSearchParams(params),
+  });
+  return { status: res.status, location: null, body: await res.text() };
 }
 
 /** DBに保存する唯一の識別子。sub は保存せずハッシュだけ残す */

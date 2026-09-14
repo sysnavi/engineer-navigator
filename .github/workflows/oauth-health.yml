@@ -1,0 +1,56 @@
+# OAuth登録の見張り（docs/analytics.md「6」）
+#
+#  本番の POST /api/jobs/oauth-health を叩き、Google / GitHub 登録の本番設定
+#  （env・client_id・client_secret・redirect_uri）と直近24時間の失敗イベントを確認する。
+#  異常があるときだけ Slack #engineer-navigator に流し、この実行も赤くする。
+#
+#  必要な設定: weekly-insights と共通（Secrets JOB_SECRET・SLACK_BOT_TOKEN / Variables APP_URL・SLACK_TRIAGE_CHANNEL）
+name: OAuth登録の見張り（日次）
+
+on:
+  schedule:
+    # 毎日 06:45 JST（= 21:45 UTC）。トリアージ（07:00）の前に来る
+    - cron: "45 21 * * *"
+  workflow_dispatch:
+    inputs:
+      always:
+        description: "異常なしでも Slack に投稿する"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Slack に投稿せずログに出すだけ"
+        type: boolean
+        default: false
+
+concurrency:
+  group: oauth-health
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+
+      # scripts/triage/slack.ts（Bot 投稿）を tsx で動かすためだけ。Prisma 生成などは不要
+      - run: npm ci --ignore-scripts
+
+      - name: 見張りを実行して異常時だけ Slack に投稿
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          JOB_SECRET: ${{ secrets.JOB_SECRET }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_TRIAGE_CHANNEL: ${{ vars.SLACK_TRIAGE_CHANNEL }}
+        run: >
+          npx tsx scripts/oauth-health/post.ts
+          ${{ inputs.always && '--always' || '' }}
+          ${{ inputs.dry_run && '--dry-run' || '' }}

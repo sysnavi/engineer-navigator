@@ -8,6 +8,7 @@ import {
   verifyMobileTicket,
 } from "@/lib/mobile-login";
 import { isOAuthProvider } from "@/lib/oauth";
+import { track, EVENT } from "@/lib/analytics/track";
 
 // モバイルOAuthの最終段: アプリのWebViewが引換券(token)とverifier生値をPOSTし、
 // 通常のセッションcookieを受け取る。ここはWebViewのcookie文脈で動くので、
@@ -34,6 +35,10 @@ export async function POST(req: NextRequest) {
   if (!identity || !isOAuthProvider(identity.provider)) {
     // 失敗理由をエラー画面に小さく出す（実機の不具合はここでしか切り分けられない）
     const reason = consumed.ok ? "provider" : consumed.reason;
+    // OAuth登録の見張り（src/lib/oauth-health.ts）が24時間の件数を見る
+    await track(EVENT.oauthResult, {
+      props: { provider: consumed.ok ? consumed.provider : null, outcome: "fail", reason: "ticket", mobile: true },
+    });
     return NextResponse.json(
       {
         error: "invalid-ticket",

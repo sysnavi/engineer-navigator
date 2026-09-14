@@ -14,7 +14,8 @@ import { prisma } from "@/lib/db";
 //  guest_needsaccount 弾かれて /welcome の「登録が必要」案内を見た
 //  oauth_start        OAuthログインを開始した。props.provider / guest（ゲストからの昇格試行か）
 //  oauth_result       OAuthの結果。props.outcome = new | login | linked | promoted | already-linked | fail
-//                     fail のとき props.reason に理由コード（state/denied/exchange/...）
+//                     fail のとき props.reason に理由コード（state/denied/exchange/ticket/...）
+//                     失敗件数は毎朝の OAuth登録の見張り（src/lib/oauth-health.ts）が監視する
 //  guest_promoted     ゲストが本登録に昇格した（userId=同じUser行）
 
 export const EVENT = {

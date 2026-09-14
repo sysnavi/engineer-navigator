@@ -135,6 +135,41 @@ flowchart LR
   を同じ値にする。`SLACK_BOT_TOKEN` はトリアージと共用。JOB_SECRET が Vercel に無いと API は 503 を返す
 - AI 呼び出しは週1回・ユーザーに紐づかないため、ユーザー別のレート制限（assertAiAllowed）は通していない
 
+## 6. OAuth登録の見張り（毎朝・異常時だけSlack）
+
+「Google / GitHub で登録しようとしたらコケる」を利用者の報告より先に気づくための日次チェック。
+毎日 06:45 JST に `.github/workflows/oauth-health.yml` が本番の `POST /api/jobs/oauth-health` を叩き、
+**異常があるときだけ** `#engineer-navigator` に流す（Actions の実行も赤くなる）。
+
+```mermaid
+flowchart LR
+  cron["GitHub Actions<br/>毎日 06:45 JST"] -->|"POST + Bearer JOB_SECRET"| api["Vercel<br/>/api/jobs/oauth-health"]
+  api --> env["env の有無<br/>enabledProviders"]
+  api --> az["認可URLを1段辿る<br/>（Google）"]
+  api --> tk["無効な code で<br/>token を叩く"]
+  api --> ev["直近24hの<br/>oauth_start / oauth_result"]
+  env & az & tk & ev --> j["判定<br/>src/lib/oauth-health.ts"]
+  j --> cron
+  cron -->|"異常時だけ Bot Token"| slack["Slack #engineer-navigator"]
+```
+
+| チェック | 何が分かるか | 正常 | 異常 |
+|---|---|---|---|
+| enabled | Vercel の `*_CLIENT_ID / _SECRET` が揃っているか。欠けると**登録ボタンが黙って消える** | 両方あり | 欠け |
+| authorize（Google） | client_id・redirect_uri がGoogleに登録されているか | ログイン画面へ302 | `/signin/oauth/error?authError=…`（`invalid_client`・`redirect_uri_mismatch` 等）へ302 |
+| token | client_secret が生きているか（GitHub は redirect_uri も） | Google `invalid_grant` ／ GitHub `bad_verification_code`（＝認証は通り code だけ不正） | `invalid_client`・`incorrect_client_credentials`・`redirect_uri_mismatch`・404 |
+| events | 実ユーザーで失敗していないか（プロバイダ障害・モバイル固有の失敗も拾う） | — | 開始3件以上で成功0件 ／ `exchange` 1件〜 ／ `state` 3件〜 ／ `ticket`（モバイル引換券）2件〜 |
+
+- GitHub は未ログインだと認可URLが何も検証せず `/login` へ飛ぶため、authorize は判定せず token 側で見る
+- Google の応答の形は 2026-09 に実際に curl で確認した（テストに実応答を置いている）。プロバイダが形を変えると
+  「想定外の応答」として 🟧 warn で出るので、そのときは `classifyAuthorize` / `classifyToken` を更新する
+- **見張れないもの**: Google の OAuth 同意画面が「テスト」状態のまま（テストユーザー以外が弾かれる）。
+  これは実ユーザーの events（開始あり・成功0）でしか出ないので、公開ステータスは Cloud Console で一度確認しておく
+- **コードの退行**（callback・ゲスト昇格を触って壊す）はこの見張りの対象外。偽プロバイダを使ったE2Eで守る（未実装）
+- **手動実行**: Actions の「OAuth登録の見張り（日次）」→ Run workflow。`always` で異常なしでも投稿、`dry_run` で投稿なし
+- **ローカル確認**: `JOB_SECRET=<.envの値> npm run oauth:health -- --dry-run`
+- **必要な設定**: 5. と共通（`JOB_SECRET`・`SLACK_BOT_TOKEN`）。追加設定なし
+
 ## 次の一手（データが溜まったら）
 - ファネルの落差が「登録案内を見た→連携を始めた」なら、案内の文言・ボタンの位置を変えて2週比較
 - 「既存アカウントと衝突」が月に数件出るなら、ゲストのデータを既存アカウントへマージする導線
