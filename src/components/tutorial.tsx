@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { TUTORIAL_STEPS, GUEST_TUTORIAL_STEPS } from "@/lib/tutorial";
+import { TUTORIAL_STEPS, GUEST_TUTORIAL_STEPS, trialStepIndex, type TutorialStep } from "@/lib/tutorial";
 import { PixelAvatar } from "@/components/pixel-avatar";
 import { completeTutorial, updateMentorStance } from "@/app/actions";
 import { STANCES, type StanceId } from "@/lib/ai/stance";
@@ -31,15 +31,17 @@ export function Tutorial(props: { defaultOpen: boolean; guest?: boolean }) {
 
   const steps = props.guest ? GUEST_TUTORIAL_STEPS : TUTORIAL_STEPS;
 
-  // マイページ等からの再表示要求を受ける
+  // マイページ等からの再表示要求を受ける。detail.trial があれば体験ステップから開く
+  // （ゲストのホームの「げんばの味見」タイル。src/components/open-trial-tile.tsx）
   useEffect(() => {
-    const onReplay = () => {
-      setI(0);
+    const onReplay = (e: Event) => {
+      const trial = (e as CustomEvent<{ trial?: TutorialStep["trial"] }>).detail?.trial;
+      setI(trial ? trialStepIndex(steps, trial) : 0);
       setOpen(true);
     };
     window.addEventListener("en:tutorial", onReplay);
     return () => window.removeEventListener("en:tutorial", onReplay);
-  }, []);
+  }, [steps]);
 
   if (!open) return null;
 

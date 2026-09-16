@@ -98,3 +98,9 @@ export const GUEST_TUTORIAL_STEPS: TutorialStep[] = [
     cta: { href: "/quiz", label: "▶ まずは腕試し" },
   },
 ];
+
+/** 体験ステップ（trial）の位置。無ければ先頭（0）＝通常の再表示と同じ挙動に落とす */
+export function trialStepIndex(steps: TutorialStep[], trial: TutorialStep["trial"]): number {
+  const i = steps.findIndex((s) => s.trial === trial);
+  return i < 0 ? 0 : i;
+}

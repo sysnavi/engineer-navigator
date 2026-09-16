@@ -135,6 +135,17 @@ test("ゲスト: ためしてみる→ダンジョンで潜行が始まる", asy
   await page.getByRole("button", { name: /ためしてみる/ }).click();
   await page.waitForURL(/\/home/);
 
+  // ホームの「げんばの味見」タイル → はじめかたガイドが体験ステップで開く
+  await page.goto("/");
+  await closeTutorialIfShown(page);
+  const tile = page.getByRole("button", { name: "げんばの味見" });
+  await tile.scrollIntoViewIfNeeded();
+  await tile.click();
+  const guide = page.getByRole("dialog", { name: "はじめかたガイド" });
+  await expect(guide).toBeVisible();
+  await expect(guide.getByRole("heading", { name: "げんばを体験" })).toBeVisible();
+  await guide.getByRole("button", { name: "閉じる" }).click();
+
   await page.goto("/dungeon");
   await closeTutorialIfShown(page);
   await page.getByRole("button", { name: /潜る/ }).click();

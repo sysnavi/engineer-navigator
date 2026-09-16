@@ -7,6 +7,7 @@ import { getOrCreateDaily } from "@/lib/quiz/daily";
 import { reviewSummary } from "@/lib/quiz/review";
 import { resolveShell } from "@/lib/shell";
 import { appsForRole, APP_GROUPS, type AppGroup } from "@/lib/apps";
+import { OpenGenbaTrialTile } from "@/components/open-trial-tile";
 import { PixelTitle, PixelLabel, Window } from "@/components/retro";
 import { PixelIcon } from "@/components/pixel-icon";
 import { PlayerCard } from "@/components/player-card";
@@ -106,6 +107,9 @@ export default async function Home() {
               <span className="text-[11.5px] font-bold leading-tight">{a.name}</span>
             </Link>
           ))}
+          {/* げんばはゲスト非開放。はじめかたガイドの味見ステップへの入口をタイルとして残す
+              （/welcome で「げんばの味見」を約束しているため） */}
+          <OpenGenbaTrialTile />
         </div>
 
         <Link href="/mypage" className="group block">
@@ -118,7 +122,7 @@ export default async function Home() {
             <PixelLabel className="!text-pinkhot">登録すると、ぜんぶ使える</PixelLabel>
             <p className="mt-1.5 text-[13px] leading-relaxed text-ink">
               GoogleまたはGitHubで連携するだけ（メール・本名は受け取りません）。
-              週報からの経歴書づくり、AIメンター、スキルマップが解放されます。
+              週報からの経歴書づくり、AIメンター、スキルマップ、それに『げんば』本番が解放されます。
               いま育てているアバター・戦利品・腕試しの記録は消えません。
             </p>
             <span className="btn8 btn8-start mt-3 inline-block text-[12px]">
