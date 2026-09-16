@@ -4,6 +4,9 @@ import { createAuthSession, AUTH_SESSION_DAYS } from "@/lib/auth-session";
 import { canIssueGuest, createGuestUser, recordGuestIssue } from "@/lib/guest";
 import { getOptionalUser } from "@/lib/auth";
 import { track, EVENT } from "@/lib/analytics/track";
+import { loadWelcomeQuestion } from "@/lib/public-question";
+import { parseChoice } from "@/lib/welcome-quiz";
+import { recordAttempt } from "@/lib/quiz/attempt";
 
 // ゲストセッションの発行（Issue #18）。/welcome の「▶ ためしてみる」から叩かれる。
 // GETではなくPOSTなのは、リンクのプリフェッチやクローラでアカウントが
@@ -27,9 +30,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // /welcome の「いきなり1問」に答えてから来た場合、その解答を最初の腕試しとして記録する
+  // （EXPを持ったまま始められる）。受け付けるのは今日の問題だけ＝任意IDの採点には使えない。
+  const answer = await heroAnswerFrom(req);
+
   const user = await createGuestUser();
   recordGuestIssue(ip);
-  await track(EVENT.guestStart, { userId: user.id });
+  let quizProps: { quiz: boolean; correct?: boolean } = { quiz: false };
+  if (answer) {
+    const correct = answer.chosen === answer.q.answerIndex;
+    await recordAttempt({
+      userId: user.id,
+      questionId: answer.q.id,
+      chosenIndex: answer.chosen,
+      correct,
+      topic: answer.q.topic,
+      source: "quiz",
+    }).catch((e) => console.error("welcome quiz recordAttempt failed:", e));
+    quizProps = { quiz: true, correct };
+  }
+  await track(EVENT.guestStart, { userId: user.id, props: quizProps });
 
   const token = await createAuthSession(user.id);
   // 入口は「育てて潜る」のコアループ。まずマイホームでアバターに会わせる
@@ -42,4 +62,24 @@ export async function POST(req: NextRequest) {
     secure: process.env.NODE_ENV === "production",
   });
   return res;
+}
+
+/** フォームの q/a を検証して、今日の問題への解答なら返す（それ以外・本文なしは null） */
+async function heroAnswerFrom(req: NextRequest) {
+  let q: string | null = null;
+  let a: string | null = null;
+  try {
+    const form = await req.formData();
+    const fq = form.get("q");
+    const fa = form.get("a");
+    q = typeof fq === "string" ? fq : null;
+    a = typeof fa === "string" ? fa : null;
+  } catch {
+    return null; // 本文なし・形式違いは「答えていない」扱い
+  }
+  if (!q || a === null) return null;
+  const today = await loadWelcomeQuestion();
+  if (!today || today.id !== q) return null;
+  const chosen = parseChoice(a, today.choices.length);
+  return chosen === null ? null : { q: today, chosen };
 }

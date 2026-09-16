@@ -76,3 +76,57 @@ export async function listPublicQuestions() {
   });
   return rows.filter(isGoodQuestion).map((q) => ({ id: q.id, createdAt: q.createdAt }));
 }
+
+// ---- /welcome の「いきなり1問」（src/lib/welcome-quiz.ts と対） ----
+
+export type WelcomeQuestion = {
+  id: string;
+  topic: string;
+  prompt: string;
+  choices: string[];
+  answerIndex: number;
+  explanation: string | null;
+};
+
+/**
+ * 今日の「いきなり1問」を返す（正解つき）。良問プールを評価順に並べ、日付で1問に固定。
+ * 良問が1つも無ければ最古の問題、それも無ければ null（ヒーローの問いを出さない）。
+ *
+ * 正解を登録前に見せるのはこの1問だけの意図した例外。呼び出し側は
+ * 「クエリの q が今日のIDと一致するときだけ結果を描く」ことで、任意IDの答えを
+ * /welcome 経由で引き出せないようにする。
+ */
+export async function loadWelcomeQuestion(now = new Date()): Promise<WelcomeQuestion | null> {
+  const { dayNumber, pickIndex, WELCOME_QUIZ_POOL } = await import("@/lib/welcome-quiz");
+  const select = {
+    id: true,
+    topic: true,
+    prompt: true,
+    choices: true,
+    answerIndex: true,
+    explanation: true,
+    ratingSum: true,
+    ratingCount: true,
+  } as const;
+  const rated = await prisma.quizQuestion.findMany({
+    where: { ratingCount: { gte: PUBLIC_QUESTION_MIN_RATINGS } },
+    select,
+    orderBy: [{ ratingSum: "desc" }, { id: "asc" }],
+    take: WELCOME_QUIZ_POOL * 2,
+  });
+  let pool = rated.filter(isGoodQuestion).slice(0, WELCOME_QUIZ_POOL);
+  if (pool.length === 0) {
+    const oldest = await prisma.quizQuestion.findFirst({ select, orderBy: { createdAt: "asc" } });
+    if (!oldest) return null;
+    pool = [oldest];
+  }
+  const q = pool[pickIndex(dayNumber(now), pool.length)];
+  return {
+    id: q.id,
+    topic: q.topic,
+    prompt: q.prompt,
+    choices: q.choices,
+    answerIndex: q.answerIndex,
+    explanation: q.explanation,
+  };
+}

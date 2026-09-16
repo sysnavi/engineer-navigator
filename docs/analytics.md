@@ -22,7 +22,7 @@
 
 | name | いつ | props | どこで書く |
 |---|---|---|---|
-| `guest_start` | ゲストを発行 | — | `api/guest/start` |
+| `guest_start` | ゲストを発行 | `quiz`（/welcome の「いきなり1問」に答えてから来たか）, `correct`（quiz=true のとき正誤） | `api/guest/start` |
 | `guest_gate` | ゲストが登録限定の機能で弾かれた | `app`（report / mentor / ai:mentor-chat …）, `via`（page / action / ai） | `lib/guest.ts`, `lib/usage.ts` |
 | `guest_needsaccount` | 弾かれて /welcome の「登録すると使えます」を見た | — | `welcome/page.tsx` |
 | `oauth_start` | OAuthを開始 | `provider`, `guest`（ゲストからか）, `mobile` | `api/auth/[provider]/start` |

@@ -9,7 +9,8 @@ import { prisma } from "@/lib/db";
 //  - name は下の EVENT からしか取れない。props は個人情報や自由入力を入れない。
 //
 // イベント辞書（ゲスト→本登録ファネルを追うための最小セット）:
-//  guest_start        ゲストを発行した（userId=ゲスト）
+//  guest_start        ゲストを発行した（userId=ゲスト）。props.quiz=/welcome の「いきなり1問」に
+//                     答えてから来たか、そのとき props.correct=正誤
 //  guest_gate         ゲストが登録限定の機能に触れて弾かれた。props.app=どの機能か
 //  guest_needsaccount 弾かれて /welcome の「登録が必要」案内を見た
 //  oauth_start        OAuthログインを開始した。props.provider / guest（ゲストからの昇格試行か）

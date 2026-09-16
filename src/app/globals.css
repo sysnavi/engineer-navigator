@@ -1152,3 +1152,54 @@ body::before {
     font-size: 16px;
   }
 }
+
+/* /welcome「いきなり1問」の結果演出（hero-quiz.tsx）。
+   正解=たまごが孵ってひよこが跳ねる／不正解=たまごが横に揺れる。reduced-motion では静止 */
+@media (prefers-reduced-motion: no-preference) {
+  .welcome-hatch {
+    animation: welcome-hatch 0.6s steps(6, jump-none) both;
+  }
+  .welcome-shake {
+    animation: welcome-shake 0.5s steps(8, jump-none) both;
+  }
+  /* 結果テキストの登場（result8-pop と同じ動き）。welcome-* の演出をここに揃えて置く */
+  .welcome-pop {
+    animation: welcome-pop 0.35s steps(4, jump-none) both;
+  }
+}
+@keyframes welcome-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes welcome-hatch {
+  0% {
+    transform: translateY(0) scale(0.7);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(-10px) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+@keyframes welcome-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px) rotate(-4deg);
+  }
+  75% {
+    transform: translateX(4px) rotate(4deg);
+  }
+}
