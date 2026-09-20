@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { petTalk, type TalkTurn } from "./talk-actions";
+import { BarButton } from "@/components/retro";
 
 const TYPE_MS = 42; // 1文字あたりの表示間隔
 
@@ -126,21 +127,20 @@ export function TalkPanel(props: {
           <span className="hidden sm:inline">
             はなす<span className="text-peri">.exe</span>
           </span>
-          <button
+          <BarButton
             onClick={() => setSoundOn((v) => !v)}
             aria-pressed={soundOn}
             title={soundOn ? "こえを けす" : "こえを だす"}
-            className="ml-auto rounded border-2 border-white px-1.5 text-[10px] leading-tight"
+            className="ml-auto"
           >
             {soundOn ? "♪" : "🔇"}
-          </button>
-          <button
+          </BarButton>
+          <BarButton
             onClick={props.onClose}
-            className="rounded border-2 border-white px-1.5 text-[10px] leading-tight"
             aria-label="閉じる"
           >
             ×
-          </button>
+          </BarButton>
         </div>
 
         {/* 会話ログ */}

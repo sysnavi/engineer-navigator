@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 // 8bit / レトロGUI の共通部品（サーバーコンポーネント）。
 // 見た目のトークンとクラスは globals.css を参照。
@@ -27,6 +27,34 @@ export function Window(props: {
       </div>
       <div className={props.bodyClass ?? "p-5"}>{props.children}</div>
     </section>
+  );
+}
+
+/**
+ * タイトルバー上の小さな枠付きボタン（× / ♪ など）。
+ * 見た目は小さいまま、タップ領域だけ 28px 角を確保する（スマホで押しにくかった）。
+ * 負のマージンでバーの高さ・右端の位置は変えない。
+ */
+export function BarButton({
+  small,
+  className,
+  children,
+  ...rest
+}: ButtonHTMLAttributes<HTMLButtonElement> & { small?: boolean }) {
+  return (
+    <button
+      type="button"
+      {...rest}
+      className={`-my-2 -mr-1 grid min-h-7 min-w-7 shrink-0 place-items-center ${className ?? ""}`}
+    >
+      <span
+        className={`rounded border-2 border-white leading-tight ${
+          small ? "px-1 text-[9px]" : "px-1.5 text-[10px]"
+        }`}
+      >
+        {children}
+      </span>
+    </button>
   );
 }
 

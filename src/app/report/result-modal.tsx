@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { SubmitReportResult } from "@/app/actions";
+import { BarButton } from "@/components/retro";
 
 // 提出後のリザルト画面（RPGのリザルト風モーダル）。
 // 従来は画面上部のバナーが差し替わるだけで提出の手応えが薄かったため、
@@ -48,13 +49,13 @@ export function ResultModal(props: {
             <i className="h-2.5 w-2.5 rounded-full border-2 border-white bg-lemon" />
           </span>
           リザルト<span className="text-peri">.exe</span>
-          <button
+          <BarButton
             onClick={onClose}
-            className="ml-auto rounded border-2 border-white px-1.5 text-[10px] leading-tight"
+            className="ml-auto"
             aria-label="閉じる"
           >
             ×
-          </button>
+          </BarButton>
         </div>
 
         <div className="flex flex-col items-center gap-3 px-6 py-6 text-center">

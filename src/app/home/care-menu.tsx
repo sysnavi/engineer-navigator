@@ -15,6 +15,7 @@
 import { createPortal } from "react-dom";
 import { FoodSprite } from "@/components/pets/food-sprite";
 import { FOODS, HAND_SERVE_MIN_AFFECTION } from "@/lib/pets/foods";
+import { BarButton } from "@/components/retro";
 
 export type FoodStock = { foodId: string; count: number };
 
@@ -60,13 +61,13 @@ export function CareMenu(props: {
           <span className="hidden sm:inline">
             おせわ<span className="text-peri">.exe</span>
           </span>
-          <button
+          <BarButton
             onClick={props.onClose}
-            className="ml-auto rounded border-2 border-white px-1.5 text-[10px] leading-tight"
+            className="ml-auto"
             aria-label="閉じる"
           >
             ×
-          </button>
+          </BarButton>
         </div>
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">

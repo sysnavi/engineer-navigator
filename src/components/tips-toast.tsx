@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { GuardedLink } from "@/components/nav-guard";
 import { TIPS, ONBOARDING_TIPS, type Tip } from "@/lib/tips";
 import { isNativeApp } from "@/lib/speech/recognition";
+import { BarButton } from "@/components/retro";
 
 // サイトTIPSトースト。ページを開いて数秒後に右下へさりげなく出す。状態はlocalStorage。
 // - 通常: 1日1回まで・未読からランダム。
@@ -136,13 +137,14 @@ export function TipsToast(props: { newcomer?: boolean }) {
         <div className="flex items-center gap-1.5 bg-royal px-2.5 py-1 font-pixel text-[10px] tracking-[0.12em] text-white">
           <span aria-hidden="true">💡</span>
           TIPS.txt
-          <button
+          <BarButton
             onClick={() => setLeaving(true)}
-            className="ml-auto rounded border-2 border-white px-1 text-[9px] leading-tight"
+            className="ml-auto"
+            small
             aria-label="閉じる"
           >
             ×
-          </button>
+          </BarButton>
         </div>
         <div className="px-3 py-2.5">
           <p className="text-[12px] leading-relaxed text-ink">

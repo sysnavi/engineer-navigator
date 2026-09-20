@@ -153,15 +153,11 @@ export async function scanLayout(page: Page, mobile: boolean): Promise<LayoutIss
     if (mobile) {
       const tiny = [...root.querySelectorAll("button")]
         .filter(visible)
-        .filter((el) => {
-          const r = el.getBoundingClientRect();
-          return r.height < 24 || r.width < 24;
-        })
+        // offsetWidth/Height で測る。getBoundingClientRect は transform 込みなので、
+        // scale で出てくるモーダルを途中で測ると実寸より小さく出て誤検知する
+        .filter((el) => el.offsetHeight < 24 || el.offsetWidth < 24)
         .slice(0, 5)
-        .map((el) => {
-          const r = el.getBoundingClientRect();
-          return `${describe(el)} が ${Math.round(r.width)}×${Math.round(r.height)}px`;
-        });
+        .map((el) => `${describe(el)} が ${el.offsetWidth}×${el.offsetHeight}px`);
       for (const d of tiny) issues.push({ kind: "tiny", detail: d });
     }
     return issues;
