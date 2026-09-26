@@ -57,7 +57,8 @@ flowchart LR
 増やす場所は `src/lib/sns/plan.ts`（何を置くか・何を選ぶか）と `scripts/sns/prepare-showcase.ts`（それをDBに置く処理）。
 マスタ（種族・家具・ガジェット・ビオーム…）が増えれば、何もしなくても自動で抽選対象に入る。
 
-本文は `<一言>\n\n#engineer\nhttps://engineer-navigator.jp`。末尾は Variables の `SNS_TAIL` で差し替えられる。
+本文は `<一言>\n\n#engineer\nhttps://engineer-navigator.jp/?utm_source=x`。末尾は Variables の `SNS_TAIL` で差し替えられる。
+URL の `utm_source=x` は Vercel Analytics で「X からの流入」を見分けるため（docs/analytics.md 3.）。差し替えるときも残す。
 
 ## セットアップ（初回だけ・人がやる）
 
@@ -88,7 +89,7 @@ Free プランの書き込み上限は月 500 件（2026-09 時点）。1日1投
 | Secret | `X_ACCESS_TOKEN` / `X_ACCESS_SECRET` | Read and write で生成した Access Token / Secret | ✅ |
 | Secret | `SLACK_BOT_TOKEN` | バグトリアージと共用（設定済み） | 推奨（無いと控えが Slack に届かない） |
 | Variable | `SLACK_TRIAGE_CHANNEL` | 控えの投稿先。既定 `C0C03HE4H2B`（#engineer-navigator） | 任意 |
-| Variable | `SNS_TAIL` | 本文の末尾（既定 `#engineer\nhttps://engineer-navigator.jp`） | 任意 |
+| Variable | `SNS_TAIL` | 本文の末尾（既定 `#engineer\nhttps://engineer-navigator.jp/?utm_source=x`） | 任意 |
 
 ```bash
 gh secret set X_API_KEY

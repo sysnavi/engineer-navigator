@@ -221,8 +221,9 @@ const SCENES: Record<SnsSceneId, Scene> = {
   },
 };
 
-// 本文の末尾（ハッシュタグ・URL）。添付画像の投稿に合わせて説明文は付けない
-const TAIL = process.env.SNS_TAIL || "#engineer\nhttps://engineer-navigator.jp";
+// 本文の末尾（ハッシュタグ・URL）。添付画像の投稿に合わせて説明文は付けない。
+// URL の utm_source=x で「X からの流入」を Vercel Analytics で見分ける（docs/analytics.md 3.）
+const TAIL = process.env.SNS_TAIL || "#engineer\nhttps://engineer-navigator.jp/?utm_source=x";
 
 test("今日の1枚を撮る", async ({ page, context, loginAs }) => {
   // 全シーンに撮り方があること（plan.ts にシーンを足して、ここを忘れたら気づけるように）

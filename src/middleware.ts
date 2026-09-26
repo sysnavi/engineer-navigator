@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, DEV_COOKIE, PATHNAME_HEADER } from "@/lib/session";
+import { pickUtm } from "@/lib/analytics/utm";
 
 // 未認証アクセスのゲート（edge）。cookie の有無だけを見る軽量チェックで、
 // トークンの正当性は各ページの getCurrentUser が DB で検証する。
@@ -22,7 +23,8 @@ export function middleware(req: NextRequest) {
   }
   const url = req.nextUrl.clone();
   url.pathname = "/welcome";
-  url.search = "";
+  // クエリは捨てるが、流入元の utm_* だけは引き継ぐ（SNS投稿のURLの計測が /welcome で切れないように）
+  url.search = pickUtm(req.nextUrl.searchParams).toString();
   return NextResponse.redirect(url);
 }
 

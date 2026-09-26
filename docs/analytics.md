@@ -67,8 +67,17 @@ Server Action の POST もページURLに飛ぶので同じ経路で取れる。
 `src/components/public-analytics.tsx`。`beforeSend` で **/welcome, /u/, /q/, /contact, /join/ 以外は送らない**。
 cookieを使わないので同意バナー不要。ログイン後のページは送らない（外部送信の最小化）。
 
-有効化（1回・Vercel側）: プロジェクト → **Analytics** タブ → Enable。有効化するまでスクリプトは何も送らない。
-見るもの: 流入元（Referrer）・UTM・LPのPV・国。**GA4 を入れる場合**は Search Console/広告連携が要るときだけ。
+有効化（1回・Vercel側）: プロジェクト → **Analytics** タブ → Enable。有効化するまでスクリプトは何も送らない
+（2026-09 時点で有効。`/_vercel/insights/script.js` が 200 を返す）。
+見るもの: 流入元（Referrer）・UTM・LPのPV・国。
+
+UTM で見分けている流入:
+- **X（SNS投稿Bot）**: 投稿URLに `?utm_source=x`（docs/sns-bot.md）。Vercel の Analytics → UTM Sources で見る
+- 未ログインの `/` は middleware が `/welcome` へ飛ばすが、`utm_*` だけは引き継ぐ（`src/lib/analytics/utm.ts`）。
+  他のクエリは捨てるので、新しい流入元を足すときも `utm_*` の名前で付けること
+
+GA4 は入れていない（Vercel Analytics で流入元・UTM・PV は足りる。検索クエリが欲しくなったら Search Console、
+広告のコンバージョン計測が要るときだけ GA4 を検討）。**GA4 を入れる場合**は Search Console/広告連携が要るときだけ。
 その際は外部送信の記載をプライバシーポリシーに足す。
 
 ## 4. Looker Studio → Neon（自由集計）
