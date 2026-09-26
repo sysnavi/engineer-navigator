@@ -10,6 +10,7 @@ import type { PersonalityId } from "@/lib/pets/species";
 import {
   chainFollowUp,
   pickMutter,
+  petLine,
   timeToBucket,
   seasonBucket,
   type SeasonBucket,
@@ -22,6 +23,7 @@ import {
 import { fetchWeather, weatherFailMessage } from "@/lib/walk/weather";
 import { BIOME_JA, ENTRY_LINES, type BiomeId } from "@/lib/walk/world";
 import { walkItemById } from "@/lib/walk/items";
+import { Window } from "@/components/retro";
 import { WalkCanvas } from "./walk-canvas";
 import { BgmPlayer } from "./bgm-player";
 import { LeaveGuard } from "./leave-guard";
@@ -118,13 +120,46 @@ export function WalkScene(props: {
     null
   );
 
-  // つぶやき表示（ループ・イベントの両方から呼ぶ）。7秒で自動で消える
+  // 「きょうのおさんぽ」欄: この散歩の記録（ページを離れたら消える・保存しない）
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const [visited, setVisited] = useState<BiomeId[]>([]);
+  const [found, setFound] = useState<string[]>([]);
+  const [petCount, setPetCount] = useState(0);
+  const [minutes, setMinutes] = useState(0);
+  useEffect(() => {
+    const start = Date.now();
+    const t = setInterval(() => setMinutes(Math.floor((Date.now() - start) / 60000)), 10000);
+    return () => clearInterval(t);
+  }, []);
+  // ログに載せる話し手（途中でペットを変えても、その時しゃべった子の名前が残る）
+  const speakerRef = useRef(pet.name);
+  useEffect(() => {
+    speakerRef.current = pet.name;
+  }, [pet.name]);
+
+  // つぶやき表示（ループ・イベント・なでるから呼ぶ）。7秒で自動で消え、ログには残る
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const show = useCallback((text: string, special: boolean) => {
     setMutter({ text, special });
+    setLog((l) =>
+      [{ id: Date.now() + Math.random(), at: clock(), who: speakerRef.current, text, special }, ...l].slice(
+        0,
+        LOG_MAX
+      )
+    );
     if (clearTimer.current) clearTimeout(clearTimer.current);
     clearTimer.current = setTimeout(() => setMutter(null), 7000);
   }, []);
+
+  // なでる: 立ち止まって笑顔＋ハート（canvas側）と、回数で変わるひとこと
+  const lastPetLine = useRef<string | undefined>(undefined);
+  const petThePet = () => {
+    const n = petCount + 1;
+    setPetCount(n);
+    const line = petLine(pet.personality, n, lastPetLine.current);
+    lastPetLine.current = line;
+    show(line, false);
+  };
 
   // イベント発生: セリフを出し、カギアイテム付きなら拾う（fail-open・入手時だけ✨演出）
   const handleEvent = useCallback(
@@ -134,6 +169,7 @@ export function WalkScene(props: {
       collectWalkItem(item)
         .then((res) => {
           if (!res?.isNew) return;
+          setFound((f) => (f.includes(res.name) ? f : [...f, res.name]));
           setTimeout(() => show(`『${res.name}』を てにいれた！`, true), 3000);
           setTimeout(() => show(res.getLine, false), 10500);
           const def = walkItemById(item);
@@ -152,6 +188,7 @@ export function WalkScene(props: {
   const handleBiomeChange = useCallback(
     (b: BiomeId) => {
       setBiome(b);
+      setVisited((v) => (v.includes(b) ? v : [...v, b]));
       const entry = ENTRY_LINES[b];
       if (entry) show(entry, true);
     },
@@ -276,12 +313,17 @@ export function WalkScene(props: {
 
   return (
     <div>
-      <div className="isolate relative aspect-[16/9] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8 bg-ink">
+      {/* スマホ縦は 4:3 にして縦を広げる（canvasの左右1/8ずつを切り落とす）。
+          --pet-x は画面上のペットの横位置（PET_X=110 / 表示幅）。吹き出しとタップ判定が使う */}
+      <div className="isolate relative aspect-[4/3] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8 bg-ink [--pet-x:29.17%] sm:aspect-[16/9] sm:[--pet-x:34.375%]">
         {/* 世界（canvasタイルエンジン）。行き先を選んだらそこから歩き直す（keyで作り直し） */}
+        <div className="absolute inset-y-0 -left-[16.667%] w-[133.334%] sm:left-0 sm:w-full">
         <WalkCanvas
           key={dest ?? "auto"}
           walkSrc={pet.spriteWalk}
           normalSrc={pet.spriteNormal}
+          happySrc={pet.spriteHappy}
+          pettedAt={petCount}
           time={time}
           weather={weather}
           speedMul={speedMul}
@@ -290,23 +332,45 @@ export function WalkScene(props: {
           onBiomeChange={handleBiomeChange}
           onEvent={handleEvent}
         />
+        </div>
 
-        {/* つぶやき窓（canvasの上・シーン幅に収める） */}
+        {/* なでる（ペットの上に透明なタップ判定。押したら canvas 側で笑顔＋ハート） */}
+        <button
+          type="button"
+          onClick={petThePet}
+          aria-label={`${pet.name}を なでる`}
+          className="absolute bottom-[3%] left-[var(--pet-x)] z-20 h-[36%] w-[22%] -translate-x-1/2 cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-pinkhot sm:w-[16%]"
+        />
+        {petCount === 0 && (
+          <span className="pointer-events-none absolute bottom-1.5 left-[var(--pet-x)] z-10 -translate-x-1/2 whitespace-nowrap rounded border-2 border-line8 bg-win/90 px-1.5 font-pixel text-[9.5px] tracking-wide text-royal2">
+            👆 なでてみる
+          </span>
+        )}
+
+        {/* つぶやき窓（しゃべっている子の頭上に、しっぽ付きで出す） */}
         {mutter && (
-          <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex justify-center">
-            <div
-              className={`max-w-[86%] rounded-lg border-[2.5px] px-3 py-2 text-[13px] leading-snug shadow-hard-sm ${
-                mutter.special
-                  ? "border-pinkhot bg-quotebg"
-                  : "border-line8 bg-win/95"
-              }`}
-            >
-              <span className="font-pixel text-[10px] tracking-wide text-royal2">
-                {pet.name}
-                {mutter.special && <span className="ml-1 text-pinkhot">✨</span>}
-              </span>
-              <p className="mt-0.5 font-bold">{mutter.text}</p>
+          <div className="pointer-events-none absolute inset-0 z-10">
+            <div className="absolute bottom-[calc(38%+8px)] left-[max(12px,calc(var(--pet-x)-44px))] right-3">
+              <div
+                className={`relative w-fit max-w-full rounded-lg border-[2.5px] px-3 py-1.5 text-[13px] leading-snug shadow-hard-sm ${
+                  mutter.special
+                    ? "border-pinkhot bg-quotebg"
+                    : "border-line8 bg-win"
+                }`}
+              >
+                <span className="font-pixel text-[10px] tracking-wide text-royal2">
+                  {pet.name}
+                  {mutter.special && <span className="ml-1 text-pinkhot">✨</span>}
+                </span>
+                <p className="mt-0.5 font-bold">{mutter.text}</p>
+              </div>
             </div>
+            {/* しっぽ（45度回した四角の下半分を吹き出しの枠線に重ねる） */}
+            <span
+              className={`absolute bottom-[calc(38%+2.5px)] left-[calc(var(--pet-x)-6px)] h-3 w-3 rotate-45 border-b-[2.5px] border-r-[2.5px] ${
+                mutter.special ? "border-pinkhot bg-quotebg" : "border-line8 bg-win"
+              }`}
+            />
           </div>
         )}
 
@@ -407,6 +471,76 @@ export function WalkScene(props: {
           </span>
         )}
       </div>
+
+      {/* きょうのおさんぽ: この散歩の記録。つぶやきを読み逃しても後から読める */}
+      <Window title="きょうのおさんぽ" titleEm=".log" className="mt-5" bodyClass="p-4">
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <Stat label="あるいた" value={minutes < 1 ? "1分未満" : `${minutes}分`} />
+          <Stat label="なでた" value={`${petCount}回`} />
+          <Stat label="みつけた" value={`${found.length}こ`} />
+        </div>
+
+        {visited.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <span className="font-pixel text-[10px] tracking-wide text-inksoft">とおった場所:</span>
+            {visited.map((b) => (
+              <span
+                key={b}
+                className="rounded border-2 border-line8 bg-win px-1.5 text-[11.5px] font-bold"
+              >
+                {BIOME_JA[b]}
+              </span>
+            ))}
+          </div>
+        )}
+        {found.length > 0 && (
+          <p className="mt-2 text-[12px]">
+            🎁 {found.map((n) => `『${n}』`).join(" ")}
+          </p>
+        )}
+
+        <h2 className="mt-4 font-pixel text-[10.5px] tracking-wide text-royal2">つぶやき</h2>
+        {log.length === 0 ? (
+          <p className="mt-1.5 text-[12px] text-inksoft">
+            あるいていると、{pet.name}が ときどき ひとこと話します。
+          </p>
+        ) : (
+          <ol className="mt-1.5 max-h-[320px] space-y-1.5 overflow-y-auto pr-1">
+            {log.map((e) => (
+              <li key={e.id} className="flex gap-2 text-[12.5px] leading-snug">
+                <span className="shrink-0 font-pixel text-[10px] leading-[18px] text-inksoft">
+                  {e.at}
+                </span>
+                <span>
+                  <span className="mr-1 font-bold text-royal2">
+                    {e.who}
+                    {e.special && <span className="text-pinkhot">✨</span>}
+                  </span>
+                  {e.text}
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </Window>
+    </div>
+  );
+}
+
+type LogEntry = { id: number; at: string; who: string; text: string; special: boolean };
+const LOG_MAX = 50;
+
+/** いまの時刻を HH:MM で（ログ用・クライアントでのみ呼ぶ） */
+function clock(): string {
+  const d = new Date();
+  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function Stat(props: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border-2 border-line8 bg-win px-1 py-1.5">
+      <div className="font-pixel text-[9.5px] tracking-wide text-inksoft">{props.label}</div>
+      <div className="text-[14px] font-bold">{props.value}</div>
     </div>
   );
 }

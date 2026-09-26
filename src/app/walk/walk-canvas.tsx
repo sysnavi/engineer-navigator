@@ -41,6 +41,8 @@ import type { TimeBucket, WeatherBucket } from "@/lib/walk/mutter";
 const BASE_SPEED = 14; // px/s（のんびり歩き。散歩なので急がない）
 const PET_SIZE = 48;
 const EVENT_PAUSE_MS = 4800;
+/** なでられたとき立ち止まって笑顔でいる時間 */
+const PET_PAUSE_MS = 2600;
 
 // ペットPNGはドット絵（例: 1ドット=24px・横16ドット）だが、そのまま48x48に
 // 押し込むとドットが非整数・非正方形につぶれて汚くなる。読み込み時に一度だけ
@@ -108,7 +110,7 @@ const AMBIENT_FIRST_MS = 45000;
 const AMBIENT_GAP_MS = 100000;
 
 /** 画面演出（環境イベント・イベント反応の生き物） */
-type Fx = { kind: string; born: number };
+type Fx = { kind: string; born: number; x?: number; y?: number };
 
 const RAINBOW = ["#ff6b6b", "#ffb347", "#ffd84d", "#6fbf73", "#5dade2", "#8d84c9"];
 
@@ -233,6 +235,30 @@ function drawFx(ctx: CanvasRenderingContext2D, f: Fx, now: number, frame: number
     }
     return true;
   }
+  if (f.kind === "hearts") {
+    // なでたときのハート（ペットの頭上からふわっと昇って消える）
+    if (age > 1.6) return false;
+    const ox = f.x ?? PET_X;
+    const oy = f.y ?? PET_FOOT_Y - 50;
+    ctx.globalAlpha = Math.max(0, 1 - age / 1.6);
+    for (let i = 0; i < 3; i++) {
+      const t = age - i * 0.18;
+      if (t < 0) continue;
+      const x = Math.round(ox + (i - 1) * 12 + Math.sin(t * 5 + i) * 3);
+      const y = Math.round(oy - t * 26 - (i === 1 ? 6 : 0));
+      ctx.fillStyle = "#ff5fa2";
+      ctx.fillRect(x, y, 2, 2);
+      ctx.fillRect(x + 3, y, 2, 2);
+      ctx.fillRect(x - 1, y + 1, 7, 2);
+      ctx.fillRect(x, y + 3, 5, 1);
+      ctx.fillRect(x + 1, y + 4, 3, 1);
+      ctx.fillRect(x + 2, y + 5, 1, 1);
+      ctx.fillStyle = "#ffd1e6";
+      ctx.fillRect(x, y + 1, 1, 1);
+    }
+    ctx.globalAlpha = 1;
+    return true;
+  }
   if (f.kind === "trig-batta") {
     if (age > 1.6) return false;
     const x = PET_X + 28 + age * 70;
@@ -272,6 +298,10 @@ function drawFx(ctx: CanvasRenderingContext2D, f: Fx, now: number, frame: number
 export function WalkCanvas(props: {
   walkSrc: string;
   normalSrc: string;
+  /** なでられたときの笑顔（無ければnormal） */
+  happySrc?: string;
+  /** なでた回数（連番）。変わるたびに立ち止まって笑顔＋ハート */
+  pettedAt?: number;
   time: TimeBucket;
   weather: WeatherBucket;
   /** デバッグ用の早回し（?speed=） */
@@ -313,6 +343,21 @@ export function WalkCanvas(props: {
     };
   }, [props.walkSrc, props.normalSrc]);
 
+  // なでられたときの笑顔（無ければ normal→歩き差分の順にフォールバック）
+  const happyRef = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    let alive = true;
+    happyRef.current = null;
+    const img = new Image();
+    img.onload = () => {
+      if (alive) happyRef.current = prerenderPet(img);
+    };
+    img.src = props.happySrc ?? props.normalSrc;
+    return () => {
+      alive = false;
+    };
+  }, [props.happySrc, props.normalSrc]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -338,6 +383,8 @@ export function WalkCanvas(props: {
     let raf = 0;
     let pausedUntil = 0;
     let lastBiome: BiomeId | null = null;
+    let lastPetted = propsRef.current.pettedAt ?? 0;
+    let happyUntil = 0;
     let dustAcc = 0;
     let nextAmbientAt = performance.now() + AMBIENT_FIRST_MS + Math.random() * 30000;
     const fx: Fx[] = [];
@@ -358,6 +405,16 @@ export function WalkCanvas(props: {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       const p = propsRef.current;
+      // なでられた: 立ち止まって笑顔＋ハート（イベントの立ち止まりより短ければ延長しない）
+      if ((p.pettedAt ?? 0) !== lastPetted) {
+        lastPetted = p.pettedAt ?? 0;
+        happyUntil = now + PET_PAUSE_MS;
+        pausedUntil = Math.max(pausedUntil, happyUntil);
+        const hs = happyRef.current ?? imgRef.current;
+        // 頭上は吹き出しが来るので、ハートは頭の右横から昇らせる
+        fx.push({ kind: "hearts", born: now, x: PET_X + 22, y: PET_FOOT_Y - (hs?.height ?? 48) + 10 });
+      }
+      const happy = now < happyUntil;
       const paused = now < pausedUntil;
       const moving = !reduced && !paused;
       const frame = reduced ? 0 : Math.floor(now / 160);
@@ -473,15 +530,16 @@ export function WalkCanvas(props: {
       // ペット（影→本体。前傾＋2コマ歩行。立ち止まり中はゆっくり呼吸）。
       // 前傾は rotate だとドット格子が壊れてギザつくので、横スライスを1pxずつ
       // ずらすシアーで表現する（ピクセルは常に格子に乗ったまま）
-      const spr = imgRef.current;
+      const spr = (happy && happyRef.current) || imgRef.current;
       if (spr) {
         const sw = spr.width;
         const sh = spr.height;
         ctx.fillStyle = "rgba(0,0,0,0.22)";
         ctx.fillRect(PET_X - (sw >> 2), PET_FOOT_Y - 1, sw >> 1, 3);
         const step = moving ? frame % 2 : 0;
-        const bob = moving ? step * 2 : frame % 8 < 4 ? 0 : 1;
-        const lean = moving ? 0.09 + (step ? 0.03 : -0.03) : 0.02;
+        // 笑顔のときは小さく跳ねる（前傾なし）
+        const bob = happy ? (frame % 4 < 2 ? 2 : 0) : moving ? step * 2 : frame % 8 < 4 ? 0 : 1;
+        const lean = happy ? 0 : moving ? 0.09 + (step ? 0.03 : -0.03) : 0.02;
         const top = PET_FOOT_Y - bob - sh;
         const SLICE = 4;
         for (let y = 0; y < sh; y += SLICE) {

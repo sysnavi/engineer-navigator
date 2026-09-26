@@ -1354,3 +1354,40 @@ export function pickMutter(ctx: WalkContext, recent: string[]): string {
   }
   return pool[pool.length - 1].text;
 }
+
+// ---------------------------------------------------------------------------
+// なでたときの反応（タップでなでる）。性格ごと＋なでた回数で変化する。
+// 何度もなでると照れる・甘える、という「関係が動く」感じを回数だけで出す（トークン0）
+// ---------------------------------------------------------------------------
+
+const PET_LINES: Record<PersonalityId, { first: string[]; more: string[]; lots: string[] }> = {
+  friendly: {
+    first: ["えへへ、くすぐったい！", "わーい、なでなでだ！", "もっと なでて いいよ〜"],
+    more: ["きみの て、あったかいね", "ぼく、なでられるの だいすき！", "ふふ、しあわせ〜"],
+    lots: ["なでなで マスターだね、きみ", "もう とけちゃいそう…", "ずっと こうしてたいな"],
+  },
+  tsun: {
+    first: ["な、なにするの！…べつに いやじゃないけど", "きゅうに さわらないでよね", "…ふん。まあ ゆるしてあげる"],
+    more: ["ま、またなでるの？ しょうがないなあ", "…きらいじゃ ないよ。ちょっとだけ", "かおが あかいのは さむいから！"],
+    lots: ["…もう、すきに すれば？", "なでるの じょうずに なったじゃん", "……もうちょっとだけ なら いいよ"],
+  },
+  shy: {
+    first: ["ひゃっ…！ びっくりした…", "あ、あの…うれしい、です", "…えへ"],
+    more: ["…ちょっと なれてきた、かも", "きみに なでられるの、すき…", "…あったかい"],
+    lots: ["…もう こわくないよ", "…ずっと となりに いてね", "きみの てのひら、おぼえちゃった"],
+  },
+  pace: {
+    first: ["ん〜？ なでなで〜？", "ふわぁ…きもちいい〜", "あ〜 そこそこ〜"],
+    more: ["ねむく なってきちゃう〜", "のんびり なでなで、いいね〜", "ほわぁ〜"],
+    lots: ["ここで ひるね しちゃおうかな〜", "きみ、なでるの プロだね〜", "しあわせ〜 とけるぅ〜"],
+  },
+};
+
+/** なでたときのひとこと。count はこの散歩で なでた回数（1〜）。直前と同じ文は避ける */
+export function petLine(personality: PersonalityId, count: number, prev?: string): string {
+  const set = PET_LINES[personality];
+  const pool = count <= 1 ? set.first : count < 6 ? set.more : set.lots;
+  const cands = pool.filter((t) => t !== prev);
+  const list = cands.length > 0 ? cands : pool;
+  return list[Math.floor(Math.random() * list.length)];
+}
