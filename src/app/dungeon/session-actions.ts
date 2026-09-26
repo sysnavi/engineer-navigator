@@ -35,7 +35,7 @@ import {
   type DiveState,
   type Move,
 } from "@/lib/dungeon/session";
-import { cellKey, type CellKind, type Facing } from "@/lib/dungeon/map";
+import { cellKey, type Facing, type ViewObjectKind } from "@/lib/dungeon/map";
 import {
   loadCandidates,
   loadRecentAsked,
@@ -85,7 +85,7 @@ export type DiveView = {
     facing: Facing;
     seen: string[];
     /** 見えているもの（罠は含めない）。歩いた周辺＋現在地から半径4 */
-    objects: { x: number; y: number; kind: CellKind }[];
+    objects: { x: number; y: number; kind: ViewObjectKind }[];
   } | null;
   logs: DiveState["logs"];
   ending: DiveState["ending"];
@@ -155,12 +155,17 @@ const SIGHT = 4;
 
 function viewMap(m: NonNullable<DiveState["map"]>): NonNullable<DiveView["map"]> {
   const seen = new Set(m.seen);
-  const objects: { x: number; y: number; kind: CellKind }[] = [];
+  const objects: { x: number; y: number; kind: ViewObjectKind }[] = [];
   for (const [key, kind] of Object.entries(m.events)) {
     if (kind === "TRAP") continue; // 罠は見えない（踏んで初めて分かる）
     const [x, y] = key.split(",").map(Number);
     const near = Math.max(Math.abs(x - m.x), Math.abs(y - m.y)) <= SIGHT;
     if (near || seen.has(cellKey(x, y))) objects.push({ x, y, kind });
+  }
+  // 開けた宝箱は空箱として残す（歩いた場所なので常に seen）
+  for (const key of m.opened ?? []) {
+    const [x, y] = key.split(",").map(Number);
+    objects.push({ x, y, kind: "OPENED" });
   }
   return { n: m.n, cells: m.cells, x: m.x, y: m.y, facing: m.facing, seen: m.seen, objects };
 }

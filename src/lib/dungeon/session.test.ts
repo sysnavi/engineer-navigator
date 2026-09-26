@@ -153,6 +153,33 @@ describe("doMove（迷路を歩く）", () => {
     expect(at.gotGadgets.length).toBe(1);
     expect(findEvent(at.map!, tx, ty)).toBeUndefined();
   });
+
+  it("開けた宝箱は opened に残り、ログに開封演出のデータ（スプライト・レア度・flavor）が載る", () => {
+    let st = exploring({}, 5);
+    const entry = Object.entries(st.map!.events).find(([, k]) => k === "TREASURE")!;
+    const [tx, ty] = entry[0].split(",").map(Number);
+    st = { ...st, map: { ...st.map!, events: { [entry[0]]: "TREASURE" } } };
+    const at = walkTo(st, tx, ty, () => 0.99);
+    expect(at.map!.opened).toEqual([entry[0]]);
+    expect(at.logs[0].chest).toEqual({ stage: "found" });
+    const open = at.logs[1].chest;
+    expect(open?.stage).toBe("open");
+    const g = open?.stage === "open" ? open.gadget : undefined;
+    expect(g?.sprite).toBeTruthy();
+    expect(g?.flavor).toBeTruthy();
+    expect(at.logs[1].text).toContain(g!.name);
+  });
+
+  it("ミミック（空っぽ）でも宝箱は開いた扱いで、開封演出は中身なし", () => {
+    let st = exploring({}, 5);
+    const entry = Object.entries(st.map!.events).find(([, k]) => k === "TREASURE")!;
+    const [tx, ty] = entry[0].split(",").map(Number);
+    st = { ...st, map: { ...st.map!, events: { [entry[0]]: "TREASURE" } } };
+    const at = walkTo(st, tx, ty, () => 0); // rng=0 は必ずミミック
+    expect(at.gotGadgets).toEqual([]);
+    expect(at.map!.opened).toEqual([entry[0]]);
+    expect(at.logs[1].chest).toEqual({ stage: "open" });
+  });
 });
 
 describe("resolveCell（マスのイベント）", () => {

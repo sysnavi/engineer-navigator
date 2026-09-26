@@ -1203,3 +1203,220 @@ body::before {
     transform: translateX(4px) rotate(4deg);
   }
 }
+
+/* ===== 宝箱の開封演出（src/app/dungeon/chest-reveal.tsx） =====
+   基本スタイルは「最終状態」。動きは reduced-motion でないときだけ keyframes で足す */
+.cr-root {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 9%;
+  background: radial-gradient(ellipse at 50% 72%, rgba(6, 10, 28, 0.15), rgba(6, 10, 28, 0.6));
+  pointer-events: none;
+  overflow: hidden;
+}
+.cr-stage {
+  position: relative;
+  width: 34%;
+  max-width: 170px;
+}
+.cr-chest-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.45));
+}
+.cr-lid {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+/* 開いたフタは奥へ倒れて見える＝縦に潰れて箱の縁の上に乗り、裏側なので暗い */
+.cr-lid-open {
+  transform: translateY(-2px) scaleY(0.4);
+  filter: brightness(0.6);
+}
+.cr-beam {
+  position: absolute;
+  left: 50%;
+  bottom: 14%;
+  width: 70%;
+  height: 90%;
+  transform: translateX(-50%);
+  background: linear-gradient(to top, var(--cr-glow), transparent 85%);
+  clip-path: polygon(38% 100%, 62% 100%, 100% 0, 0 0);
+  opacity: 0.35;
+  mix-blend-mode: screen;
+}
+.cr-flash {
+  position: absolute;
+  inset: 0;
+  background: var(--cr-glow);
+  opacity: 0;
+}
+.cr-item {
+  position: absolute;
+  left: 50%;
+  bottom: 88%;
+  width: 92%;
+  height: 92%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.cr-item-img {
+  max-width: 100%;
+  max-height: 100%;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 6px var(--cr-glow));
+}
+.cr-badge {
+  position: absolute;
+  right: -22%;
+  bottom: 128%;
+  padding: 1px 6px;
+  border: 2px solid;
+  border-radius: 3px;
+  background: rgba(6, 10, 28, 0.85);
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  transform: rotate(-10deg);
+  text-shadow: 0 0 6px currentColor;
+}
+.cr-304 {
+  position: absolute;
+  left: 50%;
+  bottom: 80%;
+  transform: translateX(-50%);
+  color: #9fb0d0;
+  font-size: 18px;
+  opacity: 0.8;
+}
+.cr-flavor {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 8px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(6, 10, 28, 0.72);
+  color: #e8f0ff;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+}
+.cr-flavor-name {
+  font-weight: 700;
+  color: var(--cr-glow);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cr-root {
+    animation: cr-fade 0.25s ease-out both;
+  }
+  .cr-rattle {
+    animation: cr-rattle 0.36s steps(1) infinite;
+    transform-origin: 50% 100%;
+  }
+  .cr-found .cr-lid {
+    animation: cr-lidpeek 0.36s steps(1) infinite;
+  }
+  .cr-lid-open {
+    animation: cr-lidpop 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+  }
+  .cr-open .cr-chest {
+    animation: cr-thump 0.3s ease-out both;
+  }
+  .cr-beam {
+    animation: cr-beam 1.6s ease-out 0.1s both;
+  }
+  .cr-high .cr-beam {
+    animation: cr-beam 1.6s ease-out 0.1s both, cr-beampulse 1.2s ease-in-out 1.7s infinite;
+  }
+  .cr-flash {
+    animation: cr-flash 0.5s ease-out 0.85s both;
+  }
+  .cr-item {
+    animation: cr-arc 0.8s cubic-bezier(0.25, 0.8, 0.4, 1) 0.15s both;
+  }
+  .cr-item-img {
+    animation: cr-bob 1.6s ease-in-out 1s infinite;
+  }
+  .cr-badge {
+    animation: cr-stamp 0.32s cubic-bezier(0.3, 1.5, 0.5, 1) 0.95s both;
+  }
+  .cr-304 {
+    animation: cr-float304 1.4s ease-out 0.25s both;
+  }
+  .cr-flavor {
+    animation: cr-rise 0.4s ease-out 1.25s both;
+  }
+}
+@keyframes cr-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes cr-rattle {
+  0% { transform: translateX(0) rotate(0); }
+  25% { transform: translateX(-2px) rotate(-3deg); }
+  50% { transform: translateX(1px) rotate(0); }
+  75% { transform: translateX(2px) rotate(3deg); }
+}
+@keyframes cr-lidpeek {
+  0%, 50% { transform: translateY(0); }
+  25%, 75% { transform: translateY(-1px); }
+}
+@keyframes cr-lidpop {
+  0% { transform: translateY(0) scaleY(1); filter: none; }
+  45% { transform: translateY(-6px) scaleY(0.75) rotate(-6deg); filter: none; }
+}
+@keyframes cr-thump {
+  0% { transform: scale(1.12, 0.86); }
+  60% { transform: scale(0.96, 1.06); }
+  100% { transform: scale(1, 1); }
+}
+@keyframes cr-beam {
+  0% { opacity: 0; transform: translateX(-50%) scaleY(0.2); }
+  30% { opacity: 0.9; transform: translateX(-50%) scaleY(1.1); }
+  100% { opacity: 0.35; transform: translateX(-50%) scaleY(1); }
+}
+@keyframes cr-beampulse {
+  50% { opacity: 0.6; }
+}
+@keyframes cr-flash {
+  0% { opacity: 0.75; }
+  100% { opacity: 0; }
+}
+/* 箱の中から小さく出て、右上へ弧を描いて舞い上がり、中央に降りてくる */
+@keyframes cr-arc {
+  0% { transform: translate(-50%, 70%) scale(0.2); opacity: 0; }
+  15% { opacity: 1; }
+  45% { transform: translate(-30%, -38%) scale(1.08) rotate(8deg); }
+  75% { transform: translate(-50%, 6%) scale(0.98) rotate(-3deg); }
+  100% { transform: translate(-50%, 0) scale(1) rotate(0); opacity: 1; }
+}
+@keyframes cr-bob {
+  50% { transform: translateY(-4%); }
+}
+@keyframes cr-stamp {
+  0% { transform: rotate(-10deg) scale(3); opacity: 0; }
+  60% { transform: rotate(-10deg) scale(0.88); opacity: 1; }
+  100% { transform: rotate(-10deg) scale(1); opacity: 1; }
+}
+@keyframes cr-float304 {
+  0% { opacity: 0; transform: translate(-50%, 30%); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -120%); }
+}
+@keyframes cr-rise {
+  from { opacity: 0; transform: translateY(6px); }
+}

@@ -10,7 +10,7 @@
 // 移植元の試作: https://claude.ai/code/artifact/ad1da3f1-3354-417f-b586-299db45efe9c
 
 import { useEffect, useRef } from "react";
-import { DIRS, type CellKind, type Facing } from "@/lib/dungeon/map";
+import { DIRS, type Facing, type ViewObjectKind } from "@/lib/dungeon/map";
 
 export type ViewMap = {
   n: number;
@@ -18,7 +18,7 @@ export type ViewMap = {
   x: number;
   y: number;
   seen: string[];
-  objects: { x: number; y: number; kind: CellKind }[];
+  objects: { x: number; y: number; kind: ViewObjectKind }[];
 };
 
 const W = 240;
@@ -56,11 +56,13 @@ export function FirstPersonView(props: {
   facing: Facing;
   /** 戦闘中の敵（中央手前に大きく描く） */
   foe: { sprite: string; boss: boolean } | null;
+  /** 足元のもの（k=0）を描かない。開封演出が同じ宝箱を大きく出している間の二重描画を避ける */
+  hideHere?: boolean;
   className?: string;
 }) {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const flick = useRef(1);
-  const { map, facing, foe } = props;
+  const { map, facing, foe, hideHere } = props;
 
   useEffect(() => {
     const cv = ref.current;
@@ -93,7 +95,7 @@ export function FirstPersonView(props: {
       ctx.stroke();
     };
 
-    const drawObject = (kind: CellKind, k: number) => {
+    const drawObject = (kind: ViewObjectKind, k: number) => {
       const fr = frame(k);
       const bk = frame(k + 1);
       const w = (fr.x1 - fr.x0) * 0.42;
@@ -112,12 +114,31 @@ export function FirstPersonView(props: {
         ctx.fillRect(cx + s * 0.16 - e, floorY - s * 0.55, e, e);
       } else if (kind === "TREASURE") {
         const s = w * 0.5;
+        // 箱・フタ・金の帯と錠前。フタは箱より少し明るく、境目に影を1本
         ctx.fillStyle = col([120, 78, 40], k);
         ctx.fillRect(cx - s / 2, floorY - s * 0.6, s, s * 0.6);
+        ctx.fillStyle = col([150, 98, 52], k);
+        ctx.fillRect(cx - s / 2, floorY - s * 0.6, s, s * 0.24);
+        ctx.fillStyle = col([60, 38, 20], k);
+        ctx.fillRect(cx - s / 2, floorY - s * 0.36, s, Math.max(1, s * 0.04));
+        ctx.fillStyle = col([255, 216, 77], k, 0.8);
+        ctx.fillRect(cx - s * 0.36, floorY - s * 0.6, Math.max(1, s * 0.07), s * 0.6);
+        ctx.fillRect(cx + s * 0.29, floorY - s * 0.6, Math.max(1, s * 0.07), s * 0.6);
         ctx.fillStyle = col([255, 216, 77], k);
         ctx.fillRect(cx - s * 0.08, floorY - s * 0.42, s * 0.16, s * 0.16);
         ctx.strokeStyle = EDGE + "0.5)";
         ctx.strokeRect(cx - s / 2, floorY - s * 0.6, s, s * 0.6);
+      } else if (kind === "OPENED") {
+        // 開けた後の空箱: フタは後ろに倒れ、中は暗い
+        const s = w * 0.5;
+        ctx.fillStyle = col([96, 62, 32], k, 0.8);
+        ctx.fillRect(cx - s / 2, floorY - s * 0.72, s, s * 0.22);
+        ctx.fillStyle = col([120, 78, 40], k, 0.85);
+        ctx.fillRect(cx - s / 2, floorY - s * 0.5, s, s * 0.5);
+        ctx.fillStyle = "rgba(6,10,28,0.85)";
+        ctx.fillRect(cx - s * 0.44, floorY - s * 0.5, s * 0.88, s * 0.1);
+        ctx.strokeStyle = EDGE + "0.35)";
+        ctx.strokeRect(cx - s / 2, floorY - s * 0.5, s, s * 0.5);
       } else if (kind === "STAIRS") {
         const s = w * 0.9;
         quad(
@@ -229,7 +250,8 @@ export function FirstPersonView(props: {
           }
         }
         const o = objAt(cx, cy);
-        if (o && k > 0) drawObject(o.kind, k);
+        // 足元（k=0）も描く。宝箱の上に立った瞬間に宝箱が消えていた
+        if (o && !(k === 0 && hideHere)) drawObject(o.kind, k);
       }
 
       // 戦闘中の敵: 目の前に大きく
@@ -262,7 +284,7 @@ export function FirstPersonView(props: {
       render();
     }, 140);
     return () => clearInterval(t);
-  }, [map, facing, foe]);
+  }, [map, facing, foe, hideHere]);
 
   return (
     <canvas

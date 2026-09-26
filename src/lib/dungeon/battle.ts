@@ -80,6 +80,13 @@ export type BattleLog = {
   /** ダメージ表示 */
   damage?: number;
   target?: "hero" | "foe";
+  /** 宝箱の演出（UIが開封アニメを出す）。found=揺れてタメる / open=フタが開く（gadget が無ければ空っぽ） */
+  chest?:
+    | { stage: "found" }
+    | {
+        stage: "open";
+        gadget?: { name: string; sprite: string; rarity: "N" | "R" | "SR" | "SSR" | "UR"; flavor: string };
+      };
 };
 
 /** 乱数の注入口。テストでは固定値を渡して決定的に検証する */

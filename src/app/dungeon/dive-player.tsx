@@ -19,6 +19,7 @@ import type { BattleCommand } from "@/lib/dungeon/battle";
 import type { Choice } from "@/lib/dungeon/session";
 import type { Facing } from "@/lib/dungeon/map";
 import { FirstPersonView } from "./first-person-view";
+import { ChestReveal } from "./chest-reveal";
 import { useDungeonBgm, DungeonBgmToggle } from "./bgm";
 
 const FACING_LABEL = ["N", "E", "S", "W"];
@@ -52,11 +53,20 @@ const seCoin = () => {
   blip(988, 0.06);
   setTimeout(() => blip(1319, 0.12), 70);
 };
+/** 宝箱がガタガタ鳴る */
+const seRattle = () => [0, 110, 220, 330].forEach((d, i) => setTimeout(() => blip(i % 2 ? 150 : 190, 0.04), d));
+/** 高レア（SR以上）: バッジが押される瞬間のきらめき */
+const seSparkle = () =>
+  [1319, 1568, 1976, 2637].forEach((f, i) => setTimeout(() => blip(f, 0.08, "triangle", 0.035), i * 70));
 const seFanfare = () =>
   [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => blip(f, 0.12), i * 130));
 
 /** 1文字あたりの表示間隔。以前は24ms（毎秒42文字）で速すぎた */
 const TYPE_MS = 55;
+/** 「宝箱を見つけた！開けてみると…」を打ち終えてから開くまでのタメ（揺れている時間） */
+const CHEST_HOLD_MS = 800;
+/** 開封演出でバッジが押されるまでの時間（chest-reveal の .cr-badge の delay と合わせる） */
+const CHEST_STAMP_MS = 950;
 
 /** 振動（Android/Chrome）。無い環境では何もしない */
 function buzz(ms: number) {
@@ -103,6 +113,18 @@ function TurnIcon(props: { dir: "left" | "right"; size?: number }) {
       </g>
     </svg>
   );
+}
+
+function logSound(l: BattleLog) {
+  if (l.chest?.stage === "found") seRattle();
+  fxSound(l.fx);
+  const r = l.chest?.stage === "open" ? l.chest.gadget?.rarity : undefined;
+  if (r === "SR" || r === "SSR" || r === "UR") {
+    setTimeout(() => {
+      seSparkle();
+      buzz(r === "SR" ? 20 : 45);
+    }, CHEST_STAMP_MS);
+  }
 }
 
 function fxSound(fx: BattleLog["fx"]) {
@@ -195,8 +217,15 @@ export function DivePlayer(props: {
     runningRef.current = true;
     const [head, ...rest] = queue;
     const token = ++typeRef.current;
-    fxSound(head.fx);
+    logSound(head);
     let i = 0;
+    let hold: ReturnType<typeof setTimeout> | null = null;
+    const finish = () => {
+      runningRef.current = false;
+      setTyping(null);
+      setShown((s) => [...s, head]);
+      setQueue(rest);
+    };
     const t = setInterval(() => {
       if (token !== typeRef.current) {
         clearInterval(t);
@@ -206,14 +235,17 @@ export function DivePlayer(props: {
       setTyping(head.text.slice(0, i));
       if (i >= head.text.length) {
         clearInterval(t);
-        runningRef.current = false;
-        setTyping(null);
-        setShown((s) => [...s, head]);
-        setQueue(rest);
+        // 宝箱を見つけたら、揺れている間ひと呼吸おいてから開ける（クリックで飛ばせる）
+        if (head.chest?.stage === "found") {
+          hold = setTimeout(() => {
+            if (token === typeRef.current) finish();
+          }, CHEST_HOLD_MS);
+        } else finish();
       }
     }, TYPE_MS);
     return () => {
       clearInterval(t);
+      if (hold) clearTimeout(hold);
       runningRef.current = false;
     };
   }, [queue]);
@@ -394,6 +426,11 @@ export function DivePlayer(props: {
 
   const typingDone = queue.length === 0 && typing === null;
   const v = view;
+  // 宝箱の演出: いま出している（出し終えた）ログのうち最新の宝箱ログ。イベント中だけ出す
+  const chest =
+    v.phase === "EVENT"
+      ? [...shown, ...queue.slice(0, 1)].reverse().find((l) => l.chest)?.chest
+      : undefined;
 
   return (
     <div className="space-y-3">
@@ -424,7 +461,9 @@ export function DivePlayer(props: {
             map={v.map}
             facing={facing}
             foe={v.foe ? { sprite: v.foe.sprite, boss: v.foe.boss } : null}
+            hideHere={!!chest}
           />
+          {chest && <ChestReveal key={chest.stage} chest={chest} />}
           <span className="absolute left-2 top-1 font-pixel text-[11px] tracking-widest text-[#cfe1ff] [text-shadow:1px_1px_0_#000]">
             {FACING_LABEL[facing]}
           </span>

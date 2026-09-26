@@ -246,6 +246,7 @@ export function doMove(s: DiveState, move: Move, rng: Rng): DiveState {
   const events = { ...map.events };
   delete events[cellKey(nx, ny)];
   map = { ...map, events };
+  if (ev === "TREASURE") map = { ...map, opened: [...(map.opened ?? []), cellKey(nx, ny)] };
   return resolveCell({ ...st, map }, ev, rng);
 }
 
@@ -308,16 +309,27 @@ export function resolveCell(s: DiveState, kind: CellKind, rng: Rng): DiveState {
     const guaranteed = st.firstDive && st.gotGadgets.length === 0;
     if (!guaranteed && rng() < MIMIC_RATE) {
       st.logs = [
-        { text: "宝箱を見つけた！開けてみると…" },
-        { text: "空っぽだ。「304 Not Modified」の文字だけが浮かんで消えた。", fx: "miss" },
+        { text: "宝箱を見つけた！開けてみると…", chest: { stage: "found" } },
+        {
+          text: "空っぽだ。「304 Not Modified」の文字だけが浮かんで消えた。",
+          fx: "miss",
+          chest: { stage: "open" },
+        },
       ];
     } else {
       const g = rollGadget(st.depth, rng);
       st.gotGadgets = [...st.gotGadgets, g.id];
       const food = rng() < FOOD_DROP_RATE ? rollFood(st.depth, false) : null;
       st.logs = [
-        { text: "宝箱を見つけた！開けてみると…" },
-        { text: `「${g.name}」を手に入れた！（${g.rarity}）`, fx: "heal" },
+        { text: "宝箱を見つけた！開けてみると…", chest: { stage: "found" } },
+        {
+          text: `「${g.name}」を手に入れた！（${g.rarity}）`,
+          fx: "heal",
+          chest: {
+            stage: "open",
+            gadget: { name: g.name, sprite: g.sprite ?? `cat-${g.category}`, rarity: g.rarity, flavor: g.flavor },
+          },
+        },
       ];
       if (food) {
         st.gotFoods = [...st.gotFoods, food.id];

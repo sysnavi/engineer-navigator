@@ -12,6 +12,8 @@
 import type { Rng } from "./battle";
 
 export type CellKind = "ENCOUNTER" | "TREASURE" | "TRAP" | "REST" | "BOSS" | "STAIRS";
+/** 一人称ビューに渡すもの。OPENED=開けた後の空箱（イベントではない・描くだけ） */
+export type ViewObjectKind = CellKind | "OPENED";
 
 export type Facing = 0 | 1 | 2 | 3; // N / E / S / W
 
@@ -26,6 +28,9 @@ export type FloorMap = {
   seen: string[];
   /** 未解決のイベント（"x,y" → 種類） */
   events: Record<string, CellKind>;
+  /** 開けた宝箱（"x,y"）。空箱として描き続ける（踏んだ場所が消えると「何があったか」が残らない）。
+   *  旧データには無いので optional */
+  opened?: string[];
   stairs: [number, number];
 };
 
