@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { requireFullAccountUser } from "@/lib/guest";
 import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
 import { moderateYomoyama } from "@/lib/ai/moderation";
+import { prescreenYomoyama, prescreenIssueLabel } from "@/lib/yomoyama/prescreen";
 import { REPORT_CATEGORIES } from "./report-categories";
 
 const MAX_LEN = 1000;
@@ -23,6 +24,16 @@ export async function postYomoyama(body: string): Promise<PostResult> {
   if (!text) return { ok: false, error: "本文を入力してください。" };
   if (text.length > MAX_LEN) {
     return { ok: false, error: `本文は${MAX_LEN}文字以内でお願いします。` };
+  }
+
+  // 決定的プリスクリーン（連絡先）。AI門番の前に止めるのでトークンも使わない
+  const pre = prescreenYomoyama(text);
+  if (pre.length) {
+    return {
+      ok: false,
+      error: "この投稿は掲載できません。連絡先（メール・電話・SNSアカウント）は書かないでください。",
+      issues: pre.map(prescreenIssueLabel),
+    };
   }
 
   // レート制限・停止チェック（トークンを使う前に）
@@ -121,6 +132,15 @@ export async function addComment(
   if (!post) return { ok: false, error: "投稿が見つかりません。" };
   if (!post.allowComments) {
     return { ok: false, error: "この投稿はコメントを受け付けていません。" };
+  }
+
+  const pre = prescreenYomoyama(text);
+  if (pre.length) {
+    return {
+      ok: false,
+      error: "このコメントは掲載できません。連絡先（メール・電話・SNSアカウント）は書かないでください。",
+      issues: pre.map(prescreenIssueLabel),
+    };
   }
 
   try {
