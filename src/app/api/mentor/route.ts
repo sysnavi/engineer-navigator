@@ -9,6 +9,8 @@ import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
 // body: { sessionId: string, content: string }
 // ユーザーメッセージを永続化 → Claudeの返信をtext/plainで逐次返す → 完了時に永続化。
 
+const MAX_CONTENT = 4000;
+
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   const { sessionId, content } = (await req.json()) as {
@@ -18,6 +20,14 @@ export async function POST(req: Request) {
 
   if (!sessionId || !content?.trim()) {
     return new Response("sessionId と content は必須です", { status: 400 });
+  }
+  // 1通あたりの上限。無制限だと1回の送信で入力トークンを青天井に積めてしまう
+  // （レート制限は回数のみでトークン量を見ていないため、ここで長さを抑える）
+  if (content.length > MAX_CONTENT) {
+    return new Response(`[1回の送信は${MAX_CONTENT}文字までです。分けて送ってください]`, {
+      status: 413,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   }
 
   const session = await prisma.mentorSession.findUnique({

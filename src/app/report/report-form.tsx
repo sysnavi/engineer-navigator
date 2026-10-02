@@ -7,6 +7,7 @@ import {
   type SubmitReportResult,
 } from "@/app/actions";
 import { MicButton } from "@/components/mic-button";
+import { REPORT_FIELD_MAX } from "@/lib/report-limits";
 import { SendingOverlay } from "@/components/sending-overlay";
 import { ResultModal } from "./result-modal";
 
@@ -99,6 +100,7 @@ function Field(props: {
           placeholder={props.placeholder}
           defaultValue={props.defaultValue ?? ""}
           required={props.required}
+          maxLength={REPORT_FIELD_MAX}
           className="field8"
         />
         <MicButton onText={appendVoice} title={`${props.label}を音声で入力`} />

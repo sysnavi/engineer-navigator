@@ -72,6 +72,13 @@ async function buildContext(userId: string): Promise<string> {
 ※「次の一歩」は、可能な限り本人が目指している技術領域につながる提案にすること。`;
 }
 
+/**
+ * メンターに渡す履歴の上限（メッセージ数）。全履歴を毎回送ると往復ごとに
+ * 入力トークンが積み上がる（長いセッションで二次関数的に増える）ため、直近だけ渡す。
+ * 偶数にしておくと user/assistant の対が崩れにくい。
+ */
+export const MENTOR_HISTORY_MAX = 20;
+
 /** セッション履歴 + コンテキストからメンターへ渡すメッセージ列を組み立てる */
 export async function buildMentorMessages(
   sessionId: string
@@ -90,10 +97,12 @@ export async function buildMentorMessages(
       ? `\n\n## このセッションのテーマ\n${[session.certification, session.topic].filter(Boolean).join(" / ")}`
       : "";
 
-  const messages: ChatMessage[] = session.messages.map((m) => ({
-    role: m.role === "USER" ? "user" : "assistant",
-    content: m.content,
-  }));
+  const messages: ChatMessage[] = session.messages
+    .slice(-MENTOR_HISTORY_MAX)
+    .map((m) => ({
+      role: m.role === "USER" ? "user" : "assistant",
+      content: m.content,
+    }));
 
   // 本人が選んだ接し方を反映（きびしめは1往復だけ問い返してから答える）
   const stanceBlock = chatStanceBlock(toStance(session.user.mentorStance));

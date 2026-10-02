@@ -20,6 +20,7 @@ import { appsForRole, DOCK_SLOTS } from "@/lib/apps";
 import { isDomainId } from "@/lib/domains";
 import { findCert } from "@/lib/certifications";
 import { toStance } from "@/lib/ai/stance";
+import { REPORT_FIELD_MAX } from "@/lib/report-limits";
 import { assertAiAllowed, AiBlockedError } from "@/lib/usage";
 import { performRebirth, EXP_WEIGHTS } from "@/lib/exp";
 import { createInvite } from "@/lib/invite";
@@ -43,7 +44,8 @@ function reportDataFromForm(formData: FormData) {
   };
   const str = (k: string) => {
     const v = formData.get(k);
-    return typeof v === "string" && v.trim() !== "" ? v : null;
+    // フォームを迂回した超過分は黙って切る（通常はクライアントの maxLength で止まる）
+    return typeof v === "string" && v.trim() !== "" ? v.slice(0, REPORT_FIELD_MAX) : null;
   };
   return {
     conditionSelf: num("conditionSelf"),
