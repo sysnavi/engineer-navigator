@@ -707,8 +707,26 @@ export async function summarizeInterview(transcript: ChatMessage[]) {
 
   await assertAiAllowed(user.id, "interview-summarize").catch(throwFriendly);
 
-  const draft = await extractDraft(transcript);
+  const raw = await extractDraft(transcript);
   const weekStart = mondayOf(new Date());
+
+  // AIの出力をそのまま信じない: 自己申告スコアは1〜4の整数に丸め、本文はフォームと同じ上限で切る
+  // （範囲外の値が入ると divergence の計算や会話コンテキストの語彙変換が狂う）
+  const scale = (v: unknown) => {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) && n >= 1 && n <= 4 ? n : null;
+  };
+  const text = (v: unknown) =>
+    typeof v === "string" && v.trim() ? v.slice(0, REPORT_FIELD_MAX) : null;
+  const draft = {
+    conditionSelf: scale(raw.conditionSelf),
+    workloadSelf: scale(raw.workloadSelf),
+    didText: text(raw.didText),
+    newText: text(raw.newText),
+    struggleText: text(raw.struggleText),
+    nextText: text(raw.nextText),
+    shareText: text(raw.shareText),
+  };
 
   // 既存の下書き/提出済みに保存（提出済みステータスは変えない=フォームと同じ挙動）。
   // update はインタビューで話題に出た設問だけの部分更新にする —
