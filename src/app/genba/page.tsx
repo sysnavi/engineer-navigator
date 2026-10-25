@@ -28,7 +28,7 @@ export default async function GenbaPage() {
     return (
       <div className="mx-auto max-w-2xl space-y-6">
         <h1>
-          <PixelLabel>GENBA — げんば</PixelLabel>
+          <PixelLabel>GENBA</PixelLabel>
         </h1>
         <Window title="GENBA" titleEm=".sim">
           <p className="text-[13.5px]">
@@ -113,7 +113,7 @@ export default async function GenbaPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h1>
-        <PixelLabel>GENBA — げんば</PixelLabel>
+        <PixelLabel>GENBA</PixelLabel>
       </h1>
       <GenbaGame
         avatarSprite={stats.stage.sprite}

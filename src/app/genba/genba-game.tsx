@@ -194,10 +194,6 @@ function OfficeView(props: {
             ) : (
               <>
                 いい案件、入りました！　きょうは{offers.length}件です。
-                <br />
-                <span className="text-[11px] opacity-70">
-                  相性★はあなたのスキルマップとの一致度。背伸びは単価が良いぶん、現場がきびしい…
-                </span>
               </>
             )}
           </Bubble>
@@ -232,12 +228,12 @@ function OfficeView(props: {
               <p className="text-[11px] opacity-60">{theme?.flavor}</p>
               {o.revisit && (
                 <p className="text-[11px]">
-                  🤝 信頼を得た現場からの指名。担当者とは顔なじみ——面接は少し有利です
+                  🤝 信頼を得た現場からの指名。担当者とは顔なじみ
                 </p>
               )}
               {o.era ? (
                 <p className="text-[11px]">
-                  🕰 もう存在しない現場への、妙な案件。スキル不問——単価は当時の相場です
+                  🕰 もう存在しない現場への、妙な案件
                 </p>
               ) : (
                 <div className="flex flex-wrap gap-1 text-[11px]">

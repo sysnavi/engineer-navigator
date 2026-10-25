@@ -305,9 +305,6 @@ export function VoiceInterview(props: {
                 ⌨ キーボードで答える
               </button>
             </div>
-            <p className="text-center text-[11.5px] text-inksoft">
-              まとめたあとフォームで確認・編集してから提出できます
-            </p>
           </div>
         </div>
       </section>

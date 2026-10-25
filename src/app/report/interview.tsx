@@ -65,9 +65,6 @@ export function InterviewChat() {
             >
               🎙 ハンズフリーで話す
             </button>
-            <span className="text-[11.5px] text-inksoft">
-              読み上げ→話すだけで進みます。歩きながらでもOK
-            </span>
           </div>
         ) : (
           <p className="rounded-lg border-2 border-line8 bg-surface px-3 py-2 text-[11.5px] leading-snug text-inksoft shadow-hard-sm">
@@ -141,9 +138,6 @@ export function InterviewChat() {
         >
           {itv.summarizing ? "MAKING…" : "▶ ここまでで週報にまとめる"}
         </button>
-        <span className="text-[11.5px] text-inksoft">
-          まとめたあとフォームで確認・編集してから提出できます
-        </span>
       </div>
 
       {voiceOpen && engineInfo && (

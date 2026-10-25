@@ -13,34 +13,6 @@ import { PixelIcon } from "@/components/pixel-icon";
 import { PlayerCard } from "@/components/player-card";
 import { TodaySys } from "@/components/shell/today-sys";
 
-// ヒーロー内「つながりパイプライン」のチップ
-function Chip(props: {
-  children: React.ReactNode;
-  tone?: "sun" | "hot";
-}) {
-  const tone =
-    props.tone === "hot"
-      ? "bg-pinkhot text-white"
-      : props.tone === "sun"
-        ? "bg-lemon text-onlemon"
-        : "bg-win text-ink";
-  return (
-    <span
-      className={`whitespace-nowrap rounded-md border-2 border-line8 px-2 py-0.5 font-pixel text-[11px] tracking-wide shadow-[2px_2px_0_rgba(0,0,0,0.35)] ${tone}`}
-    >
-      {props.children}
-    </span>
-  );
-}
-
-function Arrow() {
-  return (
-    <span aria-hidden="true" className="font-pixel text-[11px] text-lemon">
-      ▶
-    </span>
-  );
-}
-
 export default async function Home() {
   const user = await getCurrentUser();
   const weekStart = mondayOf(new Date());
@@ -76,16 +48,11 @@ export default async function Home() {
           <div className="flex flex-wrap items-stretch gap-5">
             <div className="min-w-[240px] flex-1">
               <p className="font-pixel text-[11px] tracking-[0.14em] text-peri">
-                GUEST MODE — お試し中
+                GUEST MODE
               </p>
               <PixelTitle as="h1" className="mt-1.5 text-[24px] leading-snug sm:text-3xl">
                 まずは<span className="text-lemon">育てて、潜ろう</span>。
               </PixelTitle>
-              <p className="mt-2 max-w-[52ch] text-[12.5px] leading-relaxed text-[#dbe8ff]">
-                腕試しに答えて、アバターを育てて、ダンジョンで戦利品を持ち帰る。
-                登録すると週報・AIメンター・経歴書も使えるようになり、
-                <span className="text-lemon">育てたアバターはそのまま引き継がれます</span>。
-              </p>
             </div>
             <PlayerCard
               displayName={user.handle ?? user.name}
@@ -119,15 +86,12 @@ export default async function Home() {
             barClass="!bg-pinkhot"
             className="transition-transform group-hover:-translate-y-0.5"
           >
-            <PixelLabel className="!text-pinkhot">登録すると、ぜんぶ使える</PixelLabel>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-ink">
-              GoogleまたはGitHubで連携するだけ（メール・本名は受け取りません）。
-              週報からの経歴書づくり、AIメンター、スキルマップ、それに『げんば』本番が解放されます。
-              いま育てているアバター・戦利品・腕試しの記録は消えません。
-            </p>
-            <span className="btn8 btn8-start mt-3 inline-block text-[12px]">
-              ▶ 登録して全部つかう
-            </span>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <PixelLabel className="!text-pinkhot">登録すると、ぜんぶ使える</PixelLabel>
+              <span className="btn8 btn8-start inline-block text-[12px]">
+                ▶ 登録して全部つかう
+              </span>
+            </div>
           </Window>
         </Link>
       </div>
@@ -197,28 +161,6 @@ export default async function Home() {
             <PixelTitle as="h1" className="mt-1.5 text-[26px] leading-snug sm:text-3xl">
               がんばりは、<span className="text-lemon">ぜんぶ経験値</span>になる。
             </PixelTitle>
-            <p className="mt-2 max-w-[56ch] text-[12.5px] leading-relaxed text-[#dbe8ff]">
-              週報も、腕試しも、よもやまも。ここでの行動はすべてつながって、
-              スキルと経歴書、そして<span className="text-lemon">きみのアバター</span>を育てます。
-            </p>
-            <div className="mt-4 space-y-2">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Chip>週報</Chip>
-                <Arrow />
-                <Chip tone="sun">スキルLv</Chip>
-                <Arrow />
-                <Chip>経歴書</Chip>
-                <Arrow />
-                <Chip tone="hot">公開して学び合う</Chip>
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Chip>作問・投稿・演習</Chip>
-                <Arrow />
-                <Chip tone="sun">EXP</Chip>
-                <Arrow />
-                <Chip tone="hot">アバター成長</Chip>
-              </div>
-            </div>
           </div>
 
           {/* プレイヤーカード（共通部品: デスクトップホームでも使用） */}
@@ -230,12 +172,13 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* タイルの説明文は持たず、出すのは実データの状態だけ。高さは h-full で行ごとに揃える */}
       <div className="grid gap-6 sm:grid-cols-2">
         <Link href="/report" className="group">
           <Window
             title="週報"
             titleEm=".exe"
-            className="transition-transform group-hover:-translate-y-0.5"
+            className="h-full transition-transform group-hover:-translate-y-0.5"
           >
             <PixelLabel className={reportDone ? "" : "!text-pinkhot"}>
               {reportDone ? "QUEST CLEAR!" : "NEW QUEST"}
@@ -253,7 +196,7 @@ export default async function Home() {
           <Window
             title="SKILL_MAP"
             titleEm=".sav"
-            className="transition-transform group-hover:-translate-y-0.5"
+            className="h-full transition-transform group-hover:-translate-y-0.5"
             barClass={pendingSuggestions > 0 ? "!bg-pinkhot" : ""}
           >
             <PixelLabel className={pendingSuggestions > 0 ? "!text-pinkhot" : ""}>
@@ -272,13 +215,10 @@ export default async function Home() {
           <Window
             title="MENTOR"
             titleEm=".exe"
-            className="transition-transform group-hover:-translate-y-0.5"
+            className="h-full transition-transform group-hover:-translate-y-0.5"
           >
             <PixelLabel>AI MENTOR</PixelLabel>
             <p className="mt-1 text-[15px] font-extrabold">AIメンター</p>
-            <p className="mt-1 text-[13px] text-inksoft">
-              資格・技術を「現場でどう使うか」まで具体例つきで24時間相談
-            </p>
           </Window>
         </Link>
 
@@ -286,13 +226,10 @@ export default async function Home() {
           <Window
             title="STUDY_PLAN"
             titleEm=".sav"
-            className="transition-transform group-hover:-translate-y-0.5"
+            className="h-full transition-transform group-hover:-translate-y-0.5"
           >
             <PixelLabel>STUDY PLAN</PixelLabel>
             <p className="mt-1 text-[15px] font-extrabold">学習プラン</p>
-            <p className="mt-1 text-[13px] text-inksoft">
-              資格の試験日から逆算した週次カリキュラムをAIが作成
-            </p>
           </Window>
         </Link>
 
@@ -300,7 +237,7 @@ export default async function Home() {
           <Window
             title="QUIZ_BANK"
             titleEm=".dat"
-            className="transition-transform group-hover:-translate-y-0.5"
+            className="h-full transition-transform group-hover:-translate-y-0.5"
           >
             <PixelLabel className={daily.answered ? "" : "!text-pinkhot"}>
               {daily.answered
@@ -308,13 +245,15 @@ export default async function Home() {
                 : "今日の一問 まだ"}
             </PixelLabel>
             <p className="mt-1 text-[15px] font-extrabold">良問バンク</p>
-            <p className="mt-1 text-[13px] text-inksoft">
-              {!daily.answered && daily.question
-                ? `今日の1問（${daily.question.topic}）が待っています`
-                : review.due > 0
-                  ? `復習どきの問題が${review.due}問あります`
-                  : "四択でスキルチェック。良問はみんなで作って育てる"}
-            </p>
+            {!daily.answered && daily.question ? (
+              <p className="mt-1 text-[13px] text-inksoft">
+                今日の1問（{daily.question.topic}）が待っています
+              </p>
+            ) : review.due > 0 ? (
+              <p className="mt-1 text-[13px] text-inksoft">
+                復習どきの問題が{review.due}問あります
+              </p>
+            ) : null}
           </Window>
         </Link>
 
@@ -322,13 +261,10 @@ export default async function Home() {
           <Window
             title="ROLEPLAY"
             titleEm=".sim"
-            className="transition-transform group-hover:-translate-y-0.5"
+            className="h-full transition-transform group-hover:-translate-y-0.5"
           >
             <PixelLabel>ROLE SIMULATOR</PixelLabel>
             <p className="mt-1 text-[15px] font-extrabold">役割シミュレーター</p>
-            <p className="mt-1 text-[13px] text-inksoft">
-              顧客調整・障害対応などリーダーの難題をAIとロールプレイ→評価
-            </p>
           </Window>
         </Link>
 
@@ -336,13 +272,10 @@ export default async function Home() {
           <Window
             title="YOMOYAMA"
             titleEm=".log"
-            className="transition-transform group-hover:-translate-y-0.5"
+            className="h-full transition-transform group-hover:-translate-y-0.5"
           >
             <PixelLabel>よもやま</PixelLabel>
             <p className="mt-1 text-[15px] font-extrabold">現場のよもやま話</p>
-            <p className="mt-1 text-[13px] text-inksoft">
-              悲喜こもごもをハンドル名で共有（AI門番つきで安心）
-            </p>
           </Window>
         </Link>
 
@@ -350,13 +283,10 @@ export default async function Home() {
           <Window
             title="DUNGEON"
             titleEm=".log"
-            className="transition-transform group-hover:-translate-y-0.5"
+            className="h-full transition-transform group-hover:-translate-y-0.5"
           >
             <PixelLabel>AUTO EXPLORE</PixelLabel>
             <p className="mt-1 text-[15px] font-extrabold">ダンジョン</p>
-            <p className="mt-1 text-[13px] text-inksoft">
-              育てたアバターがフルオートで探索。ギークな戦利品を持ち帰ろう
-            </p>
           </Window>
         </Link>
 
@@ -364,12 +294,12 @@ export default async function Home() {
           <Window
             title="経歴書"
             titleEm=".doc"
-            className="transition-transform group-hover:-translate-y-0.5"
+            className="h-full transition-transform group-hover:-translate-y-0.5"
           >
             <PixelLabel>CAREER SHEET</PixelLabel>
             <p className="mt-1 text-[15px] font-extrabold">経歴書</p>
             <p className="mt-1 text-[13px] text-inksoft">
-              スキル {skillCount} 件・実績 {expCount} 件から自動組版。PDFで出力
+              スキル {skillCount} 件・実績 {expCount} 件
             </p>
           </Window>
         </Link>
@@ -378,13 +308,10 @@ export default async function Home() {
           <Window
             title="DISCOVER"
             titleEm=".net"
-            className="transition-transform group-hover:-translate-y-0.5"
+            className="h-full transition-transform group-hover:-translate-y-0.5"
           >
             <PixelLabel>DISCOVER</PixelLabel>
             <p className="mt-1 text-[15px] font-extrabold">発見</p>
-            <p className="mt-1 text-[13px] text-inksoft">
-              他の人の「成長の道筋」を見て、自分の学びに活かす
-            </p>
           </Window>
         </Link>
 
@@ -394,7 +321,7 @@ export default async function Home() {
             <Window
               title="ADMIN"
               titleEm=".sys"
-              className="transition-transform group-hover:-translate-y-0.5"
+              className="h-full transition-transform group-hover:-translate-y-0.5"
             >
               <PixelLabel>ADMIN CONSOLE</PixelLabel>
               <p className="mt-1 text-[15px] font-extrabold">管理ダッシュボード</p>
@@ -407,7 +334,7 @@ export default async function Home() {
       </div>
 
       <p className="text-center font-pixel text-[12px] tracking-[0.1em] text-royal2">
-        週報を書く → スキルLvが上がる → 経歴書が育つ ▶ PRESS START
+        ▶ PRESS START
       </p>
     </div>
   );

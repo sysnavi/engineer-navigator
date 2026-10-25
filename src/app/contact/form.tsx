@@ -44,14 +44,11 @@ export function ContactForm(props: { loggedIn: boolean }) {
           <br />
           {done.savedToAccount ? (
             <>
-              返信は<b>マイページの「運営とのやりとり」</b>に届きます（メールは使いません）。
+              返信は<b>マイページの「運営とのやりとり」</b>に届きます。
             </>
           ) : (
             <>
               いただいた声は運営に通知されました。
-              <span className="text-inksoft">
-                （未ログインの場合、内容はサイトに保存していません）
-              </span>
             </>
           )}
         </p>
@@ -130,10 +127,6 @@ export function ContactForm(props: { loggedIn: boolean }) {
             autoCapitalize="none"
             spellCheck={false}
           />
-          <p className="mt-1.5 text-[11px] leading-relaxed text-inksoft">
-            🔒 未ログインのご連絡は<b>サイトに保存しません</b>。運営への通知に流すだけです。
-            ログインしてから送っていただくと、<b>返信をサイト内で受け取れます</b>（メール不要）。
-          </p>
         </div>
       )}
 
@@ -151,10 +144,11 @@ export function ContactForm(props: { loggedIn: boolean }) {
         >
           {pending ? "…そうしんちゅう" : "▶ おくる"}
         </button>
-        <span className="text-[11.5px] text-inksoft">
-          {props.loggedIn
+        {/* 個人情報まわりの注意はここ1か所に集約する（ページ側には書かない） */}
+        <span className="text-[11.5px] leading-relaxed text-inksoft">
+          🔒 {props.loggedIn
             ? "返信はマイページに届きます"
-            : "ログインすると返信を受け取れます"}
+            : "未ログインのご連絡はサイトに保存しません"}。本名・会社名は書かないでください
         </span>
       </div>
     </div>

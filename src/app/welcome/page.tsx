@@ -95,7 +95,7 @@ export default async function WelcomePage({
   const providers = enabledProviders();
 
   // ゲストがログインしたままここに来るケース（登録限定の機能で弾かれた／ロゴから戻った）。
-  // お試し中の人には「連携すれば引き継がれる」ことと、そのボタンだけを見せる。
+  // 登録限定の機能で弾かれたときだけ UNLOCK を出し、あとは登録ボタンだけを見せる。
   const current = await getOptionalUser();
   const asGuest = current?.role === "GUEST";
   const needsAccount = asGuest && guest === "needsaccount";
@@ -133,8 +133,8 @@ export default async function WelcomePage({
       </div>
       <p className="mt-2 text-[11px] text-inksoft">
         {asGuest
-          ? "いまのゲストがそのまま本アカウントになります（別のデータに置き換わることはありません）。"
-          : "はじめての方は、上の「ためしてみる」からどうぞ（連携でアカウントが自動で作られます）。"}
+          ? "いまのゲストがそのまま本アカウントになります。"
+          : "はじめての方は、上の「ためしてみる」からどうぞ。"}
       </p>
     </Window>
   );
@@ -201,18 +201,9 @@ export default async function WelcomePage({
         </div>
       )}
 
-      {asGuest && (
+      {needsAccount && (
         <Window title="UNLOCK" titleEm=".cfg" barClass="!bg-pinkhot">
-          <PixelLabel className="!text-pinkhot">
-            {needsAccount ? "その機能は、登録すると使えます" : "お試し中です"}
-          </PixelLabel>
-          <p className="mt-1.5 text-[13px] leading-relaxed text-ink">
-            {needsAccount
-              ? "週報・AIメンター・経歴書・げんば本番は登録後に開きます。"
-              : "いまはゲストとして遊んでいます。"}
-            下の <b>Google / GitHub</b> で連携するだけで登録できます。
-            <b>育てたアバター・戦利品・腕試しの記録はそのまま引き継がれます</b>。
-          </p>
+          <PixelLabel className="!text-pinkhot">その機能は、登録すると使えます</PixelLabel>
           <Link href="/" className="btn8 mt-3 inline-block text-[12px]">
             ← お試しを続ける
           </Link>
@@ -225,31 +216,16 @@ export default async function WelcomePage({
       {/* 登録前にコア体験を触ってもらう入口（Issue #18）。
           GETだとプリフェッチやクローラでアカウントが量産されるためPOSTで叩く。
           すでにゲストの人には出さない（押しても / に戻るだけで意味がない）。
-          中身は「ゲストが実際に遊べるもの」だけを書く（げんばは はじめかた の中の味見まで） */}
+          何が遊べるかは下の FEATURES に任せ、ここはボタンだけにする */}
       {!asGuest && (
         <Window title="TRY" titleEm=".exe">
-          <p className="text-[14px] font-bold leading-snug text-ink">
-            登録なしで、いますぐ遊べます。
-          </p>
-          <ul className="mt-2.5 space-y-1.5 text-[13px] leading-relaxed text-ink">
-            <li>
-              <b>腕試し</b> — 四択に答えてEXP。アバターが育つ
-            </li>
-            <li>
-              <b>ダンジョン</b> — 迷路を歩き、問いに答えて敵を倒す。戦利品はマイホームに飾れる
-            </li>
-            <li>
-              <b>げんばの味見</b> — 案件→面接→現場→精算まで、はじめかたの中でひと通り
-            </li>
-          </ul>
           <GuestStartForm
             q={heroQ?.id}
             a={chosen}
             label="▶ ためしてみる（登録なし）"
-            className="mt-3"
           />
           <p className="mt-2 text-[11px] leading-relaxed text-inksoft">
-            メール不要。あとから連携すればそのまま引き継ぎ（30日つかわないと消えます）。
+            あとから連携すれば、そのまま引き継げます。
           </p>
           {guest === "toomany" && (
             <p className="mt-2 text-[12px] font-bold text-pinkhot">
@@ -279,9 +255,6 @@ export default async function WelcomePage({
         </div>
         <p className="mt-3 text-[12.5px] leading-relaxed text-ink">
           連携で受け取るのは本人確認のハッシュだけ。表示は<b>あなたが決めるハンドル</b>（ペンネーム可）。
-        </p>
-        <p className="mt-2 border-t-2 border-dashed border-grid8 pt-2 text-[11.5px] text-inksoft">
-          招待リンク（<span className="font-pixel text-royal2">/join/…</span>）はURLを開くだけで始められます。本名や客先の実名は入力しないでください。
         </p>
       </Window>
 

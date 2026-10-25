@@ -176,10 +176,6 @@ export default async function PublicProfilePage({
       {/* 公開された週報（成長の記録のみ・コンディションは含まない） */}
       {reports.length > 0 && (
         <Window title="週報" titleEm=".pub">
-          <p className="mb-3 text-[11.5px] text-inksoft">
-            本人が公開した週報の「やったこと・新しく触れた技術・来週やること」のみ。
-            コンディションなどの非公開項目は含まれません。
-          </p>
           <ol className="space-y-4">
             {reports.map((r) => (
               <li

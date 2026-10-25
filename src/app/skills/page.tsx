@@ -248,9 +248,9 @@ export default async function SkillsPage() {
             まだスキルが登録されていません。週報を提出するとAIが提案します。
           </p>
         )}
-        {skills.length > 0 && (
+        {skills.some((es) => !es.verifiedBy) && (
           <p className="mb-3 text-[11.5px] text-inksoft">
-            ⚠仮判定のスキルは、承認時の深掘りインタビューか、腕試しで同じお題の問題に2問正解すると ✓検証済み になります。
+            ⚠仮判定は深掘りインタビューか腕試し2問正解で ✓検証済み になります。
           </p>
         )}
         <div className="space-y-5">

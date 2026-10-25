@@ -535,8 +535,8 @@ export function LivingScene(props: {
             : sp.sprites.normal;
         const title =
           pose.line && !serve
-            ? `${p.name}は ${pose.line}（クリックで おせわメニュー）`
-            : `${p.name}（なつき度 ${p.affection}・${affectionTier(p.affection)}）クリックで おせわメニュー`;
+            ? `${p.name}は ${pose.line}`
+            : `${p.name}（なつき度 ${p.affection}・${affectionTier(p.affection)}）`;
         return (
           <button
             key={p.id}
@@ -691,7 +691,6 @@ export function LivingScene(props: {
         <CareMenu
           petName={menuPet.name}
           affection={menuPet.affection}
-          pettedToday={menuPet.pettedToday}
           feedsLeft={menuPet.feedsLeft}
           favoriteFoodId={
             menuPet.favoriteFound

@@ -16,37 +16,17 @@ export default async function ContactPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <PixelLabel>CONTACT — 運営へのご連絡</PixelLabel>
+        <PixelLabel>CONTACT</PixelLabel>
         <PixelTitle as="h1" className="text-3xl text-royal">
           お問い合わせ
         </PixelTitle>
         <p className="mt-1.5 text-[13px] leading-relaxed text-inksoft">
           不具合のご報告・こうしてほしいというご要望をお寄せください。
-          {user
-            ? "返信はマイページの「運営とのやりとり」に届きます。"
-            : "ログインしていただくと、返信をサイト内で受け取れます。"}
         </p>
       </div>
 
       <Window title="CONTACT" titleEm=".exe">
         <ContactForm loggedIn={!!user} />
-      </Window>
-
-      <Window title="PRIVACY" titleEm=".txt">
-        <PixelLabel>個人情報について</PixelLabel>
-        <ul className="mt-2 space-y-1.5 text-[12.5px] leading-relaxed text-inksoft">
-          <li>
-            ・このサイトは<b>メールアドレスや氏名を保存しない方針</b>で作られています。
-            問い合わせでも返信先を聞かず、<b>返信はサイト内でお返しします</b>。
-          </li>
-          <li>
-            ・未ログインでのご連絡は<b>サイトに保存せず</b>、運営への通知に流すだけです
-            （そのため返信はできません）。
-          </li>
-          <li>
-            ・本文に<b>本名やお客様の会社名などは書かないよう</b>お願いします。
-          </li>
-        </ul>
       </Window>
 
       <p className="text-center">

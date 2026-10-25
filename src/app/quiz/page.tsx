@@ -15,10 +15,11 @@ import { StreakBar } from "@/components/streak-bar";
 export default async function QuizHubPage() {
   const user = await getCurrentUser();
 
-  const [daily, review, certCounts] = await Promise.all([
+  const [daily, review, certCounts, planCount] = await Promise.all([
     getOrCreateDaily(user.id),
     reviewSummary(user.id),
     prisma.quizQuestion.groupBy({ by: ["topic"], _count: { _all: true } }),
+    prisma.studyPlan.count({ where: { userId: user.id } }),
   ]);
   const countByTopic = new Map(certCounts.map((c) => [c.topic, c._count._all]));
 
@@ -59,13 +60,10 @@ export default async function QuizHubPage() {
   return (
     <div className="space-y-6">
       <div>
-        <PixelLabel>QUIZ BANK — みんなで育てる問題集</PixelLabel>
+        <PixelLabel>QUIZ BANK</PixelLabel>
         <PixelTitle as="h1" className="text-3xl text-royal">
           良問バンク
         </PixelTitle>
-        <p className="mt-1 text-[13px] text-inksoft">
-          四択で力試し。
-        </p>
       </div>
 
       <StreakBar streak={daily.streak} best={daily.bestStreak} />
@@ -242,12 +240,12 @@ export default async function QuizHubPage() {
             </div>
           ))}
         </div>
-        <p className="mt-3 text-[11.5px] text-inksoft">
-          学習プランを作ると、週ごとにこの範囲へ直接飛べます。
-        </p>
-        <Link href="/plan" className="btn8 mt-2 inline-block text-[12px]">
-          ▶ 学習プランを作る
-        </Link>
+        {/* プラン未作成のときだけ。作成済みなら導線は計画画面側にある */}
+        {planCount === 0 && (
+          <Link href="/plan" className="btn8 mt-3 inline-block text-[12px]">
+            ▶ 学習プランを作る
+          </Link>
+        )}
       </Window>
     </div>
   );

@@ -76,7 +76,6 @@ export function DesktopScene(props: {
   const [chatLeft, setChatLeft] = useState(0);
   const [stocks, setStocks] = useState(props.stocks);
   const [feedsLeft, setFeedsLeft] = useState(props.visitor?.feedsLeft ?? 0);
-  const [pettedToday, setPettedToday] = useState(props.visitor?.pettedToday ?? false);
   const [affection, setAffection] = useState(props.visitor?.affection ?? 0);
   const [favoriteFound, setFavoriteFound] = useState(
     props.visitor?.favoriteFound ?? false
@@ -157,7 +156,6 @@ export function DesktopScene(props: {
 
   // なでなで。メニューを閉じて来客本体にハート＋にっこりを出す。
   // 何回でも撫でられる（また来客をタップすればメニューが開く）。
-  // なつき度が実際に上がった日だけ pettedToday を反映。
   function onPetVisitor() {
     if (!props.visitor) return;
     setMenuOpen(false);
@@ -167,7 +165,6 @@ export function DesktopScene(props: {
       try {
         const r = await petPet(props.visitor!.id);
         setAffection(r.affection);
-        if (r.gained) setPettedToday(true);
       } catch {
         // なでなで失敗で画面は壊さない
       }
@@ -414,8 +411,8 @@ export function DesktopScene(props: {
           onClick={() => setMenuOpen(true)}
           title={
             perch
-              ? `${props.visitor.name}が${perch.name}のうえでくつろいでいる（クリックで おせわメニュー）`
-              : `${props.visitor.name}がデスクのよこで遊んでいる（クリックで おせわメニュー）`
+              ? `${props.visitor.name}が${perch.name}のうえでくつろいでいる`
+              : `${props.visitor.name}がデスクのよこで遊んでいる`
           }
           className="absolute -translate-x-1/2 -translate-y-full"
           style={
@@ -482,7 +479,6 @@ export function DesktopScene(props: {
         <CareMenu
           petName={props.visitor.name}
           affection={affection}
-          pettedToday={pettedToday}
           feedsLeft={feedsLeft}
           favoriteFoodId={
             favoriteFound

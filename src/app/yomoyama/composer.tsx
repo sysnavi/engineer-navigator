@@ -37,8 +37,7 @@ export function Composer() {
       </div>
       <PostForm onPosted={() => setOpen(false)} />
       <p className="mt-2 rounded-lg border-2 border-dashed border-royal2 bg-quotebg px-3 py-2 text-[11.5px] text-inksoft">
-        🛡 投稿前にAIが確認し、<b>個人名・会社名・案件名・著名人への言及・攻撃的な表現</b>
-        を含む投稿はブロックされます。コメントも同じチェックを通ります。
+        🛡 投稿前にAIが確認し、個人名・会社名はブロックします
       </p>
     </Window>
   );

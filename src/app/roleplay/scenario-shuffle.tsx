@@ -100,17 +100,8 @@ export function ScenarioShuffle(props: {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[12px] text-inksoft">
-          全{props.scenarios.length}種から{SHOW}つ提示
-          {props.userDomains.length > 0 && (
-            <span className="text-royal2">
-              （目標領域:{" "}
-              {props.userDomains.map((d) => domainLabel(d)).join("・")} を優先）
-            </span>
-          )}
-        </p>
-        {canShuffle && (
+      {canShuffle && (
+        <div className="flex justify-end">
           <button
             type="button"
             onClick={reshuffle}
@@ -118,8 +109,8 @@ export function ScenarioShuffle(props: {
           >
             🎲 シャッフル
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         {picks.map((s) => (

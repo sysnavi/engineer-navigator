@@ -69,7 +69,7 @@ export async function TodaySys(props: { userId: string }) {
       : { icon: "💤", text: "アバターは休養中 — また明日" }
   );
   if (visitor) {
-    rows.push({ icon: "👾", text: "だれか遊びに来てる…！（画面のすみを見て）" });
+    rows.push({ icon: "👾", text: "だれか遊びに来てる…！" });
   }
   if (stats.currentStreak >= 2) {
     rows.push({ icon: "🔥", text: `${stats.currentStreak}日連続訪問中 — この調子！` });

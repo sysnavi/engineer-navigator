@@ -396,15 +396,9 @@ export function DivePlayer(props: {
           <PixelAvatar sprite={props.avatarSprite} px={5} accent={props.avatarAccent} />
           <div className="min-w-0 flex-1">
             {props.canDive ? (
-              <>
-                <p className="text-[13px] font-bold">
-                  地下{props.baseDepth}階から 潜れます。
-                </p>
-                <p className="mt-0.5 text-[11.5px] text-inksoft">
-                  迷路を歩いて階段を探す。出会った相手には問いで答える。
-                  HPは潜行のあいだ持ち越し。
-                </p>
-              </>
+              <p className="text-[13px] font-bold">
+                地下{props.baseDepth}階から 潜れます。
+              </p>
             ) : (
               <p className="text-[12.5px]">{props.restingMessage}</p>
             )}
@@ -412,7 +406,7 @@ export function DivePlayer(props: {
         </div>
         {props.canDive && (
           <button onClick={begin} disabled={busy} className="btn8 btn8-start w-full py-2.5 text-[13px] disabled:opacity-50">
-            {busy ? "もぐっています…" : props.diveKind === "bonus" ? "▶ もう一潜り（週報ボーナス）" : "▶ 潜る"}
+            {busy ? "もぐっています…" : props.diveKind === "bonus" ? "▶ もう一潜り" : "▶ 潜る"}
           </button>
         )}
         {error && (
@@ -518,8 +512,8 @@ export function DivePlayer(props: {
 
       {/* コマンド */}
       {!typingDone ? (
-        <p className="text-center font-pixel text-[10px] tracking-wide text-inksoft">
-          （クリックで はやく送る）
+        <p aria-hidden="true" className="text-center text-[11px] leading-none text-inksoft">
+          <span className="animate-pulse">▼</span>
         </p>
       ) : v.phase === "BATTLE" && v.foe?.question ? (
         <div className="space-y-2">
@@ -676,9 +670,6 @@ export function DivePlayer(props: {
               <TriIcon dir="down" size={12} />
               もどる
             </button>
-            <span className="hidden flex-1 text-center text-[11px] text-inksoft sm:block">
-              矢印キー / WASD でも歩ける。すすむ長押しで歩きつづける。
-            </span>
             {leaveConfirm ? (
               <span className="flex items-center gap-1.5 text-[11.5px] font-bold">
                 ここで帰る？

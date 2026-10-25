@@ -1,9 +1,10 @@
-// 「したく」パネル。きょうの活動が潜行にどう乗っているかを見せる。
+// 「したく」パネル。きょうの活動が潜行に乗っている分だけを、獲得済みのステータスとして見せる。
 //
-// この機能の効果の大半はここにある。効果そのものより **見えていること** が動機を作る。
-// とくに「きょうはもう潜れません」で終わらせず、
-// **「あと1問正解すると もう一回潜れる」** と次の一手を出すのが狙い
+// 未達の活動を「○○すると△△」と常時並べるとルール説明になってしまうので出さない。
+// ヒントを出すのは **潜れる回数を使い切ったときだけ**。そこで「きょうはもう潜れません」で
+// 終わらせず、**「あと1問正解すると もう一回潜れる」** と次の一手をひとつだけ出す
 // （行き止まりを入口に変える）。
+// まだ何も積んでおらず潜れる状態なら、パネルごと出さない。
 
 import Link from "next/link";
 import { PixelLabel } from "@/components/retro";
@@ -18,9 +19,11 @@ export function PrepPanel(props: {
   canDive: boolean;
 }) {
   const { prep } = props;
-  const left = Math.max(0, Math.min(MAX_DIVES_PER_DAY, 1 + prep.earnedSlots) - props.divesToday);
+  const cap = Math.min(MAX_DIVES_PER_DAY, 1 + prep.earnedSlots);
+  const left = Math.max(0, cap - props.divesToday);
+  const done = prep.sources.filter((s) => s.done);
 
-  // 次の一手: まだ枠を増やせる活動のうち、いちばん近いものを1つ出す
+  // 次の一手: 潜り切ったときだけ、まだ枠を増やせる活動のうちいちばん近いものを1つ出す
   const nextStep = !props.canDive
     ? prep.quizNewCorrect < 3
       ? { text: `腕試しで あと${3 - prep.quizNewCorrect}問 正解すると、もう一回潜れる`, href: "/quiz/play" }
@@ -29,33 +32,30 @@ export function PrepPanel(props: {
         : null
     : null;
 
+  if (props.canDive && done.length === 0) return null;
+
   return (
     <div className="mt-4 rounded-lg border-2 border-dashed border-peri bg-surface p-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-        <PixelLabel>したく — きょうの活動が 潜行に乗る</PixelLabel>
-        <span className="font-pixel text-[10.5px] tracking-wide text-royal2">
-          潜れる回数 {props.divesToday}/{Math.min(MAX_DIVES_PER_DAY, 1 + prep.earnedSlots)}
-          <span className="ml-1 text-inksoft">（1日{MAX_DIVES_PER_DAY}回まで）</span>
-        </span>
+        <PixelLabel>したく</PixelLabel>
+        {!props.canDive && (
+          <span className="font-pixel text-[10.5px] tracking-wide text-royal2">
+            潜れる回数 {props.divesToday}/{cap}
+          </span>
+        )}
       </div>
 
-      <ul className="mt-2 space-y-1">
-        {prep.sources.map((s) => (
-          <li key={s.id} className="flex flex-wrap items-baseline gap-x-2 text-[12px]">
-            <span className={s.done ? "text-royal2" : "text-inksoft"}>
-              {s.done ? "✓" : "○"}
-            </span>
-            <span className={`font-bold ${s.done ? "" : "text-inksoft"}`}>{s.label}</span>
-            {s.done ? (
+      {done.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {done.map((s) => (
+            <li key={s.id} className="flex flex-wrap items-baseline gap-x-2 text-[12px]">
+              <span className="text-royal2">✓</span>
+              <span className="font-bold">{s.label}</span>
               <span className="text-inksoft">{s.effect}</span>
-            ) : (
-              <Link href={s.href} className="text-royal2 underline-offset-2 hover:underline">
-                {s.hint}
-              </Link>
-            )}
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {nextStep && (
         <Link

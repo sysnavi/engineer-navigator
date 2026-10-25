@@ -43,12 +43,8 @@ export default async function PlanDetailPage({
         {plan.generationStatus === "GENERATING" ? (
           <Window title="AIが作成中" titleEm=".gen">
             <PlanGenerating />
-            <p className="mt-3 text-[12.5px] text-inksoft">
-              あなたのスキルと登録済みの教材を踏まえて、週次カリキュラムを作っています。
-              1分ほどかかることがあります。
-            </p>
-            <p className="mt-1.5 text-[11.5px] text-inksoft">
-              このページを離れても生成は続きます。できあがりは「これまでのプラン」からいつでも開けます。
+            <p className="mt-3 text-[11.5px] text-inksoft">
+              1分ほどかかります。このページを離れても生成は続きます。
             </p>
           </Window>
         ) : (

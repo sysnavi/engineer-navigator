@@ -126,10 +126,6 @@ export default async function PublicQuestionPage({
       ) : (
         <Window title="LOCKED" titleEm=".cfg">
           <PixelLabel>解答と解説は登録すると見られます</PixelLabel>
-          <p className="mt-1.5 text-[13px] leading-relaxed text-ink">
-            登録なしで<b>腕試しを試す</b>こともできます。四択に答えるとEXPが貯まって、
-            アバターが育つよ。メールも本名も不要です。
-          </p>
           <Link
             href="/welcome"
             className="btn8 btn8-start mt-3 inline-block text-[12px]"

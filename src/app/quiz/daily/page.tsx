@@ -16,7 +16,7 @@ export default async function QuizDailyPage() {
   return (
     <div className="space-y-5">
       <div>
-        <PixelLabel>DAILY — 1日1問</PixelLabel>
+        <PixelLabel>DAILY</PixelLabel>
         <PixelTitle as="h1" className="text-2xl text-royal">
           今日の一問
         </PixelTitle>

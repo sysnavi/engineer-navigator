@@ -178,12 +178,13 @@ export function QuizPlay(props: { questions: Q[] }) {
           )}
 
           <div className="mt-3 border-t-2 border-dashed border-grid8 pt-3">
-            <p className="text-[12px] font-bold">
-              この問題は良問だと思う？（任意・0〜10点）
-            </p>
-            <p className="mb-2 text-[11px] text-inksoft">
-              みんなの評価の平均が良問スコアになります（現在
-              {q.ratingCount}人が評価）。
+            <p className="mb-2 text-[12px] font-bold">
+              この問題は良問だと思う？
+              {q.ratingCount > 0 && (
+                <span className="ml-2 text-[11px] font-normal text-inksoft">
+                  {q.ratingCount}人が評価
+                </span>
+              )}
             </p>
             {rated ? (
               <p className="font-pixel text-[11px] text-royal2">

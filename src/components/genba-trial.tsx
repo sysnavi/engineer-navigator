@@ -146,9 +146,6 @@ export function GenbaTrial() {
               {offer.rate} EN/日 × {offer.days}日
             </p>
           </div>
-          <p className="text-[10.5px] opacity-70">
-            本番では相性★はスキルマップとの一致度。体験中はぴったり（★5）扱いです。
-          </p>
           <button className="btn8 btn8-ok w-full text-[12px]" onClick={() => setPhase("interview")}>
             面接にすすむ ▶
           </button>
@@ -210,7 +207,7 @@ export function GenbaTrial() {
           <p className="text-[10.5px] opacity-70">
             {qIdx < 0
               ? "案件のせつめいを聞いている…"
-              : `しつもん ${qIdx + 1}/${plan.questions.length}。受け答えで通過率が上下するよ`}
+              : `しつもん ${qIdx + 1}/${plan.questions.length}`}
           </p>
         </div>
       </div>

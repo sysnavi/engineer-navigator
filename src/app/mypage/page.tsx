@@ -164,7 +164,7 @@ export default async function MyPage({
             </p>
             <p className="mt-0.5 font-pixel text-[11px] tracking-wide text-inksoft">
               {user.consentedAt
-                ? `CONSENT ✓ ${user.consentedAt.toISOString().slice(0, 10)}（AI解析・閲覧範囲・評価不使用に同意済み）`
+                ? `CONSENT ✓ ${user.consentedAt.toISOString().slice(0, 10)}`
                 : "CONSENT — 未同意（週報の初回起動時に確認します）"}
             </p>
           </div>
@@ -205,7 +205,7 @@ export default async function MyPage({
 
       {/* ログイン連携（Issue #8）: OAuthの後付けリンク。PIIはハッシュのみ */}
       <Window title="AUTH" titleEm=".cfg">
-        <PixelLabel>ログイン連携 — 端末が変わっても同じアカウントで</PixelLabel>
+        <PixelLabel>ログイン連携</PixelLabel>
         {linked && (
           <p className="mt-2 rounded-lg border-2 border-line8 bg-quotebg px-3 py-1.5 font-pixel text-[11px] text-royal">
             ✓ 連携しました！次からこのアカウントでログインできます
@@ -261,19 +261,18 @@ export default async function MyPage({
           ))}
           {identities.length === 0 && linkableProviders.length === 0 && (
             <span className="text-[12px] text-inksoft">
-              現在利用できる連携先がありません（管理者がOAuth設定を行うと表示されます）。
+              現在利用できる連携先がありません。
             </span>
           )}
         </div>
         <p className="mt-2 text-[11px] text-inksoft">
-          連携してもメール・名前は受け取りません（保存は復元不能なハッシュのみ）。
-          招待リンクを失くしてもログインできます。
+          🔒 メール・名前は受け取りません（復元不能なハッシュのみ保存）
         </p>
       </Window>
 
       {/* アバター継承（転生）: 卵を産んで遺伝子を受け継ぐ（Issue #1） */}
       <Window title="INHERIT" titleEm=".sys">
-        <PixelLabel>INHERIT — 継承（転生）と家系図</PixelLabel>
+        <PixelLabel>INHERIT</PixelLabel>
         <div className="mt-3 flex flex-wrap items-center gap-4">
           <div className="grid h-[76px] w-[76px] shrink-0 place-items-center rounded-lg border-[2.5px] border-line8 bg-surface">
             <PixelAvatar
@@ -306,13 +305,10 @@ export default async function MyPage({
                 </span>
               </p>
             ) : (
-              <p className="mt-1 text-[12.5px] text-inksoft">
-                初代。マイスター（Lv{REBIRTH_MIN_LEVEL}）で「卵を産む」が解放。
-                <b>継承でしか出会えない姿</b>も。
-              </p>
+              <p className="mt-1 text-[12.5px] text-inksoft">初代</p>
             )}
             <p className="mt-1 text-[11.5px] text-inksoft">
-              生涯EXP {player.lifetimeExp}（積み上げは転生しても消えません）
+              生涯EXP {player.lifetimeExp}
             </p>
           </div>
           <InheritPanel
@@ -327,7 +323,7 @@ export default async function MyPage({
 
         {lineage.length > 0 && (
           <div className="mt-5">
-            <PixelLabel className="mb-2">FAMILY TREE — 家系図</PixelLabel>
+            <PixelLabel className="mb-2">FAMILY TREE</PixelLabel>
             <div className="space-y-2">
               {lineage.map((g) => {
                 const highlights = Object.entries(g.counts)
@@ -393,10 +389,7 @@ export default async function MyPage({
         <>
       {/* 目指す技術領域（キャリアの方向性） */}
       <Window title="GOAL" titleEm=".cfg">
-        <PixelLabel>目指す領域 — 伸ばしたいロールを選ぶ</PixelLabel>
-        <p className="mt-2 text-[12.5px] text-inksoft">
-          目指す方向に、AIの提案が寄ります（複数可）。
-        </p>
+        <PixelLabel>目指す領域</PixelLabel>
         <ActionForm action={updateTargetDomains} ok="目指す領域を保存しました" className="mt-3 space-y-3">
           <div className="flex flex-wrap gap-2">
             {DOMAINS.map((d) => {
@@ -424,10 +417,7 @@ export default async function MyPage({
 
       {/* AIメンターの接し方（スタンス） */}
       <Window title="STANCE" titleEm=".cfg">
-        <PixelLabel>メンターの接し方 — どう言われたいかを選ぶ</PixelLabel>
-        <p className="mt-2 text-[12.5px] text-inksoft">
-          AIの言い方が変わります。スキル判定のきびしさは変わりません。
-        </p>
+        <PixelLabel>メンターの接し方</PixelLabel>
         <ActionForm
           action={updateMentorStance}
           ok="メンターの接し方を保存しました"
@@ -463,7 +453,7 @@ export default async function MyPage({
 
       {/* 公開共有の設定 */}
       <Window title="SHARE" titleEm=".cfg">
-        <PixelLabel>PUBLIC PROFILE — 成長を公開して学び合う</PixelLabel>
+        <PixelLabel>PUBLIC PROFILE</PixelLabel>
         <ActionForm action={updateShareSettings} ok="公開プロフィールを保存しました" className="mt-3 space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
@@ -549,7 +539,7 @@ export default async function MyPage({
 
       {/* UIモード: デスクトップ/クラシックの切替（旧UIは削除せず選べるモードとして共存） */}
       <Window title="SHELL" titleEm=".cfg">
-        <PixelLabel>UIモード — 画面の骨格を選ぶ</PixelLabel>
+        <PixelLabel>UIモード</PixelLabel>
         <div className="mt-3 grid grid-cols-2 gap-3">
           {(
             [
@@ -588,10 +578,7 @@ export default async function MyPage({
 
       {/* モバイルドックのカスタマイズ（Issue #10）。デスクトップUIのスマホ表示にのみ効く */}
       <Window title="DOCK" titleEm=".cfg">
-        <PixelLabel>モバイルドック — 下部メニューの3枠を選ぶ</PixelLabel>
-        <p className="mt-2 text-[12.5px] text-inksoft">
-          下部ドックに置く機能を3つ選びます。
-        </p>
+        <PixelLabel>モバイルドック</PixelLabel>
         <DockEditor
           apps={appsForRole(user.role)}
           initial={resolveDock(user.role, user.dockApps).map((a) => a.id)}
@@ -599,57 +586,49 @@ export default async function MyPage({
       </Window>
 
       <Window title="PALETTE" titleEm=".cfg">
-        <div className="space-y-4">
-          <p className="text-[12.5px] text-inksoft">
-            パレットを選ぶと全画面が着せ替わります。
-          </p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {PALETTES.map((p) => {
-              const active = p.id === user.palette;
-              return (
-                <form
-                  key={p.id}
-                  action={async () => {
-                    "use server";
-                    await setPalette(p.id);
-                  }}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {PALETTES.map((p) => {
+            const active = p.id === user.palette;
+            return (
+              <form
+                key={p.id}
+                action={async () => {
+                  "use server";
+                  await setPalette(p.id);
+                }}
+              >
+                <button
+                  className={`flex w-full flex-col items-start gap-2 rounded-lg border-[2.5px] border-line8 p-3 text-left font-pixel text-[13px] tracking-wide shadow-hard-sm transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                    active ? "bg-royal text-white" : "bg-surface text-ink"
+                  }`}
+                  aria-pressed={active}
                 >
-                  <button
-                    className={`flex w-full flex-col items-start gap-2 rounded-lg border-[2.5px] border-line8 p-3 text-left font-pixel text-[13px] tracking-wide shadow-hard-sm transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
-                      active ? "bg-royal text-white" : "bg-surface text-ink"
-                    }`}
-                    aria-pressed={active}
+                  <span className="flex gap-1" aria-hidden="true">
+                    {p.swatches.map((c) => (
+                      <i
+                        key={c}
+                        className="block h-4 w-4 rounded border-2 border-line8"
+                        style={{ background: c }}
+                      />
+                    ))}
+                  </span>
+                  {p.name}
+                  {active && " ★"}
+                  <span
+                    className={`font-sans text-[11px] ${active ? "text-peri" : "text-inksoft"}`}
                   >
-                    <span className="flex gap-1" aria-hidden="true">
-                      {p.swatches.map((c) => (
-                        <i
-                          key={c}
-                          className="block h-4 w-4 rounded border-2 border-line8"
-                          style={{ background: c }}
-                        />
-                      ))}
-                    </span>
-                    {p.name}
-                    {active && " ★"}
-                    <span
-                      className={`font-sans text-[11px] ${active ? "text-peri" : "text-inksoft"}`}
-                    >
-                      {p.desc}
-                    </span>
-                  </button>
-                </form>
-              );
-            })}
-          </div>
+                    {p.desc}
+                  </span>
+                </button>
+              </form>
+            );
+          })}
         </div>
       </Window>
 
       {/* サイトTIPSの表示ON/OFF（Issue #20）。端末をまたいで効くようDB保持 */}
       <Window title="TIPS" titleEm=".cfg">
-        <PixelLabel>TIPS — 右下のミニ豆知識</PixelLabel>
-        <p className="mt-2 text-[12.5px] text-inksoft">
-          使い方の小ネタを、右下にそっと出します。
-        </p>
+        <PixelLabel>TIPS</PixelLabel>
         <ActionForm
           action={setTipsEnabled}
           ok="TIPSの設定を保存しました"

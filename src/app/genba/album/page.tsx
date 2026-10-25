@@ -21,7 +21,7 @@ export default async function GenbaAlbumPage() {
     return (
       <div className="mx-auto max-w-2xl space-y-6">
         <h1>
-          <PixelLabel>ALBUM — きおくのアルバム</PixelLabel>
+          <PixelLabel>ALBUM</PixelLabel>
         </h1>
         <Window title="ALBUM" titleEm=".log">
           <p className="text-[13.5px]">アルバムを開くには、アカウント登録が必要です。</p>
@@ -45,7 +45,7 @@ export default async function GenbaAlbumPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h1>
-        <PixelLabel>ALBUM — きおくのアルバム</PixelLabel>
+        <PixelLabel>ALBUM</PixelLabel>
       </h1>
 
       <Window title="ALBUM" titleEm=".log">
@@ -106,10 +106,6 @@ export default async function GenbaAlbumPage() {
                     className="border-2 border-dashed border-[var(--ink)] p-3 opacity-60"
                   >
                     <p className="text-[13px] font-bold">？？？</p>
-                    <p className="mt-0.5 text-[11px]">
-                      この現場を満了すると、記憶のページが解放される。
-                      妙な案件は、えいぎょう信頼が高いと紛れ込んでくるらしい……
-                    </p>
                   </div>
                 );
               })}

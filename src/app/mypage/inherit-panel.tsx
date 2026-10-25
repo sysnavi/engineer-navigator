@@ -56,13 +56,10 @@ export function InheritPanel(props: {
         onClick={() => setPhase("confirm")}
       >
         ▶ 卵を産む（転生）
+        {!props.canRebirth && (
+          <span className="ml-1.5 font-pixel text-[10px]">🔒 Lv{props.minLevel}</span>
+        )}
       </button>
-      {!props.canRebirth && (
-        <p className="mt-1.5 text-[11.5px] text-inksoft">
-          🔒 マイスター（Lv{props.minLevel}）に到達すると解放されます（いま Lv
-          {props.level}）
-        </p>
-      )}
 
       {phase !== "closed" && (
         <div

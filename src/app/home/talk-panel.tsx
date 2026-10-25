@@ -155,7 +155,7 @@ export function TalkPanel(props: {
               unoptimized
             />
             <p className="text-[11.5px] leading-snug text-inksoft">
-              {props.petName}は、きみの週報やダンジョンのことを知っています。
+              …
             </p>
           </div>
 
@@ -223,9 +223,12 @@ export function TalkPanel(props: {
               ▶
             </button>
           </div>
-          <p className="mt-1 font-pixel text-[9.5px] tracking-wide text-inksoft">
-            きょう あと {remaining} 回
-          </p>
+          {/* 残り回数は上限が近いときだけ出す */}
+          {remaining <= 1 && (
+            <p className="mt-1 font-pixel text-[9.5px] tracking-wide text-inksoft">
+              きょう あと {remaining} 回
+            </p>
+          )}
         </div>
       </div>
     </div>,

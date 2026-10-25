@@ -237,9 +237,6 @@ export function ReportForm(props: { report: ReportData | null; submitted: boolea
           {saveState === "saved" && "SAVED ✓（自動保存）"}
         </span>
       </div>
-      <p className="text-[11.5px] text-inksoft">
-        提出するとAIが解析し、スキル提案と「今週の成長ポイント」を返します。入力は自動で下書き保存されます。
-      </p>
     </form>
   );
 }

@@ -137,11 +137,6 @@ export default async function ReportPage({
         >
           🎙 インタビューで答える
         </Link>
-        {interview && (
-          <span className="text-[11.5px] text-inksoft">
-            AIが1問ずつ聞きます。話すだけで週報のドラフトができます
-          </span>
-        )}
       </div>
 
       {interview ? (

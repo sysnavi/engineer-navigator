@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { dueReviews, reviewSummary, REVIEW_INTERVALS } from "@/lib/quiz/review";
+import { dueReviews, reviewSummary } from "@/lib/quiz/review";
 import { Window, PixelTitle, PixelLabel } from "@/components/retro";
 import { QuizPlay } from "../play/play-client";
 
@@ -17,13 +17,10 @@ export default async function QuizReviewPage() {
   return (
     <div className="space-y-5">
       <div>
-        <PixelLabel>REVIEW — 間違えた問題の出し直し</PixelLabel>
+        <PixelLabel>REVIEW</PixelLabel>
         <PixelTitle as="h1" className="text-2xl text-royal">
           復習ボックス
         </PixelTitle>
-        <p className="mt-1 text-[13px] text-inksoft">
-          {REVIEW_INTERVALS.join("日後 → ")}日後、と間隔を空けて再出題。3回連続で正解すると卒業です。
-        </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">

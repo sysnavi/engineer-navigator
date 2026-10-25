@@ -107,7 +107,7 @@ export function RoleplayChat(props: {
 
       <div className="rounded-lg border-2 border-line8 bg-surface p-4 shadow-hard-sm">
         <p className="mb-2 font-pixel text-[11px] tracking-wide text-inksoft">
-          評価観点（この観点でフィードバックされます）
+          評価観点
         </p>
         <ul className="mb-3 list-inside list-disc space-y-1 text-[12px] text-inksoft">
           {props.objectives.map((o, i) => (
@@ -119,7 +119,7 @@ export function RoleplayChat(props: {
         </form>
         {!hasUserMsg && (
           <p className="mt-2 text-[11.5px] text-inksoft">
-            まず相手役と1回はやり取りしてから終了できます（未入力では評価できません）。
+            まず相手役と1回はやり取りしてから終了できます。
           </p>
         )}
       </div>

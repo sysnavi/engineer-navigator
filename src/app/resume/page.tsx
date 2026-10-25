@@ -1,5 +1,5 @@
 import { requireFullAccount } from "@/lib/guest";
-import { highlightKeywords, RATE_KEYWORDS } from "@/lib/highlight";
+import { highlightKeywords } from "@/lib/highlight";
 import {
   loadResumeData,
   CATEGORY_LABELS,
@@ -30,7 +30,7 @@ export default async function ResumePage() {
     <div className="print-root space-y-7">
       <div className="no-print flex flex-wrap items-end justify-between gap-4">
         <div>
-          <PixelLabel>CAREER_SHEET.doc — 週報から自動組版</PixelLabel>
+          <PixelLabel>CAREER_SHEET.doc</PixelLabel>
           <PixelTitle as="h1" className="text-3xl text-royal">
             経歴書
           </PixelTitle>
@@ -49,14 +49,7 @@ export default async function ResumePage() {
         <p className="mt-2 text-[13px] text-inksoft">
           スキル {skills.length} 件 ・ 実績 {experiences.length} 件 ・ 経歴{" "}
           {assignments.length} 件
-          {roleplays.length > 0 && ` ・ リーダーシップ演習 ${roleplays.length} 回`}{" "}
-          — すべて週報のAI解析と本人承認、演習の実施記録から自動生成。
-          各実績は元の週報まで遡って根拠を辿れます。
-        </p>
-        <p className="mt-2 text-[11.5px] text-inksoft">
-          強調表示（
-          <mark className="kw8">{RATE_KEYWORDS[1]}</mark>
-          など）は単価交渉で効くキーワードの自動ハイライトです。
+          {roleplays.length > 0 && ` ・ リーダーシップ演習 ${roleplays.length} 回`}
         </p>
       </Window>
 
@@ -200,10 +193,6 @@ export default async function ResumePage() {
           </ol>
         )}
       </Window>
-
-      <p className="no-print text-center font-pixel text-[12px] tracking-[0.1em] text-royal2">
-        「PDF出力」でそのまま渡せる通常組版のPDFをダウンロードできます（8bit装飾は自動で外れます）
-      </p>
     </div>
   );
 }

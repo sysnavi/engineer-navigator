@@ -42,15 +42,13 @@ export function CertPicker({ name = "certification" }: { name?: string }) {
         required
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="または自由に入力"
+        placeholder="または自由に入力（例: 情報処理安全確保支援士）"
         className="field8"
       />
 
-      <p className="mt-1 text-[11px] text-inksoft">
-        {picked
-          ? `${picked.hint}／章ごとに腕試しへ飛べます`
-          : "上にない資格（例: 情報処理安全確保支援士）も入力できます"}
-      </p>
+      {picked && (
+        <p className="mt-1 text-[11px] text-inksoft">{picked.hint}</p>
+      )}
     </div>
   );
 }

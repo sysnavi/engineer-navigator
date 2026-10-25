@@ -223,7 +223,7 @@ export default async function HomePage() {
           </span>
           {livingLevel > 0 && (
             <span className="font-pixel text-[10.5px] tracking-wide text-inksoft">
-              📐 かくちょう Lv{livingLevel}（よこにスクロール）
+              📐 かくちょう Lv{livingLevel}
             </span>
           )}
         </div>

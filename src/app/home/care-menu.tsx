@@ -14,7 +14,7 @@
 
 import { createPortal } from "react-dom";
 import { FoodSprite } from "@/components/pets/food-sprite";
-import { FOODS, HAND_SERVE_MIN_AFFECTION } from "@/lib/pets/foods";
+import { FOODS } from "@/lib/pets/foods";
 import { BarButton } from "@/components/retro";
 
 export type FoodStock = { foodId: string; count: number };
@@ -22,7 +22,6 @@ export type FoodStock = { foodId: string; count: number };
 export function CareMenu(props: {
   petName: string;
   affection: number;
-  pettedToday: boolean;
   feedsLeft: number; // きょう あと何回あげられるか（1日3回まで）
   favoriteFoodId: string | null; // この子の発見済みの好物（未発見は null）
   stocks: FoodStock[];
@@ -105,19 +104,16 @@ export function CareMenu(props: {
           >
             💬 はなす
           </button>
-          <p className="text-[10px] text-inksoft">
-            {props.pettedToday
-              ? "なでなではいつでもOK。なつき度アップはまた明日"
-              : "なでなでで なつき度 +1（きょうのぶん）"}
-          </p>
 
           <div>
             <p className="mb-1.5 font-pixel text-[10px] tracking-[0.08em] text-royal2">
-              GOHAN — {fedUp ? "きょうは たっぷり たべました" : `えらんで もりつける（あと${props.feedsLeft}回）`}
+              {/* 残り回数は残りわずかのときだけ出す（上限に触れたら知らせる） */}
+              GOHAN
+              {fedUp ? " — きょうは たっぷり たべました" : props.feedsLeft <= 1 ? ` — あと${props.feedsLeft}回` : ""}
             </p>
             {owned.length === 0 ? (
               <p className="text-[11.5px] text-inksoft">
-                ごはんが ありません。毎日ログインで3個もらえます（ダンジョンでも拾えます）
+                ごはんが ありません
               </p>
             ) : (
               // ごはんが増えても縦に伸びないよう横スクロールの一列にする。
@@ -158,16 +154,6 @@ export function CareMenu(props: {
               </div>
             )}
           </div>
-
-          <p className="text-[10.5px] leading-relaxed text-inksoft">
-            種族ごとに好物がひとつ。当てると なつき度が2倍のびます。
-            {props.affection < HAND_SERVE_MIN_AFFECTION && (
-              <>
-                <br />
-                なつき度{HAND_SERVE_MIN_AFFECTION}で「てのひらから」あげられるようになります。
-              </>
-            )}
-          </p>
         </div>
       </div>
     </div>,

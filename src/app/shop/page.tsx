@@ -48,7 +48,7 @@ function ItemCard(props: {
         <div className="min-w-0 flex-1">
           <p className="font-pixel text-[12px] tracking-wide text-inksoft">？？？</p>
           <p className="mt-1 text-[11px] leading-snug text-inksoft">
-            いまは入荷していません。週替わりの入荷をおたのしみに
+            入荷待ち
           </p>
         </div>
       </div>
@@ -111,7 +111,7 @@ export default async function ShopPage() {
     return (
       <div className="mx-auto max-w-2xl space-y-6">
         <h1>
-          <PixelLabel>SHOP — おかいもの</PixelLabel>
+          <PixelLabel>SHOP</PixelLabel>
         </h1>
         <Window title="SHOP" titleEm=".cat">
           <p className="text-[13.5px]">
@@ -141,19 +141,11 @@ export default async function ShopPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h1>
-        <PixelLabel>SHOP — おかいもの</PixelLabel>
+        <PixelLabel>SHOP</PixelLabel>
       </h1>
 
       <Window title="SHOP" titleEm=".cat">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-[13px]">
-            げんばで稼いだENで、マイホームの家具をそろえよう。
-            <br />
-            <span className="text-[11px] opacity-70">
-              買った家具はリビングにとどく（ドラッグで模様替え）。
-              週替わりシリーズは毎週月曜に入荷が入れかわる。
-            </span>
-          </p>
+        <div className="flex items-center justify-end gap-3">
           <div className="shrink-0 text-right">
             <span className="font-pixel border-2 border-onlemon bg-lemon text-onlemon px-2 py-[2px] text-[13px] tabular-nums">
               {balance.toLocaleString()} <em className="not-italic text-[10px]">EN</em>
@@ -221,7 +213,7 @@ export default async function ShopPage() {
                   style={{ background: reward.css, filter: complete ? undefined : "grayscale(0.7)" }}
                 />
                 {complete
-                  ? `コンプ特典 解放ずみ: ${rewardKind}「${reward.name}」（マイホームのもようがえで選べます）`
+                  ? `コンプ特典 解放ずみ: ${rewardKind}「${reward.name}」`
                   : `コンプ特典: ${rewardKind}「${reward.name}」`}
               </p>
             )}

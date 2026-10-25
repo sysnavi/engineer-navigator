@@ -47,6 +47,7 @@ export function SuggestionCard(props: {
   const [pending, start] = useTransition();
   const router = useRouter();
 
+  // 高レベル提案は深掘りボタンを強調して検証を促す（文言での注意書きは出さない）
   const probeRecommended =
     s.suggestedLevel != null && s.suggestedLevel >= PROBE_RECOMMENDED_FROM;
 
@@ -199,11 +200,6 @@ export function SuggestionCard(props: {
           >
             × きゃっか
           </button>
-          {probeRecommended && !judged && props.aiEnabled && (
-            <p className="max-w-[160px] text-[10.5px] leading-relaxed text-inksoft">
-              ⚠ Lv{PROBE_RECOMMENDED_FROM}以上は深掘りでの検証がおすすめです
-            </p>
-          )}
         </div>
       </div>
     </div>

@@ -42,13 +42,10 @@ export default async function YomoyamaPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <PixelLabel>YOMOYAMA — 現場のよもやま話</PixelLabel>
+        <PixelLabel>YOMOYAMA</PixelLabel>
         <PixelTitle as="h1" className="text-3xl text-royal">
           よもやま
         </PixelTitle>
-        <p className="mt-1 text-[13px] text-inksoft">
-          現場のあれこれを、ハンドル名で。
-        </p>
       </div>
 
       <Composer />

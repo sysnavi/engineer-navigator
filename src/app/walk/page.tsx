@@ -59,7 +59,7 @@ export default async function WalkPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       {/* 見出しは小ラベルだけ。シーンが主役（説明文は置かない） */}
       <h1>
-        <PixelLabel>WALK — おさんぽ</PixelLabel>
+        <PixelLabel>WALK</PixelLabel>
       </h1>
 
       {pets.length === 0 ? (

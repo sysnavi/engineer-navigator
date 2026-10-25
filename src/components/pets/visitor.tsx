@@ -235,7 +235,7 @@ export function Visitor(props: {
                       className="btn8 px-3 py-2 text-left text-[12.5px] !border-dashed"
                       onClick={() => setPhase("ai")}
                     >
-                      💬 じぶんの言葉で話す（AI会話）
+                      💬 じぶんの言葉で話す
                     </button>
                   )}
                 </div>
@@ -262,7 +262,7 @@ export function Visitor(props: {
                   // 日本語IMEの変換確定の Enter で送信しない（確定前の文字が送られ、残りが入力欄に残る）
                   onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && sendAi()}
                   maxLength={200}
-                  placeholder="はなしかけてみる…（3往復で気持ちが決まる）"
+                  placeholder="はなしかけてみる…"
                   className="field8 flex-1"
                 />
                 <button className="btn8 btn8-start px-4 text-[12px]" onClick={sendAi} disabled={pending}>

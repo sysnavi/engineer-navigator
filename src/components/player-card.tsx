@@ -1,5 +1,5 @@
 // PLAYER_FILE.sav カード（TOPヒーロー/デスクトップホーム共用）。
-// EXPバー・進化予告・今週のかつどうは PlayerStats（導出値）から描く。
+// EXPバー・今週のかつどうは PlayerStats（導出値）から描く。
 
 import { PixelAvatar } from "@/components/pixel-avatar";
 import type { PlayerStats } from "@/lib/exp";
@@ -71,8 +71,6 @@ export function PlayerCard(props: {
           </div>
           <p className="mt-1 text-[11px] text-inksoft">
             つぎのLvまで {player.expToNextLevel} EXP
-            {player.nextStage &&
-              ` ／ Lv${player.nextStage.minLevel}で「${player.nextStage.name}」に進化`}
           </p>
         </div>
       </div>
@@ -82,7 +80,7 @@ export function PlayerCard(props: {
         </span>
         {player.weekActivities.length === 0 ? (
           <span className="text-[11.5px] text-inksoft">
-            まだ活動なし。週報から始めよう（+50 EXP）
+            まだ活動なし。週報から始めよう
           </span>
         ) : (
           <>

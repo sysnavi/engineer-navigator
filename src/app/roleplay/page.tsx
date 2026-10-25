@@ -31,9 +31,6 @@ export default async function RoleplayListPage() {
         <PixelTitle as="h1" className="text-3xl text-royal">
           役割シミュレーター
         </PixelTitle>
-        <p className="mt-1 text-[13px] text-inksoft">
-          一歩先の役割を、AIとロールプレイ。
-        </p>
       </div>
 
       <ScenarioShuffle scenarios={scenarios} userDomains={user.targetDomains} />

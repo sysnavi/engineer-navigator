@@ -33,13 +33,9 @@ export default async function QuizNewPage() {
             <input
               name="topic"
               required
-              placeholder="例: AWS IAM"
+              placeholder="例: AWS IAM / TCP/IP / SQL / Git"
               className="field8"
             />
-            <p className="mt-1 text-[11px] text-inksoft">
-              例: AWS IAM / TCP/IP / SQL / Git など。
-              同じお題でまとめて出題されるので、既存のお題名に揃えると集まりやすいです。
-            </p>
           </div>
 
           <div>
@@ -59,9 +55,6 @@ export default async function QuizNewPage() {
             <label className="mb-1 block text-[12px] font-extrabold">
               選択肢（4つ）と正解<span className="text-pinkhot">*</span>
             </label>
-            <p className="mb-2 text-[11px] text-inksoft">
-              各行の左のラジオで<b>正解</b>を1つ選んでください。
-            </p>
             <div className="space-y-2">
               {labels.map((l, i) => (
                 <div key={i} className="flex items-center gap-2">

@@ -72,7 +72,7 @@ export function PostForm(props: { onPosted?: () => void }) {
 
       <div className="flex items-center justify-between">
         <span className="font-pixel text-[10px] tracking-wide text-inksoft">
-          {pending ? "AIが確認中…" : "AIチェックを通ると掲載されます"}
+          {pending && "AIが確認中…"}
         </span>
         <button
           type="submit"

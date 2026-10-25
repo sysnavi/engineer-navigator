@@ -45,13 +45,10 @@ export default async function DungeonPage() {
   return (
     <div className="space-y-7">
       <div>
-        <PixelLabel>DUNGEON — 問いに答えて倒す</PixelLabel>
+        <PixelLabel>DUNGEON</PixelLabel>
         <PixelTitle as="h1" className="text-3xl text-royal">
           ダンジョン
         </PixelTitle>
-        <p className="mt-1 text-[13px] text-inksoft">
-          知っていることが、そのまま強さになる。どこまで行くかは、きみが決める。
-        </p>
       </div>
 
       <Window title="DUNGEON" titleEm=".log">
@@ -77,7 +74,6 @@ export default async function DungeonPage() {
               <b style={{ color: stats.genes!.dominant.color }}>{geneMod.label}</b>
             </span>
           )}
-          <span>週報を出した週は +1回（整った心で、もう一潜り）</span>
         </div>
       </Window>
 
@@ -140,13 +136,10 @@ export default async function DungeonPage() {
                         </p>
                       </div>
                     </div>
-                    <p className="mt-1.5 text-[11px] leading-relaxed text-inksoft">
-                      {owned
-                        ? g.flavor
-                        : g.minGeneration && g.minGeneration >= 2
-                          ? "継承世代だけが辿り着ける…"
-                          : "まだ見ぬ逸品。深く潜れば、いつか。"}
-                    </p>
+                    {/* 未入手は ？？？ のまま。入手条件の説明は出さない */}
+                    {owned && (
+                      <p className="mt-1.5 text-[11px] leading-relaxed text-inksoft">{g.flavor}</p>
+                    )}
                   </div>
                 );
               })

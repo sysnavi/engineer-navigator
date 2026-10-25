@@ -109,7 +109,7 @@ export function ResultModal(props: {
           </div>
           {result.suggestionCount > 0 && (
             <p className="text-[11.5px] text-inksoft">
-              AIが見つけたスキルは、あなたが承認して初めてスキルマップに反映されます
+              承認するとスキルマップに反映されます
             </p>
           )}
         </div>

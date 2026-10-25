@@ -502,7 +502,7 @@ export function WalkScene(props: {
         <h2 className="mt-4 font-pixel text-[10.5px] tracking-wide text-royal2">つぶやき</h2>
         {log.length === 0 ? (
           <p className="mt-1.5 text-[12px] text-inksoft">
-            あるいていると、{pet.name}が ときどき ひとこと話します。
+            …
           </p>
         ) : (
           <ol className="mt-1.5 max-h-[320px] space-y-1.5 overflow-y-auto pr-1">

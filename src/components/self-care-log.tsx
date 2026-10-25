@@ -32,10 +32,8 @@ export async function SelfCareLog({ userId }: { userId: string }) {
 
   return (
     <Window title="SELF-CARE" titleEm=".log">
-      <PixelLabel>セルフケアログ — あなただけの記録</PixelLabel>
-      <p className="mt-1.5 text-[12px] text-inksoft">
-        コンディションの移りかわり。運営を含め、これはあなた以外には見えません。
-      </p>
+      <PixelLabel>セルフケアログ</PixelLabel>
+      <p className="mt-1.5 text-[12px] text-inksoft">🔒 あなたにだけ見えます</p>
 
       <div className="mt-3 flex flex-wrap gap-2.5">
         {withCond.map((w) => {

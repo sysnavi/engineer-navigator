@@ -28,9 +28,6 @@ export function PlanCreateForm({ minExamDate }: { minExamDate: string }) {
             試験日 <span className="text-pinkhot">*</span>
           </label>
           <input name="examDate" type="date" required min={minExamDate} className="field8" />
-          <p className="mt-1 text-[11px] text-inksoft">
-            プラン作成には3日以上の準備期間が必要です（{minExamDate} 以降）
-          </p>
         </div>
       </div>
       {state.error && (
@@ -41,9 +38,6 @@ export function PlanCreateForm({ minExamDate }: { minExamDate: string }) {
       <SubmitButton className="btn8 btn8-start" pendingLabel="AIが作成中…">
         ▶ プランを作成
       </SubmitButton>
-      <p className="text-[11.5px] text-inksoft">
-        試験日までを逆算し、あなたのスキルと登録済みの教材を踏まえて週次の計画を生成します。
-      </p>
     </form>
   );
 }

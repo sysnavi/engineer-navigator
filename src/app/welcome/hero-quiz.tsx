@@ -75,7 +75,6 @@ export function HeroQuiz({ q, chosen }: { q: WelcomeQuestion; chosen: number | n
           </p>
           <p className="mt-1.5 font-pixel text-[13px] tracking-wide text-royal">
             +{exp} EXP
-            <span className="ml-1 text-[10px] text-inksoft">{correct ? "" : "（挑戦したぶん）"}</span>
           </p>
         </div>
       </div>
