@@ -56,7 +56,7 @@
 | --- | --- | --- | --- |
 | Anthropic Claude API | 週報解析・メンター・ロールプレイ等 | `ANTHROPIC_API_KEY` | 未設定でも週報提出は成功し解析だけ FAILED（**仕様**）。呼び出しは `src/lib/ai/client.ts` 経由のみ |
 | Voyage AI（`api.voyageai.com`） | 埋め込み（RAG） | `VOYAGE_API_KEY` | 未設定ならRAGはスキップ。HTTP 直叩き |
-| OpenAI（`api.openai.com/v1/audio/transcriptions`） | サーバー側 STT（音声入力） | 要確認（`src/lib/speech/` の鍵名） | 音声入力は `src/lib/speech/` 経由のみ |
+| OpenAI（`api.openai.com/v1/audio/transcriptions`） | サーバー側 STT（音声入力） | `OPENAI_API_KEY`（任意） | 音声入力は `src/lib/speech/` 経由のみ |
 | Google OAuth（`accounts.google.com` / `oauth2.googleapis.com`） | ログイン連携 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 保存するのは `SHA-256(provider:sub)` のハッシュのみ（メール・名前は受け取らない） |
 | GitHub OAuth（`github.com/login/oauth` / `api.github.com/user`） | ログイン連携 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | 同上 |
 | Slack（Webhook / `slack.com/api`） | 問い合わせ・日次トリアージ・OAuth 見張り等の通知 | `SLACK_WEBHOOK_URL` ほか | `src/lib/notify.ts` |
