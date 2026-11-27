@@ -9,7 +9,8 @@
   外部ライブラリ・画像素材なし。モデルはすべてこのファイル内のコード（ボクセル）で組んでいる。
   方針書: docs/design/sprite-stack-plan.md
   URLパラメータ: ?scene=char|walk|dungeon  ?rot=free|16|8  ?sheet（角度の見本）  ?raw（ドット補正なし）  ?debug（fps表示）  ?nospin
-  .vox: キャラ画面の↓で保存、.vox をページに落とすとそのモデルが主人公になる（docs/design/vox/ に書き出し済みの見本あり）
+  .vox: 起動時に vox/alien.vox を主人公の元の形として読み、歩き・まばたき・笑顔のコマはコードで作る（色の番号: 1体 2足 3触角の玉 4線 5目の光 6ほっぺ 7笑顔の口）。
+        キャラ画面の↓で保存、.vox をページに落とすとその形に差し替わる。?codealien でコードの宇宙人
 -->
 <style>
   :root{
@@ -107,7 +108,7 @@ class Vox {
         }
   }
   // 正面（手前）の一番外側に色を塗る。顔のパーツ用。陰影をかけない
-  paint(x, z, c) { for (let y = this.d - 1; y >= 0; y--) if (this.get(x, y, z)) { this.set(x, y, z, c, 1); if (this.get(x, y - 1, z)) this.set(x, y - 1, z, c, 1); return; } }
+  paint(x, z, c, flat = 1) { for (let y = this.d - 1; y >= 0; y--) if (this.get(x, y, z)) { this.set(x, y, z, c, flat); if (this.get(x, y - 1, z)) this.set(x, y - 1, z, c, flat); return; } }
   surface(x, y, z) { return this.get(x, y, z) && (!this.get(x + 1, y, z) || !this.get(x - 1, y, z) || !this.get(x, y + 1, z) || !this.get(x, y - 1, z) || !this.get(x, y, z + 1)); }
 }
 
@@ -495,15 +496,80 @@ function parseVox(buf) {
   for (let i = 0; i < pts.length; i += 4) v.set(pts[i], size[1] - 1 - pts[i + 1], pts[i + 2], pts[i + 3]);
   return { v, pal };
 }
+/* ---- MagicaVoxel で直した宇宙人を「元の形」にして、歩き・まばたき・笑顔のコマはコードで作る ----
+   色の番号の約束: 1=体 2=足 3=触角の玉 4=線(目・口) 5=目の光 6=ほっぺ 7=笑顔の口
+   足 = 2番の色で下のほうにあるボクセル。目と口 = 顔の正面に出ている 4/5/7 番のかたまり（上の2つが目、その下が口） */
+const BASE = { src: null, A: null, ver: 0 };
+function analyzeVox(v) {
+  let legTop = -1, front = 0;
+  for (let z = 0; z < v.h; z++) for (let y = 0; y < v.d; y++) for (let x = 0; x < v.w; x++) {
+    const c = v.get(x, y, z); if (!c) continue;
+    if (c === 2 && z < v.h * .4) legTop = Math.max(legTop, z);
+    front = Math.max(front, y);
+  }
+  // 顔のドット: 各 (x,z) の列で一番手前のボクセルが 4/5/7 番で、顔の面にあるもの
+  const cell = new Set();
+  for (let z = legTop + 1; z < v.h; z++) for (let x = 0; x < v.w; x++) {
+    for (let y = v.d - 1; y >= 0; y--) { const c = v.get(x, y, z); if (!c) continue; if ((c === 4 || c === 5 || c === 7) && y >= front - 3) cell.add(x + ',' + z); break; }
+  }
+  const comps = [], seen = new Set();
+  for (const k of cell) {
+    if (seen.has(k)) continue;
+    const comp = [], q = [k]; seen.add(k);
+    while (q.length) { const cur = q.pop(); comp.push(cur.split(',').map(Number)); const [x, z] = comp[comp.length - 1]; for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) { const n = (x + dx) + ',' + (z + dz); if (cell.has(n) && !seen.has(n)) { seen.add(n); q.push(n); } } }
+    const xs = comp.map(c => c[0]), zs = comp.map(c => c[1]);
+    comps.push({ cells: comp, x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs), cx: xs.reduce((a, b) => a + b) / xs.length, cz: zs.reduce((a, b) => a + b) / zs.length });
+  }
+  comps.sort((a, b) => b.cz - a.cz);
+  let eyes = null, mouth = null;
+  for (let i = 0; i + 1 < comps.length && !eyes; i++) if (Math.abs(comps[i].cz - comps[i + 1].cz) <= 1.5 && Math.abs(comps[i].cx - comps[i + 1].cx) >= 3) eyes = [comps[i], comps[i + 1]];
+  if (eyes) mouth = comps.filter(c => !eyes.includes(c) && c.cz < Math.min(eyes[0].cz, eyes[1].cz) && Math.abs(c.cx - v.w / 2) < v.w * .25)[0] || null;
+  return { legTop, eyes, mouth };
+}
+function animFrom(v, A, step, expr) {
+  const bob = (step === 1 || step === 3) ? 1 : 0, sw = step === 0 ? 1 : step === 2 ? -1 : 0, cx = v.w / 2;
+  const o = new Vox(v.w, v.d + 4, v.h + 1);
+  for (let z = 0; z < v.h; z++) for (let y = 0; y < v.d; y++) for (let x = 0; x < v.w; x++) {
+    const c = v.get(x, y, z); if (!c) continue; const fl = v.f[v.idx(x, y, z)];
+    if (c === 2 && z <= A.legTop) {
+      const dy = (x + .5 < cx ? 1 : -1) * 2 * sw;
+      o.set(x, y + 2 + dy, z, c, fl); if (bob && z === A.legTop) o.set(x, y + 2 + dy, z + 1, c, fl);
+    } else o.set(x, y + 2, z + bob, c, fl);
+  }
+  if (A.eyes && expr !== 'n') {
+    for (const e of A.eyes) {
+      for (const [x, z] of e.cells) o.paint(x, z + bob, 1, 0);           // いったん体の色に戻す
+      const zm = e.z0 + ((e.z1 - e.z0) >> 1) + bob;
+      if (expr === 'b') { for (let x = e.x0; x <= e.x1; x++) o.paint(x, zm, 4); }
+      else {
+        const xs = []; for (let x = e.x0; x <= e.x1; x++) xs.push(x);
+        while (xs.length < 3) { if (e.cx < cx) xs.unshift(xs[0] - 1); else xs.push(xs[xs.length - 1] + 1); }
+        const m = (xs.length - 1) / 2;
+        xs.forEach((x, i) => o.paint(x, Math.max(zm, zm + 1 - Math.round(Math.abs(i - m))), 4));
+      }
+    }
+  }
+  if (A.mouth && expr === 's') {
+    const mo = A.mouth;
+    for (const [x, z] of mo.cells) o.paint(x, z + bob, 7);
+    o.paint(mo.x0 - 1, mo.z1 + 1 + bob, 4); o.paint(mo.x1 + 1, mo.z1 + 1 + bob, 4);
+  }
+  return o;
+}
+// 色の丸: 1つ目は .vox の色のまま、ほかは体(1)と足(2)の色だけ差し替える
+const basePal = () => { const p = BASE.src.pal.slice(); if (hero.pal) { p[1] = BODY[hero.pal][0]; p[2] = BODY[hero.pal][1]; } return p; };
+function heroStackFor(step, expr) {
+  if (BASE.src) return cached(`vox${BASE.ver}|${hero.pal}|${step}|${expr}`, () => bake(animFrom(BASE.src.v, BASE.A, step, expr), basePal()));
+  return cached(`alien|${hero.pal}|${step}|${expr}`, () => bake(buildAlien(step, expr), alienPal(hero.pal)));
+}
 function loadVox(buf) {
-  const { v, pal } = parseVox(buf);
-  hero.custom = bake(v, pal); hero.customVox = { v, pal };
-  for (const e of scene.ents) if (e === hero) e.lastSt = null;
-  queueWarm();
-  return [v.w, v.d, v.h];
+  const src = parseVox(buf);
+  BASE.src = src; BASE.A = analyzeVox(src.v); BASE.ver++;
+  if (typeof scene !== 'undefined' && scene) queueWarm();
+  return { size: [src.v.w, src.v.d, src.v.h], legs: BASE.A.legTop >= 0, eyes: !!BASE.A.eyes, mouth: !!BASE.A.mouth };
 }
 function downloadVox() {
-  const src = hero.customVox || { v: buildAlien(-1, 'n'), pal: alienPal(hero.pal) };
+  const src = BASE.src ? { v: BASE.src.v, pal: BASE.src.pal } : { v: buildAlien(-1, 'n'), pal: alienPal(hero.pal) };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([voxToBytes(src.v, src.pal)], { type: 'application/octet-stream' }));
   a.download = 'alien.vox'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -514,10 +580,9 @@ function downloadVox() {
    ============================================================ */
 const hero = { kind: 'hero', thick: 1.25, x: 0, y: 0, z: 0, vz: 0, heading: 0, target: null, phase: 0, moving: false, blink: 0, blinkT: 2, smile: 0, pal: 0, r: 5, shadow: 7 };
 hero.stack = () => {
-  if (hero.custom) return hero.custom;
   const step = hero.moving ? Math.floor(hero.phase) % 4 : -1;
   const expr = hero.smile > 0 ? 's' : hero.blink > 0 ? 'b' : 'n';
-  return cached(`alien|${hero.pal}|${step}|${expr}`, () => bake(buildAlien(step, expr), alienPal(hero.pal)));
+  return heroStackFor(step, expr);
 };
 function slimeEnt(pal, name, x, y) {
   const e = { kind: name, thick: 1.3, x, y, z: 0, vz: 0, heading: 0, target: null, phase: 0, moving: false, r: 4, shadow: 5, wait: 1 };
@@ -684,7 +749,7 @@ function queueWarm() {
   warmQ.length = 0; if (!ROT.n) return;
   const sts = new Map([[scene.ground, 1]]);
   for (const e of scene.ents) sts.set(e.stack(), e.thick || 1);
-  if (scene.ents.includes(hero) && !hero.custom) for (const st of [-1, 0, 1, 2, 3]) for (const ex of ['n', 'b']) sts.set(cached(`alien|${hero.pal}|${st}|${ex}`, () => bake(buildAlien(st, ex), alienPal(hero.pal))), hero.thick);
+  if (scene.ents.includes(hero)) for (const st of [-1, 0, 1, 2, 3]) for (const ex of ['n', 'b']) sts.set(heroStackFor(st, ex), hero.thick);
   const cur = snapIdx(cam.th, ROT.n);
   for (let d = 0; d <= ROT.n / 2; d++) for (const i of new Set([(cur + d) % ROT.n, (cur - d + ROT.n) % ROT.n])) for (const [st, th] of sts) warmQ.push([st, i, th]);
 }
@@ -698,7 +763,7 @@ document.getElementById('bVox').onclick = downloadVox;
 // .vox をページに落とすと、そのモデルが主人公になる
 addEventListener('dragover', e => e.preventDefault());
 addEventListener('drop', async e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) { try { loadVox(await f.arrayBuffer()); } catch (err) { console.warn(err); } } });
-BODY.forEach(([c], i) => { const b = document.createElement('button'); b.style.background = c; b.onclick = () => { hero.pal = i; hero.custom = hero.customVox = null; queueWarm(); [...chips.children].forEach((x, j) => x.classList.toggle('on', j === i)); }; if (!i) b.classList.add('on'); chips.appendChild(b); });
+BODY.forEach(([c], i) => { const b = document.createElement('button'); b.style.background = c; b.onclick = () => { hero.pal = i; queueWarm(); [...chips.children].forEach((x, j) => x.classList.toggle('on', j === i)); }; if (!i) b.classList.add('on'); chips.appendChild(b); });
 
 /* ============================================================
    7. 更新
@@ -869,7 +934,7 @@ function drawSheet() {
   document.querySelectorAll('.bar,.tools,.chips,.modes,.now,#stage').forEach(el => el.hidden = true);
   document.body.style.overflow = 'auto';
   const wrap = document.createElement('div'); wrap.className = 'sheet'; document.body.appendChild(wrap);
-  const st = cached('alien|0|-1|n', () => bake(buildAlien(-1, 'n'), alienPal(0)));
+  const st = heroStackFor(-1, 'n');
   const rows = [['16方向・補正なし', 16, false], ['16方向・ドット補正', 16, true], ['8方向・ドット補正', 8, true]];
   for (const [label, n, clean] of rows) {
     const h = document.createElement('h2'); h.textContent = label; wrap.appendChild(h);
@@ -885,7 +950,9 @@ function drawSheet() {
 
 setScene(['char', 'walk', 'dungeon'].includes(Q.get('scene')) ? Q.get('scene') : 'char');
 setRot(Q.get('rot') === 'free' ? 0 : Q.get('rot') === '16' ? 16 : 8);   // 既定は8方向（2026-11-27 決定）
-if (Q.has('sheet')) drawSheet(); else requestAnimationFrame(loop);
+// docs/design/vox/alien.vox（MagicaVoxel で直した宇宙人）を元の形にする。file:// で開いたときや ?codealien ではコードの宇宙人のまま
+const baseReady = Q.has('codealien') ? Promise.resolve() : fetch('vox/alien.vox', { cache: 'no-store' }).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status)).then(loadVox).catch(() => {});
+if (Q.has('sheet')) baseReady.then(drawSheet); else requestAnimationFrame(loop);
 </script>
 </body>
 </html>
