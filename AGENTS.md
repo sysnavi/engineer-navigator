@@ -14,6 +14,7 @@ SESエンジニアの成長をデータ化するアプリ。構想・設計は d
 - docs/bug-triage.md — 日次バグトリアージ（機能ツアー→Slack報告→軽微なら自動修正PR）
 - docs/analytics.md — 来訪者分析（サーバー側イベント・ゲスト→登録ファネル・/admin/analytics・Vercel Analytics・Looker Studio・OAuth登録の見張り）
 - docs/sns-bot.md — SNS投稿Bot（日次でゲーム画面を遊んで撮り、画像でXに投稿。控えはSlack）
+- docs/ops/staging.md — テスト環境（staging）の作り方。ビルドの migrate deploy が本番DBに流れないための Vercel/Neon の分け方
 - docs/design/sprite-stack-plan.md — キャラ・おさんぽ・ダンジョンの3D化（スプライトスタッキング・8方向・素材は MagicaVoxel の .vox）。段階と決定事項
 
 ## スタック
