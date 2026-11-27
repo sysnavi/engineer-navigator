@@ -9,8 +9,9 @@
   外部ライブラリ・画像素材なし。モデルはすべてこのファイル内のコード（ボクセル）で組んでいる。
   方針書: docs/design/sprite-stack-plan.md
   URLパラメータ: ?scene=char|walk|dungeon  ?rot=free|16|8  ?sheet（角度の見本）  ?raw（ドット補正なし）  ?debug（fps表示）  ?nospin
-  .vox: 起動時に vox/alien.vox を主人公の元の形として読み、歩き・まばたき・笑顔のコマはコードで作る（色の番号: 1体 2足 3触角の玉 4線 5目の光 6ほっぺ 7笑顔の口）。
-        キャラ画面の↓で保存、.vox をページに落とすとその形に差し替わる。?codealien でコードの宇宙人
+  .vox: 起動時に vox/alien.vox と vox/unko.vox をキャラの元の形として読み、歩き・まばたき・笑顔のコマはコードで作る
+        （色の番号: 1体 2足/濃い色 3飾り 4線 5目の光 6ほっぺ 7笑顔の口。足のないキャラは縮み伸びで歩く）。
+        キャラ画面の↓で今のキャラを保存、.vox をページに落とすと今のキャラの形に差し替わる。?codealien でコードのキャラ
 -->
 <style>
   :root{
@@ -570,15 +571,20 @@ function parseVox(buf) {
   for (let i = 0; i < pts.length; i += 4) v.set(pts[i], size[1] - 1 - pts[i + 1], pts[i + 2], pts[i + 3]);
   return { v, pal };
 }
-/* ---- MagicaVoxel で直した宇宙人を「元の形」にして、歩き・まばたき・笑顔のコマはコードで作る ----
-   色の番号の約束: 1=体 2=足 3=触角の玉 4=線(目・口) 5=目の光 6=ほっぺ 7=笑顔の口
-   足 = 2番の色で下のほうにあるボクセル。目と口 = 顔の正面に出ている 4/5/7 番のかたまり（上の2つが目、その下が口） */
-const BASE = { src: null, A: null, ver: 0 };
-function analyzeVox(v) {
+/* ---- MagicaVoxel で直したキャラ（.vox）を「元の形」にして、歩き・まばたき・笑顔のコマはコードで作る ----
+   色の番号の約束: 1=体 2=足（足のないキャラは段のくびれ等の濃い色） 3=飾り 4=線(目・口) 5=目の光 6=ほっぺ 7=笑顔の口
+   足 = 2番の色で下のほうにあるボクセル（legs: true のキャラだけ）。足がなければ、歩くときは縮んだり伸びたりする。
+   目と口 = 顔の正面に出ている 4/5/7 番のかたまり（上の2つが目、その下が口） */
+const CHARAS = {
+  alien: { url: 'vox/alien.vox', legs: true, colors: () => BODY, code: (st, ex) => buildAlien(st, ex), codePal: i => alienPal(i), file: 'alien.vox' },
+  unko: { url: 'vox/unko.vox', legs: false, colors: () => UNKO, code: (st, ex) => buildUnko(st, ex), codePal: i => unkoPal(i), file: 'unko.vox' },
+};
+for (const ch of Object.values(CHARAS)) Object.assign(ch, { src: null, A: null, ver: 0 });
+function analyzeVox(v, legs = true) {
   let legTop = -1, front = 0;
   for (let z = 0; z < v.h; z++) for (let y = 0; y < v.d; y++) for (let x = 0; x < v.w; x++) {
     const c = v.get(x, y, z); if (!c) continue;
-    if (c === 2 && z < v.h * .4) legTop = Math.max(legTop, z);
+    if (legs && c === 2 && z < v.h * .4) legTop = Math.max(legTop, z);
     front = Math.max(front, y);
   }
   // 顔のドット: 各 (x,z) の列で一番手前のボクセルが 4/5/7 番で、顔の面にあるもの
@@ -600,16 +606,9 @@ function analyzeVox(v) {
   if (eyes) mouth = comps.filter(c => !eyes.includes(c) && c.cz < Math.min(eyes[0].cz, eyes[1].cz) && Math.abs(c.cx - v.w / 2) < v.w * .25)[0] || null;
   return { legTop, eyes, mouth };
 }
-function animFrom(v, A, step, expr) {
-  const bob = (step === 1 || step === 3) ? 1 : 0, sw = step === 0 ? 1 : step === 2 ? -1 : 0, cx = v.w / 2;
-  const o = new Vox(v.w, v.d + 4, v.h + 1);
-  for (let z = 0; z < v.h; z++) for (let y = 0; y < v.d; y++) for (let x = 0; x < v.w; x++) {
-    const c = v.get(x, y, z); if (!c) continue; const fl = v.f[v.idx(x, y, z)];
-    if (c === 2 && z <= A.legTop) {
-      const dy = (x + .5 < cx ? 1 : -1) * 2 * sw;
-      o.set(x, y + 2 + dy, z, c, fl); if (bob && z === A.legTop) o.set(x, y + 2 + dy, z + 1, c, fl);
-    } else o.set(x, y + 2, z + bob, c, fl);
-  }
+// 表情（まばたき・笑顔）を描き替える。bob は体を持ち上げた段数
+function paintExpr(o, A, expr, bob) {
+  const cx = o.w / 2;
   if (A.eyes && expr !== 'n') {
     for (const e of A.eyes) {
       for (const [x, z] of e.cells) o.paint(x, z + bob, 1, 0);           // いったん体の色に戻す
@@ -630,6 +629,28 @@ function animFrom(v, A, step, expr) {
   }
   return o;
 }
+function animFrom(v, A, step, expr, legs = true) {
+  if (!legs) {
+    // 足のないキャラ：表情を描いてから、高さ方向に縮める／伸ばす（ぽよん）
+    const o = new Vox(v.w, v.d, v.h); o.c.set(v.c); o.f.set(v.f);
+    paintExpr(o, A, expr, 0);
+    const sq = step === 0 || step === 2 ? .88 : step === 1 || step === 3 ? 1.08 : 1;
+    if (sq === 1) return o;
+    const r = new Vox(v.w, v.d, Math.ceil(v.h * sq) + 1), L = v.w * v.d;
+    for (let z = 0; z < r.h; z++) { const zs = Math.floor((z + .5) / sq); if (zs >= v.h) break; r.c.set(o.c.subarray(zs * L, zs * L + L), z * L); r.f.set(o.f.subarray(zs * L, zs * L + L), z * L); }
+    return r;
+  }
+  const bob = (step === 1 || step === 3) ? 1 : 0, sw = step === 0 ? 1 : step === 2 ? -1 : 0, cx = v.w / 2;
+  const o = new Vox(v.w, v.d + 4, v.h + 1);
+  for (let z = 0; z < v.h; z++) for (let y = 0; y < v.d; y++) for (let x = 0; x < v.w; x++) {
+    const c = v.get(x, y, z); if (!c) continue; const fl = v.f[v.idx(x, y, z)];
+    if (c === 2 && z <= A.legTop) {
+      const dy = (x + .5 < cx ? 1 : -1) * 2 * sw;
+      o.set(x, y + 2 + dy, z, c, fl); if (bob && z === A.legTop) o.set(x, y + 2 + dy, z + 1, c, fl);
+    } else o.set(x, y + 2, z + bob, c, fl);
+  }
+  return paintExpr(o, A, expr, bob);
+}
 // 顔を平らにする：頭の正面が丸いと、層を積んだときに列ごとに高さがずれて目や口が崩れる。
 // 目・口・ほっぺのある範囲だけ、一番手前の面までボクセルを前に足して1枚の平らな面にそろえる（最大3つ）
 function flattenFace(v, A) {
@@ -646,26 +667,27 @@ function flattenFace(v, A) {
   }
   return v;
 }
-// 色の丸: 1つ目は .vox の色のまま、ほかは体(1)と足(2)の色だけ差し替える
-const basePal = () => { const p = BASE.src.pal.slice(); if (hero.pal) { p[1] = BODY[hero.pal][0]; p[2] = BODY[hero.pal][1]; } return p; };
+// 色の丸: 1つ目は .vox の色のまま、ほかは体(1)と2番の色だけ差し替える
+const basePal = ch => { const p = ch.src.pal.slice(); if (hero.pal) { const [a, b] = ch.colors()[hero.pal]; p[1] = a; p[2] = b; } return p; };
 function heroStackFor(step, expr) {
-  if (hero.model === 'unko') return cached(`unko|${hero.pal}|${step}|${expr}`, () => bake(buildUnko(step, expr), unkoPal(hero.pal)));
-  if (BASE.src) return cached(`vox${BASE.ver}|${hero.pal}|${step}|${expr}`, () => bake(animFrom(BASE.src.v, BASE.A, step, expr), basePal()));
-  return cached(`alien|${hero.pal}|${step}|${expr}`, () => bake(buildAlien(step, expr), alienPal(hero.pal)));
+  const m = hero.model, ch = CHARAS[m];
+  if (ch.src) return cached(`vox|${m}|${ch.ver}|${hero.pal}|${step}|${expr}`, () => bake(animFrom(ch.src.v, ch.A, step, expr, ch.legs), basePal(ch)));
+  return cached(`${m}|${hero.pal}|${step}|${expr}`, () => bake(ch.code(step, expr), ch.codePal(hero.pal)));
 }
-function loadVox(buf) {
-  const src = parseVox(buf);
+function loadVox(buf, model = hero.model) {
+  const ch = CHARAS[model], src = parseVox(buf);
   for (let i = 0; i < src.v.c.length; i++) if (src.v.c[i] >= 4 && src.v.c[i] <= 7) src.v.f[i] = 1;   // 顔の塗りには陰影をかけない
-  if (!Q.has('roundface')) flattenFace(src.v, analyzeVox(src.v));
-  BASE.src = src; BASE.A = analyzeVox(src.v); BASE.ver++;
+  if (!Q.has('roundface')) flattenFace(src.v, analyzeVox(src.v, ch.legs));
+  ch.src = src; ch.A = analyzeVox(src.v, ch.legs); ch.ver++;
   if (typeof scene !== 'undefined' && scene) queueWarm();
-  return { size: [src.v.w, src.v.d, src.v.h], legs: BASE.A.legTop >= 0, eyes: !!BASE.A.eyes, mouth: !!BASE.A.mouth };
+  return { model, size: [src.v.w, src.v.d, src.v.h], legs: ch.A.legTop >= 0, eyes: !!ch.A.eyes, mouth: !!ch.A.mouth };
 }
 function downloadVox() {
-  const src = hero.model === 'unko' ? { v: buildUnko(-1, 'n'), pal: unkoPal(hero.pal) } : BASE.src ? { v: BASE.src.v, pal: BASE.src.pal } : { v: buildAlien(-1, 'n'), pal: alienPal(hero.pal) };
+  const ch = CHARAS[hero.model];
+  const src = ch.src ? { v: ch.src.v, pal: ch.src.pal } : { v: ch.code(-1, 'n'), pal: ch.codePal(hero.pal) };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([voxToBytes(src.v, src.pal)], { type: 'application/octet-stream' }));
-  a.download = hero.model === 'unko' ? 'unko.vox' : 'alien.vox'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  a.download = ch.file; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 /* ============================================================
@@ -1053,8 +1075,8 @@ function drawSheet() {
 setScene(['char', 'walk', 'dungeon'].includes(Q.get('scene')) ? Q.get('scene') : 'char');
 setRot(Q.get('rot') === 'free' ? 0 : Q.get('rot') === '16' ? 16 : 8);   // 既定は8方向（2026-11-27 決定）
 if (hero.model === 'unko') setModel('unko');
-// docs/design/vox/alien.vox（MagicaVoxel で直した宇宙人）を元の形にする。file:// で開いたときや ?codealien ではコードの宇宙人のまま
-const baseReady = Q.has('codealien') ? Promise.resolve() : fetch('vox/alien.vox', { cache: 'no-store' }).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status)).then(loadVox).catch(() => {});
+// docs/design/vox/ の alien.vox・unko.vox（MagicaVoxel で直せる）を元の形にする。file:// で開いたときや ?codealien ではコードのキャラのまま
+const baseReady = Q.has('codealien') ? Promise.resolve() : Promise.all(Object.entries(CHARAS).map(([m, ch]) => fetch(ch.url, { cache: 'no-store' }).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status)).then(buf => loadVox(buf, m)).catch(() => {})));
 if (Q.has('sheet')) baseReady.then(drawSheet); else requestAnimationFrame(loop);
 </script>
 </body>
