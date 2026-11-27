@@ -2,6 +2,7 @@
 
 // LOADING宇宙人（Issue #7）: 待ち時間に20種の宇宙人からランダムで1体が登場し、
 // 3アクション（ぱたぱた/にっこり/ジャンプ）のどれかを演じる。待ち時間の「ガチャ」化。
+// 絵は public/aliens/vox/alien-NN.vox（3D の原本。MagicaVoxel で直せる）。2D の PNG は読み込み中の代わり。
 //
 // 塩梅のルール: 体感1秒を超える待ち（ルート遷移 loading.tsx・AI待ちの SendingOverlay）
 // にだけ出す。保存やトグル等の一瞬の待ちには出さない（毎回出ると新鮮味が消えるため）。
@@ -9,12 +10,13 @@
 // アニメーション定義は globals.css の「LOADING宇宙人」ブロック。
 
 import { useMemo, useSyncExternalStore } from "react";
-import Image from "next/image";
+import { StackSprite, type StackAction } from "@/components/stack-sprite";
 
 export const ALIEN_COUNT = 20;
 const ACTIONS = ["patapata", "nikkori", "jump"] as const;
 type Action = (typeof ACTIONS)[number];
 const LAST_KEY = "alien-last-id";
+const STACK_ACTION: Record<Action, StackAction> = { patapata: "turn", nikkori: "smile", jump: "idle" };
 
 function pickAlien(): { id: number; action: Action } {
   let id = 1 + Math.floor(Math.random() * ALIEN_COUNT);
@@ -44,35 +46,15 @@ export function LoadingAlien(props: { size?: number }) {
     return <div style={{ width: size, height: size }} aria-hidden="true" />;
   }
   const id = String(pick.id).padStart(2, "0");
-  const imgStyle = {
-    imageRendering: "pixelated",
-    position: "absolute",
-    inset: 0,
-  } as const;
+  // 3D（スプライトスタッキング）で描く。読み込むまでは2Dの絵を出しておく。
+  // ぱたぱた＝その場でくるっと回る / にっこり＝笑顔になる / ジャンプ＝跳ねる（跳ねは globals.css の器の動き）
   return (
-    <div
-      className={`alien-${pick.action}`}
-      style={{ width: size, height: size, position: "relative" }}
-      aria-hidden="true"
-    >
-      <Image
-        src={`/aliens/alien-${id}-normal.png`}
-        alt=""
-        width={size}
-        height={size}
-        style={imgStyle}
-        unoptimized
-        priority
-      />
-      <Image
-        src={`/aliens/alien-${id}-smile.png`}
-        alt=""
-        width={size}
-        height={size}
-        style={imgStyle}
-        className="alien-smile-img"
-        unoptimized
-        priority
+    <div className={`alien-${pick.action}`} style={{ width: size, height: size }} aria-hidden="true">
+      <StackSprite
+        src={`/aliens/vox/alien-${id}.vox`}
+        fallback={`/aliens/alien-${id}-normal.png`}
+        size={size}
+        action={STACK_ACTION[pick.action]}
       />
     </div>
   );

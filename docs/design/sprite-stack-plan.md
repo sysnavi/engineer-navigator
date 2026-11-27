@@ -3,6 +3,20 @@
 > 状態: **方向は決定（2026-11-27）、実装前**。試作は `docs/design/sprite-stack-proto.html`（ブランチ `explore/sprite-stack`）。
 > オーナーの希望: 「スプライトの積み上げで3Dモデルを作るようなのを活用して、キャラ・おさんぽ・ダンジョンをかわいいドット絵の3Dに」。
 
+## 本実装の進み具合
+
+| 段階 | 中身 | 状態 |
+|---|---|---|
+| 1 | 共通部品（`src/lib/stack/`・`<StackSprite>`・文字マップ→ボクセル変換）と宇宙人20種の3D化 | **済（ローカル main、未 push）** |
+| 2 | ほかの登場キャラ全部（ペット・NPC・アバター…） | 未着手 |
+| 3 | おさんぽの島（既存ビオームを全部、1つずつ） | 未着手 |
+| 4 | ダンジョンの見下ろし化 | 未着手 |
+
+段階1の中身:
+- `src/lib/stack/`: `vox.ts`（ボクセルと色の番号の約束）、`vox-file.ts`（.vox 読み書き）、`render.ts`（焼き・ドット補正つき8方向回転・線）、`anim.ts`（顔の検出・平坦化・歩き/まばたき/笑顔のコマ）、`charmap.ts`（2D文字マップ→ふっくらボクセル）、`style.ts`（線の色・傾き・厚み・段数をここだけで変える）。DOM に触らない純ロジックなので Node でも描ける（一覧シートの生成に使用）。
+- `src/components/stack-sprite.tsx`: `.vox` を読んで8方向で描く部品。`action` = idle / turn / smile / walk。`?nospin`・`window.__STACK_STATIC__`・prefers-reduced-motion で止まる。読み込むまでは2Dの PNG を出す。
+- 宇宙人: `scripts/gen-alien-vox.ts` が `scripts/gen-aliens.py` の文字マップから `public/aliens/vox/alien-NN.vox` を起こした（以後は .vox が原本。`--sheet` で一覧 `docs/design/aliens-3d-sheet.png` だけ作り直す）。表示はロード中の宇宙人（`loading.tsx`・`sending-overlay.tsx` の `LoadingAlien`）。ぱたぱた＝その場で回る、にっこり＝笑顔、ジャンプ＝跳ねる。
+
 ## 決まったこと（2026-11-27 オーナー）
 
 | 項目 | 決定 |

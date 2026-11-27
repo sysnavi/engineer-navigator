@@ -14,6 +14,7 @@ SESエンジニアの成長をデータ化するアプリ。構想・設計は d
 - docs/bug-triage.md — 日次バグトリアージ（機能ツアー→Slack報告→軽微なら自動修正PR）
 - docs/analytics.md — 来訪者分析（サーバー側イベント・ゲスト→登録ファネル・/admin/analytics・Vercel Analytics・Looker Studio・OAuth登録の見張り）
 - docs/sns-bot.md — SNS投稿Bot（日次でゲーム画面を遊んで撮り、画像でXに投稿。控えはSlack）
+- docs/design/sprite-stack-plan.md — キャラ・おさんぽ・ダンジョンの3D化（スプライトスタッキング・8方向・素材は MagicaVoxel の .vox）。段階と決定事項
 
 ## スタック
 Next.js 16 (App Router / Server Actions) + Prisma 7 + PostgreSQL 16 (pgvector, port 5433) + Claude API
@@ -51,3 +52,5 @@ npm run sns:post          # 撮った1枚をXに投稿（キー未設定ならdr
 - 顧客実名をDBに入れない（Project.clientAlias のみ）
 - 認証は開発用cookie方式（src/lib/auth.ts）。本番はGoogle Workspace SSOに置換予定
 - ANTHROPIC_API_KEY が未設定でも週報提出は成功し、解析だけ FAILED になる（この挙動は仕様）
+- キャラの3D表示は src/lib/stack/（純ロジック）と src/components/stack-sprite.tsx 経由。原本は public/**/vox/*.vox（MagicaVoxel で直す）。
+  線の色・傾き・層の厚みは src/lib/stack/style.ts の STACK_STYLE だけで変える。撮影で止めるときは ?nospin か window.__STACK_STATIC__
