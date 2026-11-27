@@ -56,6 +56,7 @@
 <div class="now" id="now"><img src="../../public/aliens/alien-01-normal.png" alt="">いま</div>
 
 <div class="tools">
+  <button id="bModel" aria-label="キャラを替える"><svg viewBox="0 0 12 12"><rect x="5" y="0" width="3" height="1"/><rect x="7" y="1" width="1" height="2"/><rect x="4" y="2" width="4" height="2"/><rect x="3" y="4" width="6" height="2"/><rect x="2" y="6" width="8" height="2"/><rect x="1" y="8" width="10" height="3"/></svg></button>
   <button id="bVox" aria-label=".vox で保存"><svg viewBox="0 0 12 12"><rect x="5" y="1" width="2" height="6"/><rect x="3" y="5" width="6" height="2"/><rect x="4" y="7" width="4" height="1"/><rect x="5" y="8" width="2" height="1"/><rect x="1" y="10" width="10" height="1"/></svg></button>
   <button id="bLayers" aria-label="輪切り"><svg viewBox="0 0 12 12"><rect x="2" y="1" width="8" height="2"/><rect x="2" y="5" width="8" height="2"/><rect x="2" y="9" width="8" height="2"/></svg></button>
   <button id="bSpin" aria-label="回転" class="on"><svg viewBox="0 0 12 12"><rect x="3" y="1" width="6" height="2"/><rect x="1" y="3" width="2" height="6"/><rect x="3" y="9" width="5" height="2"/><rect x="9" y="3" width="2" height="3"/><rect x="7" y="5" width="5" height="2"/></svg></button>
@@ -124,6 +125,23 @@ function shadeOf(v, x, y, z, col) {
   return col;
 }
 
+// なめらかな陰影：まわり半径2のボクセルの詰まり具合から面の向きを出し、光の当たり方で4段に塗り分ける。
+// 1段ずつの段差で色が変わらないので、丸い頭に横じまが出ない。光はモデルの左上手前から。
+const LIGHT = (() => { const l = [-.35, .55, .76], n = Math.hypot(...l); return l.map(x => x / n); })();
+let SHADING = 'smooth';
+function smoothShade(v, x, y, z, col) {
+  const e = (a, b, c) => v.get(a, b, c) ? 0 : 1;
+  if (!(e(x + 1, y, z) || e(x - 1, y, z) || e(x, y + 1, z) || e(x, y - 1, z) || e(x, y, z + 1) || e(x, y, z - 1))) return col;
+  let nx = 0, ny = 0, nz = 0;
+  for (let dz = -2; dz <= 2; dz++) for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+    if (!dx && !dy && !dz) continue;
+    if (v.get(x + dx, y + dy, z + dz)) { nx -= dx; ny -= dy; nz -= dz; }
+  }
+  const n = Math.hypot(nx, ny, nz); if (!n) return col;
+  const d = (nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2]) / n;
+  return d > .72 ? mix(col, WHITE, .2) : d > .22 ? col : d > -.3 ? mix(col, SHADE, .14) : mix(col, SHADE, .3);
+}
+
 // ボクセル → 輪切り画像（z層ごとの小さなcanvas）。1pxの透明ふちを付けて回転時のにじみを防ぐ
 function bake(v, pal) {
   const P = pal.map(h => h ? hexRGB(h) : null);
@@ -133,7 +151,7 @@ function bake(v, pal) {
     const g = c.getContext('2d'); const id = g.createImageData(c.width, c.height); const D = id.data; let any = false;
     for (let y = 0; y < v.d; y++) for (let x = 0; x < v.w; x++) {
       const ci = v.get(x, y, z); if (!ci) continue; any = true;
-      let col = P[ci]; if (!v.f[v.idx(x, y, z)]) col = shadeOf(v, x, y, z, col);
+      let col = P[ci]; if (!v.f[v.idx(x, y, z)]) col = SHADING === 'smooth' ? smoothShade(v, x, y, z, col) : shadeOf(v, x, y, z, col);
       const o = ((x + 1) + (y + 1) * c.width) * 4; D[o] = col[0]; D[o + 1] = col[1]; D[o + 2] = col[2]; D[o + 3] = 255;
     }
     if (any) { g.putImageData(id, 0, 0); layers.push(c); } else layers.push(null);
@@ -178,11 +196,17 @@ function rotSlice(L, ang, k, up) {
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d'), id = g.createImageData(W, H), out = new Uint32Array(id.data.buffer);
   const cs = Math.cos(ang), sn = Math.sin(ang), hx = L.width / 2, hy = L.height / 2;
+  // 縦につぶすと奥行き 1/k ぶんのボクセルが1行に重なる。1点だけ拾うと一番手前（顔の面）を飛ばすことがあるので、
+  // 1ピクセルの中を手前（画面の下側）から順に調べて、最初に当たった不透明なボクセルを使う
+  const subs = [.94, .81, .69, .56, .44, .31, .19, .06];
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
-    const U = i + .5 - W / 2, V = (j + .5 - H / 2) / k;
-    const x = cs * U + sn * V + hx, y = -sn * U + cs * V + hy;
-    const X = Math.floor(x * up + 1e-4), Y = Math.floor(y * up + 1e-4);
-    if (X >= 0 && Y >= 0 && X < sw && Y < sh) out[j * W + i] = src[Y * sw + X];
+    const U = i + .5 - W / 2;
+    for (const sv of subs) {
+      const V = (j + sv - H / 2) / k;
+      const x = cs * U + sn * V + hx, y = -sn * U + cs * V + hy;
+      const X = Math.floor(x * up + 1e-4), Y = Math.floor(y * up + 1e-4);
+      if (X >= 0 && Y >= 0 && X < sw && Y < sh) { const px = src[Y * sw + X]; if (px >>> 24) { out[j * W + i] = px; break; } }
+    }
   }
   g.putImageData(id, 0, 0);
   return c;
@@ -293,6 +317,56 @@ function buildAlien(step, expr) {
     v.paint(8, zf - 2, 4); v.paint(9, zf - 2, 4);
   }
   for (const x of [3, 4, 13, 14]) v.paint(x, zf - 1, 6);
+  return v;
+}
+
+// --- うんちキャラ（とぐろの段を重ね、てっぺんは輪になって巻いた先っぽ。色違いで遊ぶ） ---
+// 段は「ふちの丸い円盤」。輪切りを重ねる描き方と相性がいい
+const UNKO = [['#3f9a4f', '#2f7a3c'], ['#a0703f', '#7a5030'], ['#ff9ec4', '#e07ca0'], ['#7cc4ff', '#4f93d6'], ['#ffd24d', '#d6a83c']];
+const unkoPal = i => [null, UNKO[i][0], UNKO[i][1], '#ffffff', '#12235f', '#ffffff', '#ff8fb1', '#f24e9c'];
+function buildUnko(step, expr) {
+  const S = 24, c = S / 2, v = new Vox(S, S, 30);
+  // 歩くときは足の代わりに、ぽよんと縮んだり伸びたりする
+  const sq = step === 0 || step === 2 ? .88 : step === 1 || step === 3 ? 1.08 : 1;
+  const tiers = [[11, 3.6, 3.6], [9, 3.2, 10.3], [7, 2.9, 16], [4.8, 2.6, 20.9]];
+  for (const [R, r, zc0] of tiers) {
+    const zc = zc0 * sq, rz = r * sq;
+    for (let z = Math.floor(zc - rz); z <= Math.ceil(zc + rz); z++) for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const rho = Math.hypot(x + .5 - c, y + .5 - c), dz = (z + .5 - zc) / sq;
+      if ((rho <= R - r && Math.abs(dz) <= r) || Math.hypot(rho - (R - r), dz) <= r) v.set(x, y, z, 1);
+    }
+  }
+  // 段と段のくびれに濃い色の線（とぐろの段が読めるように）
+  for (let t = 0; t + 1 < tiers.length; t++) {
+    const zb = Math.round(((tiers[t][2] + tiers[t][1] * .55) + (tiers[t + 1][2] - tiers[t + 1][1] * .55)) / 2 * sq);
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) if (v.get(x, y, zb) && v.surface(x, y, zb)) v.set(x, y, zb, 2);
+  }
+  // 先っぽ：てっぺんから立ち上がって、輪をえがいて垂れる（穴があく）
+  const top = 23 * sq, cx = c - 1.5, cz = top + 3.2;
+  for (let t = 0; t <= 1; t += .01) {
+    const a = -.35 + t * 3.6, rr = 1.6 - .6 * t;          // 右下から上を回って左へ
+    const px = cx + 3.4 * Math.cos(a), pz = cz + 3.2 * Math.sin(a), py = c + .5;
+    for (let z = Math.floor(pz - rr); z <= Math.ceil(pz + rr); z++) for (let y = Math.floor(py - rr); y <= Math.ceil(py + rr); y++) for (let x = Math.floor(px - rr); x <= Math.ceil(px + rr); x++)
+      if (Math.hypot(x + .5 - px, y + .5 - py, z + .5 - pz) <= rr) v.set(x, y, z, 1);
+  }
+  for (let z = Math.floor(top - 2); z <= top + 2; z++) for (let y = 0; y < S; y++) for (let x = 0; x < S; x++)
+    if (Math.hypot(x + .5 - (c + 1.5), y + .5 - (c + .5)) <= 1.8 - (z - top) * .25 && z >= top - 2) v.set(x, y, z, 1);
+  // 顔（2段目の正面）。手前の面をそろえてから描く
+  const zf = Math.round(10.6 * sq);
+  for (let z = zf - 3; z <= zf + 2; z++) for (let x = c - 7; x <= c + 6; x++) { let yf = -1; for (let y = S - 1; y >= 0; y--) if (v.get(x, y, z)) { yf = y; break; } if (yf >= 0) for (let y = yf + 1; y <= Math.min(yf + 2, c + 8); y++) v.set(x, y, z, 1); }
+  const L = c - 4, Rr = c + 2;
+  if (expr === 's') {
+    for (const x0 of [L - 1, Rr]) { v.paint(x0, zf, 4); v.paint(x0 + 1, zf + 1, 4); v.paint(x0 + 2, zf, 4); }
+    v.paint(c - 2, zf - 2, 4); v.paint(c - 1, zf - 3, 7); v.paint(c, zf - 3, 7); v.paint(c + 1, zf - 2, 4);
+  } else if (expr === 'b') {
+    for (const x0 of [L, Rr]) { v.paint(x0, zf, 4); v.paint(x0 + 1, zf, 4); }
+    v.paint(c - 1, zf - 2, 4); v.paint(c, zf - 2, 4);
+  } else {
+    for (const x0 of [L, Rr]) for (let z = zf - 1; z <= zf + 1; z++) { v.paint(x0, z, 4); v.paint(x0 + 1, z, 4); }
+    v.paint(L, zf + 1, 5); v.paint(Rr, zf + 1, 5);
+    v.paint(c - 1, zf - 2, 4); v.paint(c, zf - 2, 4);
+  }
+  for (const x of [L - 3, L - 2, Rr + 3, Rr + 4]) v.paint(x, zf - 2, 6);
   return v;
 }
 
@@ -556,36 +630,55 @@ function animFrom(v, A, step, expr) {
   }
   return o;
 }
+// 顔を平らにする：頭の正面が丸いと、層を積んだときに列ごとに高さがずれて目や口が崩れる。
+// 目・口・ほっぺのある範囲だけ、一番手前の面までボクセルを前に足して1枚の平らな面にそろえる（最大3つ）
+function flattenFace(v, A) {
+  if (!A.eyes) return v;
+  const zLo = (A.mouth ? A.mouth.z0 : Math.min(A.eyes[0].z0, A.eyes[1].z0)) - 1, zHi = Math.max(A.eyes[0].z1, A.eyes[1].z1) + 1;
+  const front = (x, z) => { for (let y = v.d - 1; y >= 0; y--) if (v.get(x, y, z)) return y; return -1; };
+  let xLo = Math.min(A.eyes[0].x0, A.eyes[1].x0) - 1, xHi = Math.max(A.eyes[0].x1, A.eyes[1].x1) + 1;
+  for (let z = zLo; z <= zHi; z++) for (let x = 0; x < v.w; x++) { const y = front(x, z); if (y >= 0 && v.get(x, y, z) === 6) { xLo = Math.min(xLo, x); xHi = Math.max(xHi, x); } }
+  let yF = 0; for (let z = zLo; z <= zHi; z++) for (let x = xLo; x <= xHi; x++) yF = Math.max(yF, front(x, z));
+  for (let z = zLo; z <= zHi; z++) for (let x = xLo; x <= xHi; x++) {
+    const y = front(x, z); if (y < 0 || yF - y > 3) continue;
+    const i = v.idx(x, y, z), c = v.c[i], f = v.f[i];
+    for (let yy = y + 1; yy <= yF; yy++) v.set(x, yy, z, c, f);
+  }
+  return v;
+}
 // 色の丸: 1つ目は .vox の色のまま、ほかは体(1)と足(2)の色だけ差し替える
 const basePal = () => { const p = BASE.src.pal.slice(); if (hero.pal) { p[1] = BODY[hero.pal][0]; p[2] = BODY[hero.pal][1]; } return p; };
 function heroStackFor(step, expr) {
+  if (hero.model === 'unko') return cached(`unko|${hero.pal}|${step}|${expr}`, () => bake(buildUnko(step, expr), unkoPal(hero.pal)));
   if (BASE.src) return cached(`vox${BASE.ver}|${hero.pal}|${step}|${expr}`, () => bake(animFrom(BASE.src.v, BASE.A, step, expr), basePal()));
   return cached(`alien|${hero.pal}|${step}|${expr}`, () => bake(buildAlien(step, expr), alienPal(hero.pal)));
 }
 function loadVox(buf) {
   const src = parseVox(buf);
+  for (let i = 0; i < src.v.c.length; i++) if (src.v.c[i] >= 4 && src.v.c[i] <= 7) src.v.f[i] = 1;   // 顔の塗りには陰影をかけない
+  if (!Q.has('roundface')) flattenFace(src.v, analyzeVox(src.v));
   BASE.src = src; BASE.A = analyzeVox(src.v); BASE.ver++;
   if (typeof scene !== 'undefined' && scene) queueWarm();
   return { size: [src.v.w, src.v.d, src.v.h], legs: BASE.A.legTop >= 0, eyes: !!BASE.A.eyes, mouth: !!BASE.A.mouth };
 }
 function downloadVox() {
-  const src = BASE.src ? { v: BASE.src.v, pal: BASE.src.pal } : { v: buildAlien(-1, 'n'), pal: alienPal(hero.pal) };
+  const src = hero.model === 'unko' ? { v: buildUnko(-1, 'n'), pal: unkoPal(hero.pal) } : BASE.src ? { v: BASE.src.v, pal: BASE.src.pal } : { v: buildAlien(-1, 'n'), pal: alienPal(hero.pal) };
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([voxToBytes(src.v, src.pal)], { type: 'application/octet-stream' }));
-  a.download = 'alien.vox'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  a.download = hero.model === 'unko' ? 'unko.vox' : 'alien.vox'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 /* ============================================================
    4. 登場するもの
    ============================================================ */
-const hero = { kind: 'hero', thick: 1.25, x: 0, y: 0, z: 0, vz: 0, heading: 0, target: null, phase: 0, moving: false, blink: 0, blinkT: 2, smile: 0, pal: 0, r: 5, shadow: 7 };
+const hero = { kind: 'hero', model: Q.get('chara') === 'unko' ? 'unko' : 'alien', thick: 1, x: 0, y: 0, z: 0, vz: 0, heading: 0, target: null, phase: 0, moving: false, blink: 0, blinkT: 2, smile: 0, pal: 0, r: 5, shadow: 7 };
 hero.stack = () => {
   const step = hero.moving ? Math.floor(hero.phase) % 4 : -1;
   const expr = hero.smile > 0 ? 's' : hero.blink > 0 ? 'b' : 'n';
   return heroStackFor(step, expr);
 };
 function slimeEnt(pal, name, x, y) {
-  const e = { kind: name, thick: 1.3, x, y, z: 0, vz: 0, heading: 0, target: null, phase: 0, moving: false, r: 4, shadow: 5, wait: 1 };
+  const e = { kind: name, thick: 1, x, y, z: 0, vz: 0, heading: 0, target: null, phase: 0, moving: false, r: 4, shadow: 5, wait: 1 };
   e.stack = () => cached(`slime|${name}|${e.z < .4 && e.moving ? 1 : 0}`, () => bake(buildSlime(e.z < .4 && e.moving ? 1 : 0), pal));
   return e;
 }
@@ -671,11 +764,12 @@ function setScene(id) {
   parts.length = 0; hearts.length = 0;
   document.body.classList.toggle('dark', scene.dark);
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.s === id));
-  document.getElementById('now').hidden = id !== 'char';
+  document.getElementById('now').hidden = id !== 'char' || hero.model === 'unko';
+  document.getElementById('bModel').hidden = id !== 'char';
   document.getElementById('chips').hidden = id !== 'char';
   document.getElementById('bWalk').hidden = id !== 'char';
   document.getElementById('bVox').hidden = id !== 'char';
-  cam.k = scene.k0 = id === 'char' ? .5 : .6;
+  cam.k = scene.k0 = id === 'char' ? .45 : .6;   // 層は1px（整数）にして行の重複ムラをなくし、キャラ画面は少し横から
   resize();
 }
 
@@ -763,7 +857,14 @@ document.getElementById('bVox').onclick = downloadVox;
 // .vox をページに落とすと、そのモデルが主人公になる
 addEventListener('dragover', e => e.preventDefault());
 addEventListener('drop', async e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) { try { loadVox(await f.arrayBuffer()); } catch (err) { console.warn(err); } } });
-BODY.forEach(([c], i) => { const b = document.createElement('button'); b.style.background = c; b.onclick = () => { hero.pal = i; queueWarm(); [...chips.children].forEach((x, j) => x.classList.toggle('on', j === i)); }; if (!i) b.classList.add('on'); chips.appendChild(b); });
+function buildChips() {
+  chips.innerHTML = '';
+  (hero.model === 'unko' ? UNKO : BODY).forEach(([c], i) => { const b = document.createElement('button'); b.style.background = c; b.onclick = () => { hero.pal = i; queueWarm(); [...chips.children].forEach((x, j) => x.classList.toggle('on', j === i)); }; if (i === hero.pal) b.classList.add('on'); chips.appendChild(b); });
+}
+buildChips();
+const bModel = document.getElementById('bModel');
+const setModel = m => { hero.model = m; hero.pal = 0; bModel.classList.toggle('on', m === 'unko'); document.getElementById('now').hidden = sceneId !== 'char' || m === 'unko'; buildChips(); queueWarm(); };
+bModel.onclick = () => setModel(hero.model === 'unko' ? 'alien' : 'unko');
 
 /* ============================================================
    7. 更新
@@ -929,6 +1030,7 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 if (Q.has('raw')) ROT.clean = false;
+if (Q.has('voxshade')) SHADING = 'voxel';
 // ?sheet … 角度の見本（同じキャラを 16方向・補正なし / 16方向・補正あり / 8方向・補正あり で並べる）
 function drawSheet() {
   document.querySelectorAll('.bar,.tools,.chips,.modes,.now,#stage').forEach(el => el.hidden = true);
@@ -950,6 +1052,7 @@ function drawSheet() {
 
 setScene(['char', 'walk', 'dungeon'].includes(Q.get('scene')) ? Q.get('scene') : 'char');
 setRot(Q.get('rot') === 'free' ? 0 : Q.get('rot') === '16' ? 16 : 8);   // 既定は8方向（2026-11-27 決定）
+if (hero.model === 'unko') setModel('unko');
 // docs/design/vox/alien.vox（MagicaVoxel で直した宇宙人）を元の形にする。file:// で開いたときや ?codealien ではコードの宇宙人のまま
 const baseReady = Q.has('codealien') ? Promise.resolve() : fetch('vox/alien.vox', { cache: 'no-store' }).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status)).then(loadVox).catch(() => {});
 if (Q.has('sheet')) baseReady.then(drawSheet); else requestAnimationFrame(loop);
