@@ -148,7 +148,7 @@ const cached = (key, fn) => { let s = CACHE.get(key); if (!s) { s = fn(); CACHE.
 let drawCalls = 0;
 // 回し方: ROT.n = 0 なら自由回転、16 / 8 なら角度をその段数に丸める。
 // 段数に丸めたときは、輪切りを「ドット補正つき」で回した画像を角度ごとに焼いて使い回す。
-const ROT = { n: 16, clean: true };
+const ROT = { n: 8, clean: true };
 const TAU = Math.PI * 2;
 const snapIdx = (ang, n) => ((Math.round(ang / (TAU / n)) % n) + n) % n;
 const viewTh = () => ROT.n ? snapIdx(cam.th, ROT.n) * TAU / ROT.n : cam.th;
@@ -884,7 +884,7 @@ function drawSheet() {
 }
 
 setScene(['char', 'walk', 'dungeon'].includes(Q.get('scene')) ? Q.get('scene') : 'char');
-setRot(Q.get('rot') === 'free' ? 0 : Q.get('rot') === '8' ? 8 : 16);
+setRot(Q.get('rot') === 'free' ? 0 : Q.get('rot') === '16' ? 16 : 8);   // 既定は8方向（2026-11-27 決定）
 if (Q.has('sheet')) drawSheet(); else requestAnimationFrame(loop);
 </script>
 </body>
