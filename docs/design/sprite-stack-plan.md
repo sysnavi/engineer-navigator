@@ -8,7 +8,8 @@
 | 段階 | 中身 | 状態 |
 |---|---|---|
 | 1 | 共通部品（`src/lib/stack/`・`<StackSprite>`・文字マップ→ボクセル変換）と宇宙人20種の3D化 | **済（ローカル main、未 push）** |
-| 2 | ほかの登場キャラ全部（ペット・NPC・アバター…） | 未着手 |
+| 2a | 文字マップでできているキャラ（アバター8段階・げんばNPC 9種） | **済（ローカル main、未 push）** |
+| 2b | PNG でできているキャラ（ペット・ダンジョンの敵） | オーナーの判断待ち（ペットの手描き PNG 支給の約束） |
 | 3 | おさんぽの島（既存ビオームを全部、1つずつ） | 未着手 |
 | 4 | ダンジョンの見下ろし化 | 未着手 |
 
@@ -16,6 +17,13 @@
 - `src/lib/stack/`: `vox.ts`（ボクセルと色の番号の約束）、`vox-file.ts`（.vox 読み書き）、`render.ts`（焼き・ドット補正つき8方向回転・線）、`anim.ts`（顔の検出・平坦化・歩き/まばたき/笑顔のコマ）、`charmap.ts`（2D文字マップ→ふっくらボクセル）、`style.ts`（線の色・傾き・厚み・段数をここだけで変える）。DOM に触らない純ロジックなので Node でも描ける（一覧シートの生成に使用）。
 - `src/components/stack-sprite.tsx`: `.vox` を読んで8方向で描く部品。`action` = idle / turn / smile / walk。`?nospin`・`window.__STACK_STATIC__`・prefers-reduced-motion で止まる。読み込むまでは2Dの PNG を出す。
 - 宇宙人: `scripts/gen-alien-vox.ts` が `scripts/gen-aliens.py` の文字マップから `public/aliens/vox/alien-NN.vox` を起こした（以後は .vox が原本。`--sheet` で一覧 `docs/design/aliens-3d-sheet.png` だけ作り直す）。表示はロード中の宇宙人（`loading.tsx`・`sending-overlay.tsx` の `LoadingAlien`）。ぱたぱた＝その場で回る、にっこり＝笑顔、ジャンプ＝跳ねる。
+
+段階2aの中身:
+- アバター（`PixelAvatar`）とげんばNPC（`NpcSprite`）を3Dに。原本は `public/stack/avatar/*.vox`・`public/stack/npc/*.vox`（`scripts/gen-charmap-vox.ts` が文字マップから起こした。以後は .vox が原本）。一覧は `docs/design/avatar-3d-sheet.png`・`npc-3d-sheet.png`。
+- 文字マップのデータは `pixel-avatar-data.ts`・`npc-sprite-data.ts` に分け、2D（SSR と読み込み中の代わり）と3D生成で共用。
+- 色は CSS 変数のまま渡し、表示時に今のきせかえパレットで解く（`<html data-palette>` が変わると描き直す）。線の色も `--ink`。
+- 自分のキャラ（ホームの PLAYER_FILE・マイページ）は `action="look"`（ゆっくり左右を見る）。転生で生まれた直後は `turn`。ほかは正面でまばたき。
+- ガードテスト `src/lib/stack/assets.test.ts`: アバター・NPC・宇宙人の .vox が全部そろっているか。
 
 ## 決まったこと（2026-11-27 オーナー）
 

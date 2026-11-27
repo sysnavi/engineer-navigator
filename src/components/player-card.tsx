@@ -25,6 +25,7 @@ export function PlayerCard(props: {
             sprite={player.stage.sprite}
             px={7}
             accent={player.genes?.dominant.color}
+            action="look"
           />
         </div>
         <div className="min-w-0 flex-1">

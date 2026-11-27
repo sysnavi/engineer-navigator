@@ -15,7 +15,7 @@ export type CharMapOpts = {
   outline: string;
   /** 顔の塗りとして正面だけに付ける文字（中は fill の色） */
   facePaint?: string[];
-  /** 顔の塗りの奥を埋める色の番号 */
+  /** 顔の塗りの奥を埋める色の番号。省略時はまわりのドットで一番多い色（卵の白い殻なら白で埋まる） */
   fill?: number;
   /** 厚みの最大（片側のボクセル数）。省略時は形の大きさから決める */
   maxHalf?: number;
@@ -96,7 +96,22 @@ export function charMapToVox(rows: string[], o: CharMapOpts): Vox {
     cy = T + 1;
   const v = new Vox(W, depth, H);
   const face = new Set(o.facePaint ?? []);
-  const fill = o.fill ?? 1;
+  const fillAt = (x: number, r: number) => {
+    if (o.fill !== undefined) return o.fill;
+    const n = new Map<number, number>();
+    for (let rad = 1; rad <= 3 && !n.size; rad++)
+      for (let dr = -rad; dr <= rad; dr++)
+        for (let dx = -rad; dx <= rad; dx++) {
+          const ch = at(x + dx, r + dr);
+          if (!colored(x + dx, r + dr) || face.has(ch)) continue;
+          const c = o.colors[ch];
+          n.set(c, (n.get(c) ?? 0) + 1);
+        }
+    let best = 1,
+      cnt = -1;
+    for (const [c, k] of n) if (k > cnt) [best, cnt] = [c, k];
+    return best;
+  };
   for (let r = 0; r < H; r++)
     for (let x = 0; x < W; x++) {
       const i = r * W + x;
@@ -106,7 +121,8 @@ export function charMapToVox(rows: string[], o: CharMapOpts): Vox {
       const col = isLine(x, r) ? (o.colors[o.outline] ?? 4) : o.colors[ch];
       const t = bridge.has(i) || (isLine(x, r) && !hasColorNear(x, r)) ? 0 : half(dist[i]);
       const paintFront = face.has(ch) || (isLine(x, r) && t > 0);
-      for (let y = cy - t; y <= cy + t; y++) v.set(x, y, z, paintFront ? fill : col);
+      const back = paintFront ? fillAt(x, r) : col;
+      for (let y = cy - t; y <= cy + t; y++) v.set(x, y, z, back);
       if (paintFront) v.set(x, cy + t, z, col, 1);
     }
   return v;

@@ -1,152 +1,51 @@
-// ピクセルアバター（サーバーレンダリング可・画像ファイル不要）。
-// 見た目は進化段階(stage)から決定的に決まる。マップの文字→色はパレットCSS変数に
-// 寄せてあるので、きせかえパレットでも世界観が保たれる。
+// ピクセルアバター。3D（スプライトスタッキング・public/stack/avatar/<sprite>.vox）で描き、
+// 読み込むまで（とサーバーレンダリング）は原本の文字マップを CSS グリッドで出す。
+// 見た目は進化段階(stage)から決定的に決まる。色はパレットCSS変数のまま渡すので、
+// きせかえパレットでも世界観が保たれる（3D でも表示時に今のパレットで色を解く）。
 
-const COLORS: Record<string, string> = {
-  k: "var(--ink)", // 輪郭
-  y: "var(--lemon)", // からだ
-  o: "#f59f00", // くちばし
-  p: "var(--pink-hot)", // ほっぺ
-  w: "#ffffff",
-  b: "var(--royal)", // ヘッドホン
-  g: "var(--good, #2e9e4f)", // マイスターのローブ
-  s: "var(--peri, #b9d2ff)", // オーラ
-};
+import { StackSprite, type StackAction } from "@/components/stack-sprite";
+import { AVATAR_COLORS, AVATAR_SPRITES, AVATAR_VOX_PALETTE } from "@/components/pixel-avatar-data";
 
-const SPRITES: Record<string, string[]> = {
-  egg: [
-    "...kkkk...",
-    "..kwwwwk..",
-    ".kwwwwwwk.",
-    ".kwwwkwwk.",
-    "kwwwkwkwwk",
-    "kwwwwkwwwk",
-    "kwwwwwwwwk",
-    "kwwwwwwwwk",
-    ".kwwwwwwk.",
-    "..kkkkkk..",
-  ],
-  chick: [
-    "..kkkkkk..",
-    ".kyyyyyyk.",
-    "kyykyykyyk",
-    "kyyyyyyyyk",
-    "kypyookpyk",
-    "kyyyooyyyk",
-    "kyyyyyyyyk",
-    ".kyyyyyyk.",
-    "..kkkkkk..",
-    "..k....k..",
-  ],
-  minarai: [
-    "..kkkkkk..",
-    ".kyyyyyyk.",
-    "kyykyykyyk",
-    "kyyyyyyyyk",
-    "kypyookpyk",
-    "kyyyooyyyk",
-    "kyywwwwyyk",
-    ".kywwwwyk.",
-    "..kkkkkk..",
-    "..k....k..",
-  ],
-  ichininmae: [
-    "b.kkkkkk.b",
-    "bkyyyyyykb",
-    "bbkyyyykbb",
-    "kbkkyykkbk",
-    "kyyyyyyyyk",
-    "kypyookpyk",
-    "kyyyooyyyk",
-    "kyyyyyyyyk",
-    ".kyyyyyyk.",
-    "..kkkkkk..",
-  ],
-  meister: [
-    "..s.ss.s..",
-    ".skkkkkks.",
-    "skyyyyyyks",
-    "kyykyykyyk",
-    "kyyyyyyyyk",
-    "kypyookpyk",
-    "kyyyooyyyk",
-    "kggggggggk",
-    ".kggggggk.",
-    "..kkkkkk..",
-  ],
-  // --- 継承（転生）限定の形態 (Issue #1) ---
-  goldegg: [
-    "...kkkk...",
-    "..kyyyyk..",
-    ".kyywyyyk.",
-    ".kywyyyyk.",
-    "kyyyykyyyk",
-    "kyyykykyyk",
-    "kyyyykyyyk",
-    "kyyyyyywyk",
-    ".kyyyyyyk.",
-    "..kkkkkk..",
-  ],
-  sage: [
-    "...kbbk...",
-    "..kbbbbk..",
-    ".kbbbbbbk.",
-    "kyyyyyyyyk",
-    "kyykyykyyk",
-    "kypyookpyk",
-    "kyyyooyyyk",
-    "kbbbbbbbbk",
-    ".kbbbbbbk.",
-    "..kkkkkk..",
-  ],
-  legend: [
-    "s.ky.yk..s",
-    ".kyyyyyyk.",
-    "skyyyyyyks",
-    "kyykyykyyk",
-    "kyyyyyyyyk",
-    "kypyookpyk",
-    "kyyyooyyyk",
-    "kwwwwwwwwk",
-    ".kwwwwwwk.",
-    "s.kkkkkk.s",
-  ],
-};
-
-// accent: 遺伝子カラーのオーラ枠（継承2世代目以降の血統表現）。CSS変数を渡す
-export function PixelAvatar(props: {
-  sprite: string;
-  px?: number;
-  accent?: string;
-}) {
-  const rows = SPRITES[props.sprite] ?? SPRITES.egg;
-  const px = props.px ?? 6;
-  const cols = rows[0].length;
+function Grid({ rows, px }: { rows: string[]; px: number }) {
   return (
     <div
-      aria-hidden="true"
       style={{
         display: "grid",
-        gridTemplateColumns: `repeat(${cols}, ${px}px)`,
+        gridTemplateColumns: `repeat(${rows[0].length}, ${px}px)`,
         imageRendering: "pixelated",
-        ...(props.accent
-          ? { boxShadow: `0 0 0 3px ${props.accent}`, borderRadius: 3 }
-          : {}),
       }}
     >
       {rows.flatMap((row, y) =>
         row.split("").map((ch, x) => (
           <i
             key={`${x}-${y}`}
-            style={{
-              width: px,
-              height: px,
-              display: "block",
-              background: COLORS[ch] ?? "transparent",
-            }}
+            style={{ width: px, height: px, display: "block", background: AVATAR_COLORS[ch] ?? "transparent" }}
           />
         ))
       )}
+    </div>
+  );
+}
+
+// accent: 遺伝子カラーのオーラ枠（継承2世代目以降の血統表現）。CSS変数を渡す
+// action: 3D の動き（既定は正面でまばたきだけ。"look" でゆっくり左右を見る）
+export function PixelAvatar(props: { sprite: string; px?: number; accent?: string; action?: StackAction }) {
+  const sprite = AVATAR_SPRITES[props.sprite] ? props.sprite : "egg";
+  const rows = AVATAR_SPRITES[sprite];
+  const px = props.px ?? 6;
+  return (
+    <div
+      aria-hidden="true"
+      style={props.accent ? { boxShadow: `0 0 0 3px ${props.accent}`, borderRadius: 3 } : undefined}
+    >
+      <StackSprite
+        src={`/stack/avatar/${sprite}.vox`}
+        size={rows[0].length * px}
+        action={props.action}
+        palette={AVATAR_VOX_PALETTE}
+        line="var(--ink)"
+        fallbackNode={<Grid rows={rows} px={px} />}
+      />
     </div>
   );
 }

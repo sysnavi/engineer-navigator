@@ -279,6 +279,7 @@ export default async function MyPage({
               sprite={player.stage.sprite}
               px={6}
               accent={player.genes?.dominant.color}
+              action="look"
             />
           </div>
           <div className="min-w-[220px] flex-1">

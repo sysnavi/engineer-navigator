@@ -139,6 +139,7 @@ export function InheritPanel(props: {
                     sprite={result.newSprite}
                     px={9}
                     accent={result.dominant.color}
+                    action="turn"
                   />
                 </div>
                 <p className="font-pixel text-[14px] tracking-wide text-royal">

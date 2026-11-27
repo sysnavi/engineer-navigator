@@ -11,7 +11,7 @@
 //   - OS の「視差効果を減らす」（prefers-reduced-motion）
 // 止めているときは dir（既定 0 = 正面）の向きで、ふつうの顔のまま動かない。
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import Image from "next/image";
 import {
   parseVox,
@@ -26,7 +26,7 @@ import {
   type Frame,
 } from "@/lib/stack";
 
-export type StackAction = "idle" | "turn" | "smile" | "walk";
+export type StackAction = "idle" | "turn" | "smile" | "walk" | "look";
 
 declare global {
   interface Window {
@@ -61,6 +61,29 @@ function isStatic() {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 }
 
+// ---- 色を CSS 変数から解く（きせかえパレットに追従するため） ----
+let probe: CanvasRenderingContext2D | null = null;
+/** "var(--lemon)" / "var(--good, #2e9e4f)" / "#ffd84d" → "#rrggbb" */
+function resolveColor(v: string): string {
+  let c = v.trim();
+  const m = /^var\(\s*(--[\w-]+)\s*(?:,\s*([^)]+))?\)$/.exec(c);
+  if (m) c = getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim() || (m[2] ?? "#000000").trim();
+  if (/^#[0-9a-f]{6}$/i.test(c)) return c.toLowerCase();
+  probe ??= document.createElement("canvas").getContext("2d");
+  if (!probe) return "#000000";
+  probe.fillStyle = "#000000";
+  probe.fillStyle = c; // 色名や rgb() も #rrggbb にそろう
+  return String(probe.fillStyle);
+}
+// <html> の属性（data-palette など）が変わったら色を解き直す
+function subscribeTheme(cb: () => void) {
+  const mo = new MutationObserver(cb);
+  mo.observe(document.documentElement, { attributes: true });
+  return () => mo.disconnect();
+}
+const themeSnapshot = () => document.documentElement.getAttribute("data-palette") ?? "";
+const themeServer = () => "";
+
 /** 時刻 t（秒）でのコマ。action ごとの動き */
 function pose(action: StackAction, t: number, baseDir: number): { dir: number; step: Step; expr: Expr } {
   const blink = t % 3.2 > 3.05;
@@ -70,6 +93,11 @@ function pose(action: StackAction, t: number, baseDir: number): { dir: number; s
     case "smile": {
       const ph = (t % 1.6) / 1.6;
       return { dir: baseDir, step: -1, expr: ph > 0.4 && ph < 0.85 ? "s" : blink ? "b" : "n" };
+    }
+    case "look": {
+      // ゆっくり左右を見る（正面→右斜め→正面→左斜め）
+      const seq = [0, 1, 0, STACK_STYLE.dirs - 1];
+      return { dir: (baseDir + seq[Math.floor(t / 1.4) % seq.length]) % STACK_STYLE.dirs, step: -1, expr: blink ? "b" : "n" };
     }
     case "walk":
       return { dir: baseDir, step: (Math.floor(t / 0.13) % 4) as Step, expr: blink ? "b" : "n" };
@@ -87,14 +115,22 @@ export function StackSprite(props: {
   dir?: number;
   /** 足があるキャラ（2番の色の足を前後に振って歩く）。無ければ縮み伸びで歩く */
   legs?: boolean;
-  /** 読み込むまで出しておく2Dの絵 */
+  /** 読み込むまで出しておく2Dの絵（画像の URL） */
   fallback?: string;
+  /** 読み込むまで出しておく2Dの絵（要素。SSR で描ける文字マップのグリッドなど） */
+  fallbackNode?: ReactNode;
+  /** 色の差し替え（色の番号 → 色）。"var(--lemon)" のような CSS 変数も使える */
+  palette?: Record<number, string>;
+  /** 外周の線の色。既定はアプリの --line */
+  line?: string;
   className?: string;
   style?: CSSProperties;
 }) {
-  const { src, size, action = "idle", dir = 0, legs = false, fallback } = props;
+  const { src, size, action = "idle", dir = 0, legs = false, fallback, palette, line = "var(--line, #12235f)" } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [model, setModel] = useState<Model | null>(null);
+  const theme = useSyncExternalStore(subscribeTheme, themeSnapshot, themeServer);
+  const paletteKey = palette ? JSON.stringify(palette) : "";
 
   useEffect(() => {
     let alive = true;
@@ -113,8 +149,14 @@ export function StackSprite(props: {
     if (!model || !cv) return;
     const ctx = cv.getContext("2d");
     if (!ctx) return;
+    // 色: .vox の色に palette の差し替えをかぶせ、CSS 変数は今のパレットで解く
+    const pal = model.palette.slice();
+    const over: Record<number, string> = paletteKey ? JSON.parse(paletteKey) : {};
+    for (const [i, c] of Object.entries(over)) pal[Number(i)] = resolveColor(c);
+    const ink = resolveColor(line);
+    const stackOf = (step: Step, expr: Expr) => modelStack(model, step, expr, pal);
     // 拡大率と足元の位置は「正面・ふつう」の絵で決め、どの向きでも同じにする（向きを変えても跳ねない）
-    const ref = renderStack(modelStack(model), { dir: 0 });
+    const ref = renderStack(stackOf(-1, "n"), { dir: 0, line: ink });
     const b = frameBounds(ref) ?? { x0: 0, y0: 0, x1: ref.w - 1, y1: ref.h - 1 };
     const scale = Math.max(1, Math.floor(size / Math.max(b.x1 - b.x0 + 1, b.y1 - b.y0 + 1)));
     const baseY = size - (b.y1 - ref.pivotY + 1) * scale; // 足元の中心が来る高さ
@@ -134,11 +176,11 @@ export function StackSprite(props: {
     };
     const frameAt = (t: number) => {
       const p = pose(action, t, dir);
-      const f = renderStack(modelStack(model, p.step, p.expr), { dir: p.dir });
+      const f = renderStack(stackOf(p.step, p.expr), { dir: p.dir, line: ink });
       draw(f, `${p.dir}|${p.step}|${p.expr}`);
     };
     if (isStatic()) {
-      draw(renderStack(modelStack(model), { dir }), "static");
+      draw(renderStack(stackOf(-1, "n"), { dir, line: ink }), "static");
       return;
     }
     let raf = 0;
@@ -149,7 +191,7 @@ export function StackSprite(props: {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [model, size, action, dir]);
+  }, [model, size, action, dir, paletteKey, line, theme]);
 
   return (
     <div
@@ -157,7 +199,8 @@ export function StackSprite(props: {
       style={{ width: size, height: size, position: "relative", ...props.style }}
       aria-hidden="true"
     >
-      {!model && fallback && (
+      {!model && props.fallbackNode}
+      {!model && !props.fallbackNode && fallback && (
         <Image
           src={fallback}
           alt=""

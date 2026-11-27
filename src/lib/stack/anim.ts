@@ -190,8 +190,18 @@ export function prepareModel(vox: Vox, palette: Palette, opts: { legs?: boolean;
 }
 
 /** パレットを一部差し替えた色違い（1=体・2=サブ色など）を作るときは palette を渡す */
+const palKeys = new WeakMap<Palette, string>();
+const palKey = (p: Palette) => {
+  let k = palKeys.get(p);
+  if (k === undefined) {
+    k = p.join(",");
+    palKeys.set(p, k);
+  }
+  return k;
+};
+
 export function modelStack(m: Model, step: Step = -1, expr: Expr = "n", palette: Palette = m.palette): Stack {
-  const key = `${step}|${expr}|${palette.slice(1, 8).join(",")}`;
+  const key = `${step}|${expr}|${palKey(palette)}`;
   let st = m.stacks.get(key);
   if (!st) {
     st = bake(animate(m.vox, m.face, step, expr, m.legs), palette);
