@@ -127,7 +127,9 @@ export function rotSlice(src: Uint32Array, lw: number, ld: number, ang: number, 
     sh *= 2;
   }
   const R = Math.hypot(lw, ld) / 2 + 1;
-  const W = Math.ceil(2 * R) | 1,
+  // 幅の偶奇を元の層とそろえ、正面・横（0°・90°…）で出力の画素の中心が元の画素の中心に乗るようにする。
+  // ずれていると元の画素の「角」を拾い、ドット補正で丸めた角に当たって、2ドット以上の幅の顔パーツの左の列が消える
+  const W = Math.ceil(2 * R) + ((Math.ceil(2 * R) - lw) & 1),
     H = Math.ceil(2 * R * k) | 1;
   const out = new Uint32Array(W * H);
   const cs = Math.cos(ang),

@@ -109,3 +109,29 @@ describe("2Dの文字マップから起こす", () => {
     expect(v.front(5, 3)).toBeGreaterThan(v.front(2, 3));
   });
 });
+
+describe("正面の顔パーツ", () => {
+  it("2ドット幅の目が、正面で2ドットのまま出る（左の列が体の色に消えない）", () => {
+    const rows = [
+      "..kkkkkkkk..",
+      ".kyyyyyyyyk.",
+      "kyyyyyyyyyyk",
+      "kyykkyykkyyk",
+      "kyykkyykkyyk",
+      "kyyyyyyyyyyk",
+      ".kyyyyyyyyk.",
+      "..kkkkkkkk..",
+    ];
+    const v = charMapToVox(rows, { colors: { y: 1, k: 4 }, outline: "k" });
+    const m = prepareModel(v, [null, "#ffd84d", null, null, "#12235f"], { legs: false });
+    const f = renderStack(modelStack(m), { dir: 0, line: null });
+    const ink = packRgba(hexToRgb("#12235f"));
+    let best = 0;
+    for (let y = 0; y < f.h; y++) {
+      let n = 0;
+      for (let x = 0; x < f.w; x++) if (f.px[y * f.w + x] === ink) n++;
+      best = Math.max(best, n);
+    }
+    expect(best).toBe(4);
+  });
+});
