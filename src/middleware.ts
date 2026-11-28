@@ -34,8 +34,12 @@ export function middleware(req: NextRequest) {
 // - /u/ は公開プロフィール、/q/ は良問の公開ページ。未ログイン＝検索エンジンにも
 //   見せるため除外（Issue #14）。ページ側が公開分だけ返し、答えはログイン段差で守る
 // - sitemap.xml / robots.txt もクローラが認証なしで取れるよう除外
+// - public/ の絵と音（3D の .vox・2D の .png・BGM の .mp3）も除外。ウェルカムの成長の並びや
+//   公開プロフィールのペットなど、未ログインの画面でも使うため。public/ のフォルダ名 + 拡張子の
+//   組でだけ外すので、画面（/dungeon・/u/[handle] など）の振り分けはこれまでどおり。
+//   public/ にフォルダや拡張子を足したら middleware.test.ts が落ちるので、ここに足す
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api|welcome|join|contact|u/|q/|sitemap.xml|robots.txt|manifest.webmanifest|sw.js|icon|apple-icon).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api|welcome|join|contact|u/|q/|sitemap.xml|robots.txt|manifest.webmanifest|sw.js|icon|apple-icon|(?:aliens|stack|pets|dungeon|bgm)/.+\\.(?:vox|png|mp3)$|[^/]+\\.(?:png|svg)$).*)",
   ],
 };
