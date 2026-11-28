@@ -14,8 +14,6 @@ export type StageItem = {
   face?: number;
   /** キャラ（まばたき・笑顔・タップで反応）。小道具は false */
   actor?: boolean;
-  /** 回しても画面の同じ所に立ち、こちらを向いたまま（主役用。x, y は画面に対しての位置） */
-  follow?: boolean;
   /** ゆっくり左右を見る */
   look?: boolean;
   /** 色の差し替え（色の番号 → 色）。"var(--lemon)" のような CSS 変数も使える */
@@ -45,6 +43,8 @@ export const HOME_STAGE: Omit<StageLayout, "items"> & {
     { id: "tree", src: "/stack/stage/tree.vox", x: 12, y: -6, shadow: 9 },
     { id: "mailbox", src: "/stack/stage/mailbox.vox", x: 10, y: 0, shadow: 3 },
   ],
-  // 主役は島の手前に立ち続ける（回すと島が回る）。小道具は中心から 14 より内に置くと主役の前に出ない
-  player: { x: 0, y: 16, shadow: 6, actor: true, look: true, follow: true },
+  // 主役も島の上の決まった所に立ち、島と一緒に回る（立ち位置も向きも変わる）。
+  // 家が大きいので、島のどこに立たせても 3〜5 の向きでは陰に入る。陰に入った所はシルエットで透かす（stage-scene.tsx）。
+  // 最初の向きで一番手前・陰に入る割合が一番小さい所として、手前の中央に立たせている
+  player: { x: 0, y: 16, shadow: 6, actor: true, look: true },
 };

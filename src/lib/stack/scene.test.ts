@@ -4,7 +4,7 @@ import {
   bake,
   renderStack,
   project,
-  placeOf,
+  hiddenMask,
   turnDir,
   depthOrder,
   hitTest,
@@ -65,15 +65,6 @@ describe("場面の並べ方", () => {
     ]);
   });
 
-  it("follow のものは回しても同じ所・同じ前後に立つ", () => {
-    const hero = { id: "hero", x: 0, y: 16, follow: true },
-      house = { id: "house", x: -6, y: -12 };
-    for (let dir = 0; dir < 8; dir++) {
-      expect(depthOrder([hero, house], dir).map((o) => o.id), `dir ${dir}`).toEqual(["house", "hero"]);
-      expect(placeOf(hero, dir)).toEqual(placeOf(hero, 0));
-    }
-  });
-
   it("当たり判定は手前の絵を優先し、透明な所は抜ける", () => {
     const cube = new Vox(4, 4, 4);
     cube.box(0, 0, 0, 3, 3, 3, 1);
@@ -88,5 +79,23 @@ describe("場面の並べ方", () => {
     expect(hitTest(placed, cx + 2, cy)).toBe("b");
     expect(hitTest(placed, -5, -5)).toBeNull();
     expect(hitTest(placed, 0, 0)).toBeNull();
+  });
+
+  it("手前の絵に重なった所だけが、隠れた所になる", () => {
+    const cube = new Vox(4, 4, 4);
+    cube.box(0, 0, 0, 3, 3, 3, 1);
+    const f = renderStack(bake(cube, [null, "#ffffff"]), { dir: 0 });
+    const back = { item: "back", x0: 0, y0: 0, frame: f };
+    // 重ならない
+    expect(hiddenMask(back, [{ item: "far", x0: f.w + 3, y0: 0, frame: f }]).count).toBe(0);
+    // 右へ 2 ずらして重ねる: 左の 2 列は見えたまま、残りは隠れる
+    const { mask, count } = hiddenMask(back, [{ item: "front", x0: 2, y0: 0, frame: f }]);
+    expect(count).toBeGreaterThan(0);
+    for (let y = 0; y < f.h; y++) {
+      expect(mask[y * f.w + 0]).toBe(0);
+      expect(mask[y * f.w + 1]).toBe(0);
+    }
+    // 透明な所は隠れた所に数えない
+    for (let i = 0; i < mask.length; i++) if (mask[i]) expect(f.px[i] >>> 24).toBeGreaterThan(0);
   });
 });

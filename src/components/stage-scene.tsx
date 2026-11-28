@@ -4,6 +4,7 @@
 // 何をどこに置くかは呼び出し側の StageLayout（ホームは src/lib/home/stage.ts）。並べ方の計算は src/lib/stack/scene.ts。
 // 止めるとき（Bot の撮影など）は StackSprite と同じ: ?nospin / window.__STACK_STATIC__ / 動きを減らす設定。
 // 止めているときは、回したときだけ描き直す（キャラは正面・ふつうの顔）。
+// キャラも島の上の決まった所に立ち、島と一緒に回る。家などの陰に入った所は、線の色のシルエットで透かして見せる。
 
 import {
   useEffect,
@@ -17,9 +18,10 @@ import {
   bake,
   renderStack,
   modelStack,
-  placeOf,
+  project,
   depthOrder,
   hitTest,
+  hiddenMask,
   turnDir,
   STACK_STYLE,
   type Stack,
@@ -64,6 +66,8 @@ type Loaded = { item: StageItem; stack?: Stack; model?: Model };
 const scaleFor = (width: number) =>
   Math.min(6, Math.max(3, Math.floor(width / 84)));
 const LOOK = [0, 1, 0, STACK_STYLE.dirs - 1];
+/** 陰に入ったキャラのシルエットの濃さ（0〜255。中と輪郭） */
+const SILHOUETTE = { fill: 100, edge: 235 };
 
 export function StageScene(props: {
   layout: StageLayout;
@@ -180,9 +184,7 @@ export function StageScene(props: {
       ctx.fillStyle = "rgba(18,35,95,.18)";
       for (const { item } of scene.items) {
         if (!item.shadow) continue;
-        const p = placeOf({ ...item, z: L.groundZ }, dir, {
-          pitch,
-        });
+        const p = project({ ...item, z: L.groundZ }, dir, { pitch });
         for (let yy = -2; yy <= 2; yy++) {
           const w = Math.round(item.shadow * Math.sqrt(1 - (yy / 2.6) ** 2));
           ctx.fillRect(
@@ -198,7 +200,7 @@ export function StageScene(props: {
         ? Math.abs(Math.sin(((smileUntil - now) / 1200) * Math.PI * 2)) * 6
         : 0;
       const order = depthOrder(
-        scene.items.map((l) => ({ l, x: l.item.x, y: l.item.y, follow: l.item.follow })),
+        scene.items.map((l) => ({ l, x: l.item.x, y: l.item.y })),
         dir,
         { pitch },
       );
@@ -206,7 +208,7 @@ export function StageScene(props: {
       for (const { l } of order) {
         const { item } = l;
         let st = l.stack;
-        let d = (item.follow ? 0 : dir) + (item.face ?? 0);
+        let d = dir + (item.face ?? 0);
         let z = L.groundZ;
         if (l.model) {
           const expr: Expr = still
@@ -223,12 +225,35 @@ export function StageScene(props: {
         }
         if (!st) continue;
         const f = renderStack(st, { dir: turnDir(d, 0), pitch, line });
-        const p = placeOf({ ...item, z }, dir, { pitch });
+        const p = project({ ...item, z }, dir, { pitch });
         const x0 = Math.round(ox + p.x - f.pivotX),
           y0 = Math.round(oy + p.y - f.pivotY);
         ctx.drawImage(imageOf(f), x0, y0);
         placed.push({ item: l, x0, y0, frame: f });
       }
+      // キャラが手前の物に隠れた所を、シルエットで透かす（どの向きでも居場所が分かるように）
+      placed.forEach((pl, i) => {
+        if (!pl.item.item.actor) return;
+        const { mask, count } = hiddenMask(pl, placed.slice(i + 1));
+        if (count) drawSilhouette(pl, mask);
+      });
+    };
+    const ghost = document.createElement("canvas");
+    const drawSilhouette = (pl: Placed<Loaded>, mask: Uint8Array) => {
+      const { frame: f, x0, y0 } = pl;
+      ghost.width = f.w;
+      ghost.height = f.h;
+      const g = ghost.getContext("2d");
+      if (!g) return;
+      const img = g.createImageData(f.w, f.h);
+      // 輪郭は濃く、中は薄く（形が読めて、手前の物の絵も透けて見える）
+      for (let i = 0; i < mask.length; i++)
+        if (mask[i]) img.data[i * 4 + 3] = f.solid[i] ? SILHOUETTE.fill : SILHOUETTE.edge;
+      g.putImageData(img, 0, 0);
+      g.globalCompositeOperation = "source-in";
+      g.fillStyle = line;
+      g.fillRect(0, 0, f.w, f.h);
+      ctx.drawImage(ghost, x0, y0);
     };
 
     fit();
@@ -239,7 +264,13 @@ export function StageScene(props: {
     ro.observe(box);
     redrawRef.current = () => draw(performance.now());
     tapRef.current = (x, y) => {
-      const hit = hitTest(placed, x / px, y / px);
+      // キャラは陰に入っていても（シルエットの上でも）タップできる
+      const hit =
+        hitTest(
+          placed.filter((p) => p.item.item.actor),
+          x / px,
+          y / px,
+        ) ?? hitTest(placed, x / px, y / px);
       if (hit?.item.actor && !still) smileUntil = performance.now() + 1200;
     };
     let raf = 0;

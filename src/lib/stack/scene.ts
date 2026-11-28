@@ -5,8 +5,7 @@
 import { STACK_STYLE } from "./style";
 import type { Frame } from "./render";
 
-/** follow: 回しても画面の同じ所に立つ（主役を島の手前に立たせ続けるとき。x, y は画面に対しての位置） */
-export type ScenePos = { x: number; y: number; z?: number; follow?: boolean };
+export type ScenePos = { x: number; y: number; z?: number };
 
 /** 場面の点 → 画面の点（地面の中心が原点）。depth が大きいほど手前 */
 export function project(
@@ -29,10 +28,6 @@ export function turnDir(dir: number, delta: number, dirs = STACK_STYLE.dirs) {
   return (((dir + delta) % dirs) + dirs) % dirs;
 }
 
-/** 置き場所の画面の点。follow のものは回しても動かない */
-export const placeOf = (p: ScenePos, dir: number, o: { dirs?: number; pitch?: number } = {}) =>
-  project(p, p.follow ? 0 : dir, o);
-
 /** 奥から手前の順に並べる（後ろに描くものほど先） */
 export function depthOrder<T extends ScenePos>(
   items: T[],
@@ -40,7 +35,7 @@ export function depthOrder<T extends ScenePos>(
   o: { dirs?: number; pitch?: number } = {},
 ) {
   return items
-    .map((it, i) => ({ it, i, d: placeOf(it, dir, o).depth }))
+    .map((it, i) => ({ it, i, d: project(it, dir, o).depth }))
     .sort((a, b) => a.d - b.d || a.i - b.i)
     .map((e) => e.it);
 }
@@ -60,4 +55,30 @@ export function hitTest<T>(
     if (f.solid[fy * f.w + fx]) return item;
   }
   return null;
+}
+
+/**
+ * 手前の絵に隠れた所（線も含めて不透明どうしが重なる画素）。back の Frame と同じ大きさの 0/1。
+ * 主役が家の陰に入った向きで、隠れた所だけ透かして描くのに使う
+ */
+export function hiddenMask<T>(back: Placed<T>, front: Placed<T>[]) {
+  const { frame: b, x0, y0 } = back;
+  const mask = new Uint8Array(b.w * b.h);
+  let count = 0;
+  for (const { frame: f, x0: fx0, y0: fy0 } of front) {
+    const left = Math.max(x0, fx0),
+      right = Math.min(x0 + b.w, fx0 + f.w),
+      top = Math.max(y0, fy0),
+      bottom = Math.min(y0 + b.h, fy0 + f.h);
+    for (let y = top; y < bottom; y++)
+      for (let x = left; x < right; x++) {
+        const i = (y - y0) * b.w + (x - x0);
+        if (mask[i] || !(b.px[i] >>> 24)) continue;
+        if (f.px[(y - fy0) * f.w + (x - fx0)] >>> 24) {
+          mask[i] = 1;
+          count++;
+        }
+      }
+  }
+  return { mask, count };
 }
