@@ -158,7 +158,11 @@ export function StackSprite(props: {
     // 拡大率と足元の位置は「正面・ふつう」の絵で決め、どの向きでも同じにする（向きを変えても跳ねない）
     const ref = renderStack(stackOf(-1, "n"), { dir: 0, line: ink });
     const b = frameBounds(ref) ?? { x0: 0, y0: 0, x1: ref.w - 1, y1: ref.h - 1 };
-    const scale = Math.max(1, Math.floor(size / Math.max(b.x1 - b.x0 + 1, b.y1 - b.y0 + 1)));
+    // 拡大率は「画面の実際の画素」で整数倍（Retina なら 1.5 倍・2.5 倍も使える）。ドットの大きさがそろったまま枠いっぱいに近づける
+    const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
+    const fit = size / Math.max(b.x1 - b.x0 + 1, b.y1 - b.y0 + 1);
+    const scale = Math.max(1, Math.floor(fit * dpr)) / dpr;
+    const snap = (v: number) => Math.round(v * dpr) / dpr;
     const baseY = size - (b.y1 - ref.pivotY + 1) * scale; // 足元の中心が来る高さ
     let last = "";
     const draw = (f: Frame, key: string) => {
@@ -171,8 +175,8 @@ export function StackSprite(props: {
       ctx.putImageData(img, 0, 0);
       cv.style.width = `${f.w * scale}px`;
       cv.style.height = `${f.h * scale}px`;
-      cv.style.left = `${Math.round(size / 2 - f.pivotX * scale)}px`;
-      cv.style.top = `${Math.round(baseY - f.pivotY * scale)}px`;
+      cv.style.left = `${snap(size / 2 - f.pivotX * scale)}px`;
+      cv.style.top = `${snap(baseY - f.pivotY * scale)}px`;
     };
     const frameAt = (t: number) => {
       const p = pose(action, t, dir);

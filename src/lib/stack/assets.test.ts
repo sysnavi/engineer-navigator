@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parseVox } from "./vox-file";
+import { prepareModel } from "./anim";
 import { AVATAR_SPRITES } from "@/components/pixel-avatar-data";
 import { NPC_SPRITES } from "@/app/genba/npc-sprite-data";
 import { ALIEN_COUNT } from "@/components/loading-alien";
@@ -24,5 +25,23 @@ describe("キャラの .vox がそろっている", () => {
   });
   it("ホームの舞台（地面と小道具）", () => {
     for (const src of [HOME_STAGE.ground, ...HOME_STAGE.props.map((p) => p.src)]) expect(ok(src.replace(/^\//, "")), src).toBe(true);
+  });
+});
+
+describe("アバターの顔（まばたき・笑顔は目を見つけて描き換える）", () => {
+  const face = (id: string) => {
+    const { vox, palette } = parseVox(readFileSync(pub(`stack/avatar/${id}.vox`)));
+    return prepareModel(vox, palette, { legs: false }).face;
+  };
+  it("卵には目が無い（ひびや模様を目と取り違えない）", () => {
+    for (const id of ["egg", "goldegg"]) expect(face(id).eyes, id).toBeNull();
+  });
+  it("卵以外は 2 ドット幅の目が左右に1つずつ見つかる（帽子・帯の線を目と取り違えない）", () => {
+    for (const id of Object.keys(AVATAR_SPRITES).filter((s) => !s.endsWith("egg"))) {
+      const eyes = face(id).eyes;
+      if (!eyes) throw new Error(`${id}: 目が見つからない`);
+      for (const e of eyes) expect(e.x1 - e.x0, id).toBe(1);
+      expect(Math.abs(eyes[0].cx + eyes[1].cx - 19), id).toBeLessThan(1); // 左右対称
+    }
   });
 });

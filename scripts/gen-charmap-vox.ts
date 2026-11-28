@@ -1,6 +1,7 @@
 // 文字マップでできている登場キャラ（アバター・げんばNPC）の 3D（.vox）を起こす。
 //   npx tsx scripts/gen-charmap-vox.ts          → public/stack/avatar/*.vox・public/stack/npc/*.vox と一覧シート
 //   npx tsx scripts/gen-charmap-vox.ts --sheet  → .vox は書き換えず、今の .vox から一覧シートだけ作り直す
+//   npx tsx scripts/gen-charmap-vox.ts avatar   → アバターだけ（npc だけなら npc）
 // 一度作ったあとは .vox が原本（MagicaVoxel で直す）。--sheet 以外で再実行すると手直しが上書きされるので注意。
 // 色は CSS 変数（きせかえパレット）のまま表示時に解くので、.vox に入る色は既定のパレットでの見本。
 
@@ -13,6 +14,7 @@ import { contactSheet } from "./lib/png";
 
 const ROOT = path.resolve(__dirname, "..");
 const sheetOnly = process.argv.includes("--sheet");
+const only = process.argv.slice(2).find((a) => !a.startsWith("--"));
 
 // CSS 変数の既定値（globals.css の :root）。.vox の中の見本色にだけ使う
 const CSS_DEFAULTS: Record<string, string> = {
@@ -20,6 +22,8 @@ const CSS_DEFAULTS: Record<string, string> = {
   "--lemon": "#ffd84d",
   "--pink-hot": "#f24e9c",
   "--royal": "#004aad",
+  "--good": "#2e9e4f",
+  "--peri": "#c1dbff",
 };
 const toHex = (c: string) => {
   const m = /^var\(\s*(--[\w-]+)\s*(?:,\s*([^)]+))?\)$/.exec(c.trim());
@@ -40,13 +44,13 @@ type Set = {
   facePaint: string[];
 };
 const SETS: Set[] = [
-  // アバター: k が黒ふち（外周は捨てて線は描画側が引く）。o=くちばし・p=ほっぺは正面の塗り
-  { dir: "avatar", sprites: AVATAR_SPRITES, index: AVATAR_VOX_INDEX, palette: AVATAR_VOX_PALETTE, outline: "k", facePaint: ["o", "p"] },
+  // アバター: k が黒ふち（外周は捨てて線は描画側が引く）。o=くちばし・p=ほっぺ・e=目の光・a=エプロンは正面の塗り
+  { dir: "avatar", sprites: AVATAR_SPRITES, index: AVATAR_VOX_INDEX, palette: AVATAR_VOX_PALETTE, outline: "k", facePaint: ["o", "p", "e", "a"] },
   // NPC: 黒ふちが無い絵。k は目なので正面の塗り。w（おなか）も正面だけ
   { dir: "npc", sprites: NPC_SPRITES, index: NPC_VOX_INDEX, palette: NPC_VOX_PALETTE, outline: null, facePaint: ["k", "w"] },
 ];
 
-for (const set of SETS) {
+for (const set of SETS.filter((s) => !only || s.dir === only)) {
   const out = path.join(ROOT, "public/stack", set.dir);
   mkdirSync(out, { recursive: true });
   const frames: Frame[][] = [];
@@ -66,6 +70,7 @@ for (const set of SETS) {
     const m = prepareModel(vox, palette, { legs: false });
     frames.push([0, 1, 2, 4].map((dir) => renderStack(modelStack(m), { dir })));
   }
-  writeFileSync(path.join(ROOT, `docs/design/${set.dir}-3d-sheet.png`), contactSheet(frames, { cols: 4, cellW: 26, cellH: 26 }));
+  const cell = Math.max(26, ...frames.flat().map((f) => Math.max(f.w, f.h)));
+  writeFileSync(path.join(ROOT, `docs/design/${set.dir}-3d-sheet.png`), contactSheet(frames, { cols: 4, cellW: cell, cellH: cell }));
   console.log(`${set.dir}: ${frames.length}${sheetOnly ? " (sheet only)" : " .vox"}`);
 }
