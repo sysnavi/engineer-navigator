@@ -6,3 +6,4 @@ export * from "./render";
 export * from "./anim";
 export * from "./charmap";
 export { STACK_STYLE } from "./style";
+export * from "./scene";

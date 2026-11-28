@@ -11,6 +11,7 @@ import { OpenGenbaTrialTile } from "@/components/open-trial-tile";
 import { PixelTitle, PixelLabel, Window } from "@/components/retro";
 import { PixelIcon } from "@/components/pixel-icon";
 import { PlayerCard } from "@/components/player-card";
+import { HomeStage } from "@/components/home-stage";
 import { TodaySys } from "@/components/shell/today-sys";
 
 export default async function Home() {
@@ -44,6 +45,7 @@ export default async function Home() {
     const playable = appsForRole(user.role).filter((a) => a.id !== "mypage");
     return (
       <div className="space-y-6">
+        <HomeStage displayName={user.handle ?? user.name} player={player} />
         <section className="rounded-xl border-[2.5px] border-line8 bg-royal p-5 text-white shadow-hard sm:p-6">
           <div className="flex flex-wrap items-stretch gap-5">
             <div className="min-w-[240px] flex-1">
@@ -57,6 +59,7 @@ export default async function Home() {
             <PlayerCard
               displayName={user.handle ?? user.name}
               player={player}
+              variant="activity"
               className="sm:w-[300px]"
             />
           </div>
@@ -102,47 +105,54 @@ export default async function Home() {
   if (resolveShell(user) === "desktop") {
     const apps = appsForRole(user.role);
     return (
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-5 lg:order-2">
-          <TodaySys userId={user.id} />
-          <PlayerCard displayName={user.handle ?? user.name} player={player} />
-        </div>
-        <div className="space-y-5 lg:order-1">
-          {(Object.keys(APP_GROUPS) as AppGroup[]).map((gid) => {
-            const groupApps = apps.filter((a) => a.group === gid);
-            if (groupApps.length === 0) return null;
-            return (
-              <section
-                key={gid}
-                className="rounded-xl border-2 border-dashed border-royal2/50 px-3 pb-3 pt-2"
-              >
-                <b className="font-pixel text-[11px] font-normal tracking-[0.14em] text-royal2">
-                  {APP_GROUPS[gid]}/
-                </b>
-                <div className="mt-1.5 grid grid-cols-3 gap-2 sm:grid-cols-4">
-                  {groupApps.map((a) => (
-                    <Link
-                      key={a.id}
-                      href={a.href}
-                      title={a.desc}
-                      className="flex flex-col items-center gap-1.5 rounded-lg border-2 border-transparent px-1.5 py-2.5 text-center hover:border-peri hover:bg-white/60"
-                    >
-                      <span className="drop-shadow-[2px_2px_0_rgba(18,35,95,0.2)]">
-                        <PixelIcon id={a.id} px={3} />
-                      </span>
-                      <span className="text-[11.5px] font-bold leading-tight">
-                        {a.name}
-                      </span>
-                      <i className="font-pixel text-[9px] not-italic tracking-wide text-inksoft">
-                        {a.id.toUpperCase()}
-                        {a.ext}
-                      </i>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            );
-          })}
+      <div className="space-y-5">
+        <HomeStage displayName={user.handle ?? user.name} player={player} />
+        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+          <div className="space-y-5 lg:order-2">
+            <TodaySys userId={user.id} />
+            <PlayerCard
+              displayName={user.handle ?? user.name}
+              player={player}
+              variant="activity"
+            />
+          </div>
+          <div className="space-y-5 lg:order-1">
+            {(Object.keys(APP_GROUPS) as AppGroup[]).map((gid) => {
+              const groupApps = apps.filter((a) => a.group === gid);
+              if (groupApps.length === 0) return null;
+              return (
+                <section
+                  key={gid}
+                  className="rounded-xl border-2 border-dashed border-royal2/50 px-3 pb-3 pt-2"
+                >
+                  <b className="font-pixel text-[11px] font-normal tracking-[0.14em] text-royal2">
+                    {APP_GROUPS[gid]}/
+                  </b>
+                  <div className="mt-1.5 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {groupApps.map((a) => (
+                      <Link
+                        key={a.id}
+                        href={a.href}
+                        title={a.desc}
+                        className="flex flex-col items-center gap-1.5 rounded-lg border-2 border-transparent px-1.5 py-2.5 text-center hover:border-peri hover:bg-white/60"
+                      >
+                        <span className="drop-shadow-[2px_2px_0_rgba(18,35,95,0.2)]">
+                          <PixelIcon id={a.id} px={3} />
+                        </span>
+                        <span className="text-[11.5px] font-bold leading-tight">
+                          {a.name}
+                        </span>
+                        <i className="font-pixel text-[9px] not-italic tracking-wide text-inksoft">
+                          {a.id.toUpperCase()}
+                          {a.ext}
+                        </i>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
@@ -151,6 +161,7 @@ export default async function Home() {
   // ===== クラシックシェル: 従来のヒーロー＋タイル =====
   return (
     <div className="space-y-7">
+      <HomeStage displayName={user.handle ?? user.name} player={player} />
       {/* ヒーロー: 「がんばりは、ぜんぶ経験値になる。」＋プレイヤーカード */}
       <section className="rounded-xl border-[2.5px] border-line8 bg-royal p-5 text-white shadow-hard sm:p-6">
         <div className="flex flex-wrap items-stretch gap-5">
@@ -167,6 +178,7 @@ export default async function Home() {
           <PlayerCard
             displayName={user.handle ?? user.name}
             player={player}
+            variant="activity"
             className="sm:w-[320px]"
           />
         </div>

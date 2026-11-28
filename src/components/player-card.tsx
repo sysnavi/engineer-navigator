@@ -1,5 +1,6 @@
 // PLAYER_FILE.sav カード（TOPヒーロー/デスクトップホーム共用）。
 // EXPバー・今週のかつどうは PlayerStats（導出値）から描く。
+// variant="activity": ホームの舞台（HomeStage）と並べるとき。キャラ・名前・Lv・EXP は舞台の札にあるので出さない。
 
 import { PixelAvatar } from "@/components/pixel-avatar";
 import type { PlayerStats } from "@/lib/exp";
@@ -8,8 +9,10 @@ export function PlayerCard(props: {
   displayName: string;
   player: PlayerStats;
   className?: string;
+  variant?: "full" | "activity";
 }) {
   const { player } = props;
+  const full = props.variant !== "activity";
   const filledBlocks = Math.round(player.levelProgress * 10);
   return (
     <div
@@ -19,63 +22,75 @@ export function PlayerCard(props: {
         <span>PLAYER_FILE.sav</span>
         <span aria-hidden="true">▮▮▮</span>
       </div>
-      <div className="flex items-center gap-3.5 px-3.5 py-3">
-        <div className="grid h-[84px] w-[84px] shrink-0 place-items-center rounded-lg border-[2.5px] border-line8 bg-surface">
-          <PixelAvatar
-            sprite={player.stage.sprite}
-            px={7}
-            accent={player.genes?.dominant.color}
-            action="look"
-          />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-pixel text-[14px] tracking-wide">
-            {props.displayName}
-            {player.generation >= 2 && (
-              <span className="ml-1.5 text-[10.5px] text-royal2">
-                第{player.generation}世代
-              </span>
-            )}
-          </p>
-          <p className="font-pixel text-[11px] tracking-[0.1em] text-pinkhot">
-            Lv {player.level} — {player.stage.name}
-            {player.currentStreak >= 2 && (
-              <span className="ml-1.5 text-[#f59f00]">
-                🔥{player.currentStreak}日連続
-              </span>
-            )}
-          </p>
-          {player.genes && (
-            <p
-              className="truncate font-pixel text-[10px] tracking-[0.08em]"
-              style={{ color: player.genes.dominant.color }}
-            >
-              ◆ {player.genes.title}
-            </p>
-          )}
-          <div
-            className="mt-1.5 flex gap-[3px]"
-            aria-label={`次のレベルまで ${player.expToNextLevel} EXP`}
-          >
-            {Array.from({ length: 10 }, (_, i) => (
-              <i
-                key={i}
-                className={`h-3 w-4 rounded-[3px] border-2 border-line8 ${
-                  i < filledBlocks
-                    ? i === filledBlocks - 1
-                      ? "bg-pinkhot"
-                      : "bg-lemon"
-                    : "bg-win"
-                }`}
-              />
-            ))}
+      {!full && player.genes && (
+        <p
+          className="truncate px-3.5 pt-2.5 font-pixel text-[10px] tracking-[0.08em]"
+          style={{ color: player.genes.dominant.color }}
+        >
+          ◆ {player.genes.title}
+        </p>
+      )}
+      {full && (
+        <div className="flex items-center gap-3.5 px-3.5 py-3">
+          <div className="grid h-[84px] w-[84px] shrink-0 place-items-center rounded-lg border-[2.5px] border-line8 bg-surface">
+            <PixelAvatar
+              sprite={player.stage.sprite}
+              px={7}
+              accent={player.genes?.dominant.color}
+              action="look"
+            />
           </div>
-          <p className="mt-1 text-[11px] text-inksoft">
-            つぎのLvまで {player.expToNextLevel} EXP
-          </p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-pixel text-[14px] tracking-wide">
+              {props.displayName}
+              {player.generation >= 2 && (
+                <span className="ml-1.5 text-[10.5px] text-royal2">
+                  第{player.generation}世代
+                </span>
+              )}
+            </p>
+            <p className="font-pixel text-[11px] tracking-[0.1em] text-pinkhot">
+              Lv {player.level} — {player.stage.name}
+              {player.currentStreak >= 2 && (
+                <span className="ml-1.5 text-[#f59f00]">
+                  🔥{player.currentStreak}日連続
+                </span>
+              )}
+            </p>
+            {player.genes && (
+              <p
+                className="truncate font-pixel text-[10px] tracking-[0.08em]"
+                style={{ color: player.genes.dominant.color }}
+              >
+                ◆ {player.genes.title}
+              </p>
+            )}
+            <div
+              className="mt-1.5 flex gap-[3px]"
+              aria-label={`次のレベルまで ${player.expToNextLevel} EXP`}
+            >
+              {Array.from({ length: 10 }, (_, i) => (
+                <i
+                  key={i}
+                  className={`h-3 w-4 rounded-[3px] border-2 border-line8 ${
+                    i < filledBlocks
+                      ? i === filledBlocks - 1
+                        ? "bg-pinkhot"
+                        : "bg-lemon"
+                      : "bg-win"
+                  }`}
+                />
+              ))}
+            </div>
+            <p className="mt-1 text-[11px] text-inksoft">
+              つぎのLvまで {player.expToNextLevel} EXP
+            </p>
+          </div>
         </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-1.5 border-t-2 border-dashed border-peri px-3.5 py-2.5">
+      )}
+      <div
+        className={`flex flex-wrap items-center gap-1.5 px-3.5 py-2.5 ${full ? "border-t-2 border-dashed border-peri" : ""}`}
+      >
         <span className="w-full font-pixel text-[10px] tracking-[0.1em] text-inksoft">
           今週のかつどう
         </span>

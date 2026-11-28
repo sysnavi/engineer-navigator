@@ -54,7 +54,7 @@ export function loadStackModel(src: string, legs: boolean): Promise<Model> {
   return p;
 }
 
-function isStatic() {
+export function isStatic() {
   if (typeof window === "undefined") return true;
   if (window.__STACK_STATIC__) return true;
   if (new URLSearchParams(window.location.search).has("nospin")) return true;
@@ -64,7 +64,7 @@ function isStatic() {
 // ---- 色を CSS 変数から解く（きせかえパレットに追従するため） ----
 let probe: CanvasRenderingContext2D | null = null;
 /** "var(--lemon)" / "var(--good, #2e9e4f)" / "#ffd84d" → "#rrggbb" */
-function resolveColor(v: string): string {
+export function resolveColor(v: string): string {
   let c = v.trim();
   const m = /^var\(\s*(--[\w-]+)\s*(?:,\s*([^)]+))?\)$/.exec(c);
   if (m) c = getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim() || (m[2] ?? "#000000").trim();
@@ -76,13 +76,13 @@ function resolveColor(v: string): string {
   return String(probe.fillStyle);
 }
 // <html> の属性（data-palette など）が変わったら色を解き直す
-function subscribeTheme(cb: () => void) {
+export function subscribeTheme(cb: () => void) {
   const mo = new MutationObserver(cb);
   mo.observe(document.documentElement, { attributes: true });
   return () => mo.disconnect();
 }
-const themeSnapshot = () => document.documentElement.getAttribute("data-palette") ?? "";
-const themeServer = () => "";
+export const themeSnapshot = () => document.documentElement.getAttribute("data-palette") ?? "";
+export const themeServer = () => "";
 
 /** 時刻 t（秒）でのコマ。action ごとの動き */
 function pose(action: StackAction, t: number, baseDir: number): { dir: number; step: Step; expr: Expr } {
