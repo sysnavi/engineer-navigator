@@ -17,6 +17,7 @@ SESエンジニアの成長をデータ化するアプリ。構想・設計は d
 - docs/ops/staging.md — テスト環境（staging）の作り方。ビルドの migrate deploy が本番DBに流れないための Vercel/Neon の分け方
 - docs/ops/account-migration.md — 会社アカウント→個人アカウントの差し替え手順（環境変数の一覧・OAuth の作り直し・順番と戻し方）。値は書かない
 - docs/design/sprite-stack-plan.md — キャラ・おさんぽ・ダンジョンの3D化（スプライトスタッキング・8方向・素材は MagicaVoxel の .vox）。段階と決定事項
+- docs/design/myhome-3d-plan.md — マイホームの 3D 箱庭（リビング）。広さ・見せ方・2D との共通データ（家具の % ⇔ 部屋の座標）
 
 ## スタック
 Next.js 16 (App Router / Server Actions) + Prisma 7 + PostgreSQL 16 (pgvector, port 5433) + Claude API

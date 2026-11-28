@@ -5,6 +5,9 @@ import {
   renderStack,
   project,
   hiddenMask,
+  unproject,
+  faceOf,
+  spotPose,
   turnDir,
   depthOrder,
   hitTest,
@@ -97,5 +100,33 @@ describe("場面の並べ方", () => {
     }
     // 透明な所は隠れた所に数えない
     for (let i = 0; i < mask.length; i++) if (mask[i]) expect(f.px[i] >>> 24).toBeGreaterThan(0);
+  });
+
+  it("画面の点から床の点に戻せる（project の逆。8 方向・高さつき）", () => {
+    for (let dir = 0; dir < 8; dir++)
+      for (const p of [{ x: 10, y: -7 }, { x: -23, y: 15 }, { x: 0, y: 0 }]) {
+        const s = project({ ...p, z: 3 }, dir, { pitch: 0.6 });
+        const back = unproject(s.x, s.y, dir, { pitch: 0.6, z: 3 });
+        expect(back.x).toBeCloseTo(p.x, 6);
+        expect(back.y).toBeCloseTo(p.y, 6);
+      }
+  });
+
+  it("進む向きにキャラが向く（手前へ = 0、うしろへ = 4、右へ・左へは横向き）", () => {
+    expect(faceOf(0, 1)).toBe(0);
+    expect(faceOf(0, -1)).toBe(4);
+    expect(new Set([faceOf(1, 0), faceOf(-1, 0)])).toEqual(new Set([2, 6]));
+  });
+
+  it("家具でのくつろぎ: 寝る・座る・てっぺんは家具の上、前・横は床", () => {
+    const sofa = { x: 0, y: 0, w: 20, d: 10, h: 12 };
+    expect(spotPose("sit", sofa).z).toBeGreaterThan(0);
+    expect(spotPose("top", sofa).z).toBe(11);
+    expect(spotPose("sleep", { ...sofa, flat: true, h: 1 }).z).toBe(1);
+    expect(spotPose("front", sofa)).toMatchObject({ z: 0, face: 4 });
+    expect(spotPose("front", sofa).y).toBeGreaterThan(5);
+    expect(spotPose("watch", sofa).x).toBeLessThan(-10);
+    // 壁のものは、その前の床から見上げる
+    expect(spotPose("watch", { ...sofa, onWall: true })).toMatchObject({ z: 0, face: 4 });
   });
 });

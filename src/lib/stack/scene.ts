@@ -82,3 +82,53 @@ export function hiddenMask<T>(back: Placed<T>, front: Placed<T>[]) {
   }
   return { mask, count };
 }
+
+/** 画面の点（地面の中心が原点・画面の画素）→ 高さ z の面の上の点（project の逆） */
+export function unproject(
+  sx: number,
+  sy: number,
+  dir: number,
+  o: { dirs?: number; pitch?: number; z?: number } = {},
+) {
+  const dirs = o.dirs ?? STACK_STYLE.dirs,
+    k = o.pitch ?? STACK_STYLE.pitch;
+  const a = (dir * Math.PI * 2) / dirs,
+    c = Math.cos(a),
+    s = Math.sin(a);
+  const rx = sx,
+    ry = (sy + (o.z ?? 0)) / k;
+  return { x: rx * c + ry * s, y: -rx * s + ry * c };
+}
+
+/** 床の上の進む向き（mx, my）→ キャラの向き（0 = 手前 +y 向き。時計回りに dirs 段。描くときは場面の向きに足す） */
+export function faceOf(mx: number, my: number, dirs = STACK_STYLE.dirs) {
+  return turnDir(Math.round(Math.atan2(-mx, my) / ((Math.PI * 2) / dirs)), 0, dirs);
+}
+
+/** 家具でくつろぐキャラの居場所（家具の足元の中心 x, y と大きさ w・d・h から）。z は床からの高さ */
+export type SpotKind = "sleep" | "sit" | "top" | "watch" | "front";
+export function spotPose(
+  kind: SpotKind,
+  f: { x: number; y: number; w: number; d: number; h: number; flat?: boolean; onWall?: boolean },
+): { x: number; y: number; z: number; face: number; sleep: boolean; approach: { x: number; y: number } } {
+  // 壁・棚のものは、その前の床から見上げる
+  if (f.onWall) {
+    const p = { x: f.x, y: f.y + 12 };
+    return { ...p, z: 0, face: 4, sleep: false, approach: p };
+  }
+  const before = { x: f.x, y: f.y + f.d / 2 + 5 };
+  switch (kind) {
+    case "sleep":
+      return { x: f.x, y: f.y + 0.5, z: f.flat ? 1 : Math.round(f.h * 0.6), face: 0, sleep: true, approach: before };
+    case "sit":
+      return { x: f.x, y: f.y + f.d * 0.15, z: Math.round(f.h * 0.42), face: 0, sleep: false, approach: before };
+    case "top":
+      return { x: f.x, y: f.y + 0.5, z: f.h - 1, face: 0, sleep: false, approach: before };
+    case "front":
+      return { ...before, z: 0, face: 4, sleep: false, approach: before };
+    case "watch": {
+      const p = { x: f.x - f.w / 2 - 6, y: f.y + 2 };
+      return { ...p, z: 0, face: faceOf(1, 0), sleep: false, approach: p };
+    }
+  }
+}

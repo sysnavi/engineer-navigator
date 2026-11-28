@@ -13,8 +13,12 @@
 //   フレーム（従来のaspect比の「窓」）> スクローラ > キャンバス（幅 widthFactor 倍）
 // 座標は常に「キャンバスの0-100%」、表示幅%だけ ÷widthFactor して pxサイズを保つ。
 // セリフ窓・ログ・収納BOXなどのUIはフレーム直下のオーバーレイ（ビューポート固定）。
+//
+// 3D の箱庭（既定）: 同じデータ（家具の % 座標・ペット・きせかえ）を、回せる小さな部屋で見せる（src/lib/home/living3d.ts）。
+// 描画は StageScene。家具は指で引きずって動かし、右下の BOX へ落とすとしまう。ペットは歩き回り、ときどき家具で休む。
+// 「2D で見る」で今までの平面の部屋に切り替えられる（見る人ごとに覚える。データは共通）。
 
-import { useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
 import { petPet, feedPet, moveFurniture, stowFurniture, type FeedResult } from "./actions";
 import { PET_SIZE } from "@/lib/home/scene";
@@ -35,6 +39,31 @@ import { FoodServe } from "./food-serve";
 import { TalkPanel } from "./talk-panel";
 import { talkRemaining } from "./talk-actions";
 import { PetSprite } from "@/components/pets/pet-sprite";
+import { StageScene, type StageControl, type StageDrag } from "@/components/stage-scene";
+import { fromRoom, livingLayout, livingRoomSize, petId as petStageId } from "@/lib/home/living3d";
+
+// 2D / 3D の切り替え（見る人ごとに localStorage に覚える。SSR と読めないときは 3D）
+const VIEW_KEY = "living-view";
+const viewListeners = new Set<() => void>();
+function readView(): "2d" | "3d" {
+  try {
+    return localStorage.getItem(VIEW_KEY) === "2d" ? "2d" : "3d";
+  } catch {
+    return "3d";
+  }
+}
+function writeView(v: "2d" | "3d") {
+  try {
+    localStorage.setItem(VIEW_KEY, v);
+  } catch {
+    // 覚えられなくても、この表示の間は切り替わる
+  }
+  viewListeners.forEach((f) => f());
+}
+const subscribeView = (f: () => void) => {
+  viewListeners.add(f);
+  return () => viewListeners.delete(f);
+};
 
 export type RoomPet = {
   id: string;
@@ -91,8 +120,16 @@ export function LivingScene(props: {
   awayName: string | null; // デスクへ遊びに行っている子（表示だけ）
   stocks: FoodStock[];
   widthFactor: number; // へや拡張の横幅倍率（roomWidthFactor。1 = 拡張なし）
+  // 3D の箱庭用: へやの広さの段（拡張キット 0〜2）・きせかえの id
+  level: number;
+  wallpaperId: string;
+  floorId: string;
 }) {
   const W = props.widthFactor;
+  const view = useSyncExternalStore(subscribeView, readView, () => "3d" as const);
+  const stageRef = useRef<StageControl>(null);
+  // 3D でハート・ごはんの器を出す位置（ペットの足元の画面の位置。出した時点で決める）
+  const [mark3d, setMark3d] = useState<{ petId: string; x: number; y: number; h: number } | null>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [pets, setPets] = useState(props.pets);
@@ -131,7 +168,7 @@ export function LivingScene(props: {
     };
   }
 
-  function inStowBox(e: React.PointerEvent): boolean {
+  function inStowBox(e: { clientX: number; clientY: number }): boolean {
     const b = boxRef.current?.getBoundingClientRect();
     return !!b && e.clientX >= b.left && e.clientX <= b.right && e.clientY >= b.top && e.clientY <= b.bottom;
   }
@@ -160,7 +197,7 @@ export function LivingScene(props: {
     );
   }
 
-  function onFurnUp(e: React.PointerEvent, itemId: string) {
+  function onFurnUp(e: { clientX: number; clientY: number }, itemId: string) {
     if (dragging !== itemId) return;
     setDragging(null);
     setOverBox(false);
@@ -186,6 +223,27 @@ export function LivingScene(props: {
     });
   }
 
+  // 3D の箱庭で家具を引きずる（床の座標 → % に戻して、2D と同じ保存の流れへ）
+  const size3d = livingRoomSize(props.level);
+  function onStageDrag(d: StageDrag) {
+    if (!d.id.startsWith("furn:")) return;
+    const itemId = d.id.slice(5);
+    const def = shopItemById(itemId);
+    if (!def) return;
+    if (d.phase === "start") {
+      setDragging(itemId);
+      return;
+    }
+    if (d.phase === "move") {
+      setOverBox(inStowBox(d));
+      setFurniture((cur) =>
+        cur.map((f) => (f.itemId === itemId ? { ...f, ...fromRoom(def, d.floor.x, d.floor.y, size3d, f.y) } : f)),
+      );
+      return;
+    }
+    onFurnUp(d, itemId);
+  }
+
   const dragZone = dragging ? shopItemById(dragging)?.zone : null;
 
   // ---------------------------------------------------------------------
@@ -195,9 +253,20 @@ export function LivingScene(props: {
   // なでなで。メニューを閉じてペット本体にハート＋にっこりを出す。
   // 何回でも撫でられる（またペットをタップすればメニューが開く）。
   // なつき度が実際に上がった日だけ pettedToday を立てる。
+  /** 3D: そのペットを立ち止まらせ、足元の画面の位置を覚える（ハート・ごはんの器を出す所） */
+  const mark3dFor = (petId: string, holdMs: number) => {
+    const ctl = stageRef.current;
+    if (!ctl) return;
+    ctl.hold(petStageId(petId), holdMs);
+    const pos = ctl.screenOf(petStageId(petId));
+    setMark3d(pos ? { petId, ...pos } : null);
+  };
+
   const onPet = (petId: string) => {
     setMenuPetId(null);
     setHearts(petId);
+    stageRef.current?.smile(petStageId(petId));
+    mark3dFor(petId, 1600);
     setTimeout(() => setHearts((h) => (h === petId ? null : h)), 1600);
     startTransition(async () => {
       try {
@@ -218,6 +287,7 @@ export function LivingScene(props: {
   /** 話しかける: 好物のヒント台詞を吹き出しに出す（定型なのでトークンゼロ・DB不要） */
   const onTalk = (petId: string) => {
     setMenuPetId(null);
+    mark3dFor(petId, 3600);
     const pet = pets.find((p) => p.id === petId);
     const sp = pet && speciesById(pet.speciesId);
     if (!sp) return;
@@ -236,6 +306,7 @@ export function LivingScene(props: {
   /** もりつけ→もぐもぐ→リアクション を順に再生する（サーバー結果を受けてから開始） */
   const playServe = (petId: string, foodId: string, r: FeedResult) => {
     const mode = r.serveMode;
+    mark3dFor(petId, 4500);
     setServing({
       petId,
       foodId,
@@ -386,8 +457,170 @@ export function LivingScene(props: {
   };
   const poses = new Map(pets.map((p, i) => [p.id, poseOf(p, i)]));
 
+  // 3D の箱庭の並べ方（家具を動かすたびに作り直すが、絵は読み直さない）
+  const layout3d = useMemo(
+    () =>
+      livingLayout({
+        level: props.level,
+        wallpaperId: props.wallpaperId,
+        floorId: props.floorId,
+        window: props.window,
+        furniture,
+        pets,
+        lodgers: props.lodgers,
+      }),
+    [props.level, props.wallpaperId, props.floorId, props.window, furniture, pets, props.lodgers],
+  );
+
   // まど幅%はキャンバス基準。拡張キャンバスでは ÷W して pxサイズを保つ
   const winW = props.window.width / W;
+
+  // 2D と 3D で共通のオーバーレイ（案内・セリフ窓・ログ・下段ラベル・しまう BOX・おせわメニュー・会話）
+  const overlays = (
+    <>
+      {/* ペットを1匹も飼っていないときだけ、部屋の中央に案内を出す。
+          飼っている子が全員おでかけ中のときは「空のリビング」を見せて、右下の小ラベルに任せる */}
+      {pets.length === 0 && !props.awayName && (
+        <p className="absolute inset-x-0 top-[55%] px-4 text-center text-[12.5px] text-inksoft">
+          まだ誰も住んでいません。ときどき画面のすみに遊びに来る子に話しかけてみよう。
+        </p>
+      )}
+
+      {/* セリフ窓（ビューポート幅に収まる折り返し窓。頭上の吹き出しだと切れる） */}
+      {serving?.bubble && (
+        <PetSpeech
+          name={pets.find((p) => p.id === serving.petId)?.name ?? ""}
+          text={serving.bubble}
+        />
+      )}
+
+      {log && (
+        <p className="absolute inset-x-2 bottom-1 z-[1250] rounded border-2 border-line8 bg-win/95 px-2 py-0.5 text-[10.5px] font-bold leading-snug">
+          {log}
+        </p>
+      )}
+
+      {/* 下段ラベル（左: おかいもの誘導 / 右: おでかけ表示）。
+          スマホ幅では1行に並びきらないので、flex-wrapで2行に逃がす */}
+      {!log && (props.awayName || furniture.length === 0) && (
+        <div className="absolute inset-x-2 bottom-1 z-[1200] flex flex-wrap items-center justify-between gap-x-2">
+          {furniture.length === 0 && (
+            <Link
+              href="/shop"
+              className="whitespace-nowrap font-pixel text-[9.5px] tracking-wide text-royal2 underline"
+            >
+              🛒 おかいもので家具をそろえよう
+            </Link>
+          )}
+          {props.awayName && (
+            <p className="ml-auto mr-[76px] whitespace-nowrap font-pixel text-[9.5px] tracking-wide text-inksoft">
+              {props.awayName}はデスクへおでかけ中
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* 収納BOX（家具をここへドロップでしまう） */}
+      <div
+        ref={boxRef}
+        className={`absolute bottom-1.5 right-1.5 z-[1200] grid h-[46px] w-[64px] place-items-center rounded-md border-2 border-dashed ${
+          overBox ? "border-pinkhot bg-pinkhot/20" : "border-line8/70 bg-white/40"
+        }`}
+      >
+        <span className="font-pixel text-[9px] tracking-wide text-inksoft">
+          📦 しまう
+        </span>
+      </div>
+
+      {menuPet && (
+        <CareMenu
+          petName={menuPet.name}
+          affection={menuPet.affection}
+          feedsLeft={menuPet.feedsLeft}
+          favoriteFoodId={
+            menuPet.favoriteFound
+              ? (speciesById(menuPet.speciesId)?.favoriteFoodId ?? null)
+              : null
+          }
+          stocks={stocks}
+          busy={serving !== null}
+          onPet={() => onPet(menuPet.id)}
+          onTalk={() => onTalk(menuPet.id)}
+          onChat={() => onChat(menuPet.id)}
+          onFeed={(foodId) => onFeed(menuPet.id, foodId)}
+          onClose={() => {
+            // 3D: 立ち止まらせていた子を、また歩かせる
+            stageRef.current?.hold(petStageId(menuPet.id), 0);
+            setMenuPetId(null);
+          }}
+        />
+      )}
+
+      {chatPet && chatSpecies && (
+        <TalkPanel
+          petId={chatPet.id}
+          petName={chatPet.name}
+          speciesId={chatPet.speciesId}
+          spriteNormal={chatSpecies.sprites.normal}
+          spriteHappy={chatSpecies.sprites.happy ?? chatSpecies.sprites.normal}
+          initialRemaining={chatLeft}
+          onClose={() => setChatPetId(null)}
+        />
+      )}
+    </>
+  );
+
+  // 2D / 3D の切り替え（左上の小さな札）
+  const viewToggle = (
+    <button
+      type="button"
+      onClick={() => writeView(view === "3d" ? "2d" : "3d")}
+      className="absolute left-1.5 top-1.5 z-[1200] rounded border-2 border-line8 bg-win/90 px-1.5 py-0.5 font-pixel text-[9.5px] tracking-wide text-ink"
+    >
+      {view === "3d" ? "2D で見る" : "3D で見る"}
+    </button>
+  );
+
+  if (view === "3d") {
+    const markPet = mark3d && (hearts === mark3d.petId || serving?.petId === mark3d.petId) ? mark3d : null;
+    return (
+      <div className="isolate relative h-[360px] w-full select-none overflow-hidden rounded-lg border-[2.5px] border-line8 sm:h-[440px]">
+        <StageScene
+          ref={stageRef}
+          layout={layout3d}
+          className="h-full w-full"
+          onActorTap={(id) => {
+            if (!id.startsWith("pet:")) return;
+            const pid = id.slice(4);
+            setMenuPetId(pid);
+            stageRef.current?.hold(id, 8000);
+          }}
+          onDrag={onStageDrag}
+        />
+        {/* なでたハート（そのペットの頭の上） */}
+        {markPet && hearts === markPet.petId && (
+          <span
+            className="pet-heart pointer-events-none absolute z-[1100] -translate-x-1/2 font-pixel text-[15px] text-pinkhot"
+            style={{ left: markPet.x, top: markPet.y - markPet.h - 6 }}
+          >
+            ♥
+          </span>
+        )}
+        {/* もりつけたごはん（ペットの足元） */}
+        {markPet && serving?.foodId && serving.petId === markPet.petId && (
+          <FoodServe
+            foodId={serving.foodId}
+            mode={serving.mode}
+            eaten={serving.eaten}
+            left={`${Math.round(markPet.x + 18)}px`}
+            bottom={`calc(100% - ${Math.round(markPet.y)}px)`}
+          />
+        )}
+        {overlays}
+        {viewToggle}
+      </div>
+    );
+  }
 
   return (
     // isolate: ペットのz-index(奥行き〜900)がヘッダー(z-10)を突き抜けて
@@ -632,91 +865,8 @@ export function LivingScene(props: {
         />
       )}
 
-      {/* ペットを1匹も飼っていないときだけ、部屋の中央に案内を出す。
-          飼っている子が全員おでかけ中のときは「空のリビング」を見せて、右下の小ラベルに任せる */}
-      {pets.length === 0 && !props.awayName && (
-        <p className="absolute inset-x-0 top-[55%] px-4 text-center text-[12.5px] text-inksoft">
-          まだ誰も住んでいません。ときどき画面のすみに遊びに来る子に話しかけてみよう。
-        </p>
-      )}
-
-      {/* セリフ窓（ビューポート幅に収まる折り返し窓。頭上の吹き出しだと切れる） */}
-      {serving?.bubble && (
-        <PetSpeech
-          name={pets.find((p) => p.id === serving.petId)?.name ?? ""}
-          text={serving.bubble}
-        />
-      )}
-
-      {log && (
-        <p className="absolute inset-x-2 bottom-1 z-[1250] rounded border-2 border-line8 bg-win/95 px-2 py-0.5 text-[10.5px] font-bold leading-snug">
-          {log}
-        </p>
-      )}
-
-      {/* 下段ラベル（左: おかいもの誘導 / 右: おでかけ表示）。
-          スマホ幅では1行に並びきらないので、flex-wrapで2行に逃がす */}
-      {!log && (props.awayName || furniture.length === 0) && (
-        <div className="absolute inset-x-2 bottom-1 z-[1200] flex flex-wrap items-center justify-between gap-x-2">
-          {furniture.length === 0 && (
-            <Link
-              href="/shop"
-              className="whitespace-nowrap font-pixel text-[9.5px] tracking-wide text-royal2 underline"
-            >
-              🛒 おかいもので家具をそろえよう
-            </Link>
-          )}
-          {props.awayName && (
-            <p className="ml-auto mr-[76px] whitespace-nowrap font-pixel text-[9.5px] tracking-wide text-inksoft">
-              {props.awayName}はデスクへおでかけ中
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* 収納BOX（家具をここへドロップでしまう） */}
-      <div
-        ref={boxRef}
-        className={`absolute bottom-1.5 right-1.5 z-[1200] grid h-[46px] w-[64px] place-items-center rounded-md border-2 border-dashed ${
-          overBox ? "border-pinkhot bg-pinkhot/20" : "border-line8/70 bg-white/40"
-        }`}
-      >
-        <span className="font-pixel text-[9px] tracking-wide text-inksoft">
-          📦 しまう
-        </span>
-      </div>
-
-      {menuPet && (
-        <CareMenu
-          petName={menuPet.name}
-          affection={menuPet.affection}
-          feedsLeft={menuPet.feedsLeft}
-          favoriteFoodId={
-            menuPet.favoriteFound
-              ? (speciesById(menuPet.speciesId)?.favoriteFoodId ?? null)
-              : null
-          }
-          stocks={stocks}
-          busy={serving !== null}
-          onPet={() => onPet(menuPet.id)}
-          onTalk={() => onTalk(menuPet.id)}
-          onChat={() => onChat(menuPet.id)}
-          onFeed={(foodId) => onFeed(menuPet.id, foodId)}
-          onClose={() => setMenuPetId(null)}
-        />
-      )}
-
-      {chatPet && chatSpecies && (
-        <TalkPanel
-          petId={chatPet.id}
-          petName={chatPet.name}
-          speciesId={chatPet.speciesId}
-          spriteNormal={chatSpecies.sprites.normal}
-          spriteHappy={chatSpecies.sprites.happy ?? chatSpecies.sprites.normal}
-          initialRemaining={chatLeft}
-          onClose={() => setChatPetId(null)}
-        />
-      )}
+      {overlays}
+      {viewToggle}
     </div>
   );
 }

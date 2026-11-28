@@ -238,6 +238,9 @@ export default async function HomePage() {
           awayName={visitor?.name ?? null}
           stocks={stocks}
           widthFactor={livingWidthFactor}
+          level={livingLevel}
+          wallpaperId={WALLPAPERS.some((t) => t.id === user.homeWallpaper) ? user.homeWallpaper : "cream"}
+          floorId={FLOORS.some((t) => t.id === user.homeFloor) ? user.homeFloor : "wood"}
         />
         {/* ===== 収納BOX（しまってある家具） ===== */}
         {storedFurniture.length > 0 && (

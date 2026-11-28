@@ -244,6 +244,13 @@ tour("myhome", "マイホーム: 表示ともようがえ（壁紙の切替が�
   const label = (await candidate.textContent())?.trim() ?? "";
   await candidate.click();
   await expect(page.getByRole("button", { name: new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) })).toHaveAttribute("aria-pressed", "true");
+  // リビングは 3D の箱庭（回せる）。「2D で見る」で平面の部屋に切り替わり、戻せる
+  await expect(page.locator("[data-stage-scene]")).toBeVisible();
+  await page.getByRole("button", { name: "右に回す" }).click();
+  await page.getByRole("button", { name: "2D で見る" }).click();
+  await expect(page.locator("[data-stage-scene]")).toHaveCount(0);
+  await page.getByRole("button", { name: "3D で見る" }).click();
+  await expect(page.locator("[data-stage-scene]")).toBeVisible();
   await assertHealthy();
 });
 
