@@ -4,7 +4,7 @@
 // きせかえパレットでも世界観が保たれる（3D でも表示時に今のパレットで色を解く）。
 
 import { StackSprite, type StackAction } from "@/components/stack-sprite";
-import { AVATAR_COLORS, AVATAR_GRID, AVATAR_SPRITES, AVATAR_VOX_PALETTE } from "@/components/pixel-avatar-data";
+import { AVATAR_COLORS, AVATAR_FIT, AVATAR_GRID, AVATAR_SPRITES, AVATAR_VOX_PALETTE } from "@/components/pixel-avatar-data";
 
 function Grid({ rows, px }: { rows: string[]; px: number }) {
   return (
@@ -43,6 +43,7 @@ export function PixelAvatar(props: { sprite: string; px?: number; accent?: strin
       <StackSprite
         src={`/stack/avatar/${sprite}.vox`}
         size={size}
+        fit={AVATAR_FIT}
         action={props.action}
         palette={AVATAR_VOX_PALETTE}
         line="var(--ink)"

@@ -201,6 +201,8 @@ export const AVATAR_SPRITES: Record<string, string[]> = {
 
 /** 表示の大きさの基準のマス数。PixelAvatar の px は「この数で割った 1 マス」（10×10 の頃と同じ大きさで出す） */
 export const AVATAR_GRID = 10;
+/** 3D の拡大率の基準（正面の絵の一番大きい段階の縦横）。全段階で同じ拡大率にして、成長の大きさの差を残す */
+export const AVATAR_FIT = 25;
 
 // 3D（.vox）での色の番号。値は CSS 変数のまま渡し、表示時に今のきせかえパレットで解く
 export const AVATAR_VOX_INDEX: Record<string, number> = { y: 1, o: 3, k: 4, e: 5, p: 6, w: 8, b: 9, g: 10, s: 11, a: 12, c: 13, v: 14 };

@@ -4,8 +4,9 @@ import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parseVox } from "./vox-file";
-import { prepareModel } from "./anim";
-import { AVATAR_SPRITES } from "@/components/pixel-avatar-data";
+import { prepareModel, modelStack } from "./anim";
+import { renderStack, frameBounds } from "./render";
+import { AVATAR_FIT, AVATAR_SPRITES } from "@/components/pixel-avatar-data";
 import { NPC_SPRITES } from "@/app/genba/npc-sprite-data";
 import { ALIEN_COUNT } from "@/components/loading-alien";
 import { HOME_STAGE } from "@/lib/home/stage";
@@ -42,6 +43,14 @@ describe("アバターの顔（まばたき・笑顔は目を見つけて描き�
       if (!eyes) throw new Error(`${id}: 目が見つからない`);
       for (const e of eyes) expect(e.x1 - e.x0, id).toBe(1);
       expect(Math.abs(eyes[0].cx + eyes[1].cx - 19), id).toBeLessThan(1); // 左右対称
+    }
+  });
+  it("どの段階も正面の絵が拡大率の基準（AVATAR_FIT）に収まる（枠からはみ出さない）", () => {
+    for (const id of Object.keys(AVATAR_SPRITES)) {
+      const { vox, palette } = parseVox(readFileSync(pub(`stack/avatar/${id}.vox`)));
+      const b = frameBounds(renderStack(modelStack(prepareModel(vox, palette, { legs: false })), { dir: 0 }));
+      if (!b) throw new Error(id);
+      expect(Math.max(b.x1 - b.x0 + 1, b.y1 - b.y0 + 1), id).toBeLessThanOrEqual(AVATAR_FIT);
     }
   });
 });

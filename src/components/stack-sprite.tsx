@@ -123,10 +123,12 @@ export function StackSprite(props: {
   palette?: Record<number, string>;
   /** 外周の線の色。既定はアプリの --line */
   line?: string;
+  /** 拡大率を決める基準の大きさ（絵の画素）。同じ仲間（アバターの全段階など）でそろえると大きさの差が残る。省略時はこの絵の大きさ */
+  fit?: number;
   className?: string;
   style?: CSSProperties;
 }) {
-  const { src, size, action = "idle", dir = 0, legs = false, fallback, palette, line = "var(--line, #12235f)" } = props;
+  const { src, size, action = "idle", dir = 0, legs = false, fallback, palette, line = "var(--line, #12235f)", fit: fitTo } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [model, setModel] = useState<Model | null>(null);
   const theme = useSyncExternalStore(subscribeTheme, themeSnapshot, themeServer);
@@ -160,8 +162,10 @@ export function StackSprite(props: {
     const b = frameBounds(ref) ?? { x0: 0, y0: 0, x1: ref.w - 1, y1: ref.h - 1 };
     // 拡大率は「画面の実際の画素」で整数倍（Retina なら 1.5 倍・2.5 倍も使える）。ドットの大きさがそろったまま枠いっぱいに近づける
     const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
-    const fit = size / Math.max(b.x1 - b.x0 + 1, b.y1 - b.y0 + 1);
-    const scale = Math.max(1, Math.floor(fit * dpr)) / dpr;
+    const fit = size / (fitTo ?? Math.max(b.x1 - b.x0 + 1, b.y1 - b.y0 + 1));
+    // 整数倍で 4 分の 3 に届かないとき（等倍の画面で小さい枠など）は、ドットが少し不ぞろいでも枠に合わせる
+    const crisp = Math.max(1, Math.floor(fit * dpr)) / dpr;
+    const scale = crisp >= fit * 0.75 ? crisp : fit;
     const snap = (v: number) => Math.round(v * dpr) / dpr;
     const baseY = size - (b.y1 - ref.pivotY + 1) * scale; // 足元の中心が来る高さ
     let last = "";
@@ -195,7 +199,7 @@ export function StackSprite(props: {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [model, size, action, dir, paletteKey, line, theme]);
+  }, [model, size, action, dir, paletteKey, line, theme, fitTo]);
 
   return (
     <div
