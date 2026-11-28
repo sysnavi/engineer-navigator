@@ -5,11 +5,13 @@
 // 並べ方の計算は src/lib/stack/scene.ts。止めるとき（撮影など）は StackSprite と同じ: ?nospin / window.__STACK_STATIC__ / 動きを減らす設定。
 // 止めているときは、回したときだけ描き直す（キャラは正面・ふつうの顔）。
 //
-// - キャラも決まった所に立ち、地面と一緒に回る。手前の物の陰に入った所は、線の色のシルエットで透かす
+// - キャラも決まった所に立ち、地面と一緒に回る。手前の物の陰に入ったとき（layout.occlusion）:
+//   島は隠れた所を線の色のシルエットで透かす。リビングは透かさず、完全に隠れたときだけふちを 1 ドットの線で見せる
 // - 部屋（layout.room）: 手前に回ってきた壁は描かない（壁に付いた窓・棚・ポスターも一緒に消える）。
 //   向きごとに部屋がちょうど入る拡大率にし、回したときは短いアニメで寄り引きする
-// - 寄る（layout.zoomable）: ＋ −・ピンチ。寄ったらドラッグで見回す。キャラをタップするとその子を追う
-// - 歩き回る（item.wander）: 家具をよけて歩き、ときどき spot のある家具で休む（寝る・座る・てっぺん・前・横）
+// - 寄る（layout.zoomable）: ＋ −・ピンチだけ。寄ったらドラッグで見回す（キャラをタップしても寄らない）
+// - 歩き回る（item.wander）: 家具をよけて歩き、ときどき spot のある家具で休む（寝る・座る・てっぺん・前・横）。
+//   occlusion が outline なら、今の向きで手前の家具の陰に入る所と、ほかの子のすぐそばを避けて行き先を選ぶ
 // - 動かす（item.movable）: 指で引きずると onDrag に床の座標を渡す（保存は呼び出し側）
 // - 外から: control で笑わせる・立ち止まらせる・画面の位置を聞く
 
@@ -118,6 +120,12 @@ export type StageDrag = {
 const LOOK = [0, 1, 0, STACK_STYLE.dirs - 1];
 /** 陰に入ったキャラのシルエットの濃さ（0〜255。中と輪郭） */
 const SILHOUETTE = { fill: 100, edge: 235 };
+/** occlusion: outline のとき、体（線でない所）の見えている割合がこれ以下なら「完全に隠れた」とみなす */
+const HIDDEN_VISIBLE_MAX = 0.03;
+/** 行き先を選ぶとき、体のこれ以上が手前の物に隠れる所は避ける */
+const AVOID_HIDDEN = 0.35;
+/** 行き先を選ぶとき、ほかの子とこれ以上離れていればよしとする（ボクセル） */
+const SPREAD = 16;
 /** 寄れる段の数 */
 const ZOOM_MAX = 3;
 /** 歩く速さ（ボクセル / 秒） */
@@ -156,7 +164,6 @@ export function StageScene(props: {
   const zoomRef = useRef(0);
   const [zoomed, setZoomed] = useState(false);
   const camRef = useRef({ x: 0, y: 0 });
-  const followRef = useRef<string | null>(null);
   const zoomByRef = useRef<(delta: number) => void>(() => {});
   const panByRef = useRef<(dx: number, dy: number) => void>(() => {});
   const grabRef = useRef<(clientX: number, clientY: number) => string | null>(() => null);
@@ -300,20 +307,74 @@ export function StageScene(props: {
       w.mode = mode;
       w.face = faceOf(tx - w.x, ty - w.y);
     };
-    const pickWalk = (w: Walker) => {
+    const avoid = () => L.occlusion === "outline";
+    // 今の向きで、その子が (x, y, z) に立ったとき、体のどれだけが手前の物に隠れるか（0〜1）。
+    // 前の絵（placed）のその子の絵の大きさで見積もる。まだ描いていなければ 0
+    const hiddenAt = (id: string, x: number, y: number, z = 0, depthBias = 0) => {
+      const self = placed.find((q) => q.item === id);
+      if (!self) return 0;
+      const dir = dirRef.current;
+      const p = project({ x, y, z: L.groundZ + z }, dir, { pitch });
+      const back = {
+        ...self,
+        x0: Math.round(ox + p.x - self.frame.pivotX),
+        y0: Math.round(oy + p.y - self.frame.pivotY),
+      };
+      const depth = p.depth + depthBias;
+      const front = placed.filter((q) => {
+        const it = items.get(q.item);
+        if (!it || it.actor || it.layer || q.item === id) return false;
+        const pos = posOf(q.item);
+        return project(pos, dir, { pitch }).depth > depth;
+      });
+      if (!front.length) return 0;
+      const { mask } = hiddenMask(back, front);
+      let body = 0,
+        hid = 0;
+      for (let i = 0; i < mask.length; i++)
+        if (self.frame.solid[i]) {
+          body++;
+          if (mask[i]) hid++;
+        }
+      return body ? hid / body : 0;
+    };
+    // ほかの子（今いる所と行き先）からの近さ
+    const crowd = (id: string, x: number, y: number) => {
+      let m = Infinity;
+      for (const [k, o] of walkers) {
+        if (k === id) continue;
+        m = Math.min(m, Math.hypot(o.x - x, o.y - y), Math.hypot(o.tx - x, o.ty - y));
+      }
+      return m;
+    };
+    const pickWalk = (id: string, w: Walker) => {
       const A = L.walk!;
-      for (let i = 0; i < 12; i++) {
+      // 候補をいくつか引き、陰に入らない所のうち、ほかの子から十分離れた所（なければ一番離れた所）へ
+      let best: { x: number; y: number; d: number } | null = null;
+      for (let i = 0; i < 16; i++) {
         const tx = rnd(A.x0, A.x1),
           ty = rnd(A.y0, A.y1);
-        if (Math.hypot(tx - w.x, ty - w.y) > 8 && clear(w.x, w.y, tx, ty)) return moveTo(w, tx, ty, "walk");
+        if (Math.hypot(tx - w.x, ty - w.y) <= 8 || !clear(w.x, w.y, tx, ty)) continue;
+        if (!avoid()) return moveTo(w, tx, ty, "walk");
+        if (hiddenAt(id, tx, ty) > AVOID_HIDDEN) continue;
+        const d = crowd(id, tx, ty);
+        if (d >= SPREAD) return moveTo(w, tx, ty, "walk");
+        if (!best || d > best.d) best = { x: tx, y: ty, d };
       }
+      if (best) return moveTo(w, best.x, best.y, "walk");
       w.until = performance.now() + 800;
     };
     const pickRest = (id: string, w: Walker) => {
       // その子のお気に入り（きょう使う家具）→ 空いている家具 → なければその場で休む
       const taken = new Set([...walkers.entries()].filter(([k, o]) => k !== id && o.spot).map(([, o]) => o.spot));
       const home = items.get(id)?.home;
-      const free = L.items.filter((i) => i.spot && !taken.has(i.id) && dims(i.id));
+      // 今の向きで、休む姿が手前の家具の陰に入る家具は選ばない（回せばまた選ばれる）
+      const visible = (spotId: string) => {
+        if (!avoid()) return true;
+        const p = poseAt(spotId);
+        return !!p && hiddenAt(id, p.x, p.y, p.z, 0.5) <= AVOID_HIDDEN;
+      };
+      const free = L.items.filter((i) => i.spot && !taken.has(i.id) && dims(i.id) && visible(i.id));
       const spot =
         home && free.some((i) => i.id === home) ? home : free.length ? free[Math.floor(rnd(0, free.length))].id : null;
       const pose = spot ? poseAt(spot) : null;
@@ -338,7 +399,7 @@ export function StageScene(props: {
             Object.assign(w, { z: 0, sleep: false, spot: undefined, mode: "idle", walks: Math.floor(rnd(2, 4)), until: now + 400 });
             continue;
           }
-          if (w.walks > 0) pickWalk(w);
+          if (w.walks > 0) pickWalk(id, w);
           else pickRest(id, w);
           continue;
         }
@@ -429,13 +490,8 @@ export function StageScene(props: {
         }
       }
       if (!still) stepWalkers(now, dt);
-      // カメラ: 追っている子 → その子、寄っているときは見ている床の点。少しずつ寄せる
-      const goal =
-        followRef.current && items.has(followRef.current)
-          ? posOf(followRef.current)
-          : zoomRef.current
-            ? camRef.current
-            : { x: 0, y: 0 };
+      // カメラ: 寄っているときは見ている床の点、引いているときは部屋の真ん中。少しずつ寄せる
+      const goal = zoomRef.current ? camRef.current : { x: 0, y: 0 };
       const ease = still ? 1 : Math.min(1, dt * 6);
       camLive.x += (goal.x - camLive.x) * ease;
       camLive.y += (goal.y - camLive.y) * ease;
@@ -501,11 +557,21 @@ export function StageScene(props: {
           return { ...a, y: a.y + (walkers.get(i.id)?.mode === "rest" ? 0.5 : 0) };
         });
       for (const { it } of depthOrder(rest, dir, { pitch })) drawOne(it, true);
-      // キャラが手前の物に隠れた所を、シルエットで透かす（どの向きでも居場所が分かるように）
+      // キャラが手前の物に隠れたとき（どの向きでも居場所が分かるように）
       placed.forEach((pl, i) => {
         if (!items.get(pl.item)?.actor) return;
         const { mask, count } = hiddenMask(pl, placed.slice(i + 1));
-        if (count) drawSilhouette(pl, mask);
+        if (!count) return;
+        if (L.occlusion !== "outline") return drawSilhouette(pl, mask);
+        // リビング: 透かさない。体がほとんど見えないときだけ、ふちを線で見せる
+        let body = 0,
+          shown = 0;
+        for (let k = 0; k < mask.length; k++)
+          if (pl.frame.solid[k]) {
+            body++;
+            if (!mask[k]) shown++;
+          }
+        if (body && shown / body <= HIDDEN_VISIBLE_MAX) drawOutline(pl);
       });
     };
     const ghost = document.createElement("canvas");
@@ -518,6 +584,21 @@ export function StageScene(props: {
       const img = g.createImageData(f.w, f.h);
       // 輪郭は濃く、中は薄く（形が読めて、手前の物の絵も透けて見える）
       for (let i = 0; i < mask.length; i++) if (mask[i]) img.data[i * 4 + 3] = f.solid[i] ? SILHOUETTE.fill : SILHOUETTE.edge;
+      g.putImageData(img, 0, 0);
+      g.globalCompositeOperation = "source-in";
+      g.fillStyle = line;
+      g.fillRect(0, 0, f.w, f.h);
+      ctx.drawImage(ghost, x0, y0);
+    };
+    // ふちだけ（絵の線の輪 = 体のまわりの 1 ドット）を線の色で
+    const drawOutline = (pl: Placed<string>) => {
+      const { frame: f, x0, y0 } = pl;
+      ghost.width = f.w;
+      ghost.height = f.h;
+      const g = ghost.getContext("2d");
+      if (!g) return;
+      const img = g.createImageData(f.w, f.h);
+      for (let i = 0; i < f.solid.length; i++) if (!f.solid[i] && f.px[i] >>> 24) img.data[i * 4 + 3] = SILHOUETTE.edge;
       g.putImageData(img, 0, 0);
       g.globalCompositeOperation = "source-in";
       g.fillStyle = line;
@@ -549,19 +630,11 @@ export function StageScene(props: {
       const hit = actorAt(x, y);
       if (hit && !still) smileUntil.set(hit, performance.now() + 1200);
       if (hit) cbRef.current.onActorTap?.(hit);
-      if (L.zoomable) {
-        // キャラをタップ → その子を追って寄る。ほかをタップ → 追うのをやめる
-        if (hit) {
-          followRef.current = hit;
-          if (!zoomRef.current) zoomByRef.current(1);
-        } else followRef.current = null;
-      }
       if (still) redraw();
     };
     zoomByRef.current = (delta) => {
       const z = Math.max(0, Math.min(ZOOM_MAX, zoomRef.current + delta));
       if (z === zoomRef.current) return;
-      if (z === 0) followRef.current = null;
       if (z > 0 && zoomRef.current === 0) camRef.current = { x: camLive.x, y: camLive.y };
       zoomRef.current = z;
       setZoomed(z > 0);
@@ -570,7 +643,6 @@ export function StageScene(props: {
     };
     panByRef.current = (dx, dy) => {
       // 画面の動き（px）→ 床の上の動き。指と同じ向きに部屋が動く
-      followRef.current = null;
       const a = unproject(-dx / px, -dy / px, dirRef.current, { pitch });
       const o = unproject(0, 0, dirRef.current, { pitch });
       const A = L.walk ?? { x0: -40, x1: 40, y0: -40, y1: 40 };

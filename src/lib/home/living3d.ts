@@ -162,6 +162,7 @@ export function livingLayout(input: LivingInput): StageLayout {
     centerY: 0.6,
     minScale: 2,
     zoomable: true,
+    occlusion: "outline",
     room: { w: s.w, d: s.d, h: ROOM_WALL_H },
     walk: { x0: -hw + 7, x1: hw - 7, y0: -hd + 10, y1: hd - 5 },
     items,
