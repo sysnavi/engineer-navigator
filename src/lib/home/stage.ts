@@ -18,6 +18,13 @@ export type StageItem = {
   look?: boolean;
   /** 色の差し替え（色の番号 → 色）。"var(--lemon)" のような CSS 変数も使える */
   palette?: Record<number, string>;
+  /**
+   * 描く段: "floor" = 床に敷くもの（ラグなど。いつも一番奥）、"wall" = 部屋の壁（手前側に来た壁は描かない＝カットアウェイ）。
+   * 省略時はふつうの物（奥行きの順に描く）
+   */
+  layer?: "floor" | "wall";
+  /** キャラが床の上を歩き回る（layout.walk の範囲。家具はよける） */
+  wander?: boolean;
 };
 
 export type StageLayout = {
@@ -27,6 +34,23 @@ export type StageLayout = {
   pitch: number;
   /** 地面の中心が来る高さ（0 = 上端、1 = 下端） */
   centerY: number;
+  /** 拡大率を決める幅（ボクセル）。舞台の幅 ÷ これ の整数倍（3〜6 倍）。省略時 84 */
+  fitWidth?: number;
+  /** 拡大率の下限（省略時 3）。広い部屋をスマホ幅で全体表示するときは 2 */
+  minScale?: number;
+  /** 縦長の枠（高さ > 幅）のときの傾き。上から見下ろす角度を深くして、床を縦に広く使う */
+  portraitPitch?: number;
+  /** ＋−・ピンチで寄れる。寄ったらドラッグで見回し、キャラをタップするとその子を追う */
+  zoomable?: boolean;
+  /**
+   * 部屋の大きさ（床の幅・奥行き・壁の高さ）。渡すと、向きごとに「その向きで部屋がちょうど入る」拡大率にする
+   * （横長の部屋を縦長の画面で見るとき、長い辺が奥へ向く向きでは大きく出せる）
+   */
+  room?: { w: number; d: number; h: number };
+  /** 縦長の枠で最初に向ける向き（部屋の長い辺を奥へ向けると大きく出せる） */
+  portraitDir?: number;
+  /** 歩き回るキャラの範囲（床の座標） */
+  walk?: { x0: number; x1: number; y0: number; y1: number };
   items: StageItem[];
 };
 

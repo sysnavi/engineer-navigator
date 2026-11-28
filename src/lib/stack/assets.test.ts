@@ -1,6 +1,6 @@
 // 3D の原本（.vox）の抜けを防ぐガード。キャラの文字マップを足したら .vox も起こすこと
 //   npx tsx scripts/gen-charmap-vox.ts（アバター・NPC） / npx tsx scripts/gen-alien-vox.ts（宇宙人） / npx tsx scripts/gen-stage-vox.ts（ホームの舞台）
-//   npx tsx scripts/gen-png-vox.ts（ペット・ダンジョンの敵。PNG から起こす）
+//   npx tsx scripts/gen-png-vox.ts（ペット・ダンジョンの敵。PNG から起こす） / npx tsx scripts/gen-furniture-vox.ts（おかいもの家具）
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -14,6 +14,8 @@ import { HOME_STAGE } from "@/lib/home/stage";
 import { PET_SPECIES } from "@/lib/pets/species";
 import { MONSTERS } from "@/lib/dungeon/content";
 import { petVoxSrc, enemyVoxSrc } from "./assets";
+import { SHOP_ITEMS } from "@/lib/shop/content";
+import { furnitureVoxSrc } from "@/lib/home/living3d";
 
 const pub = (p: string) => path.join(process.cwd(), "public", p);
 const ok = (p: string) => existsSync(pub(p)) && parseVox(readFileSync(pub(p))).vox.count() > 0;
@@ -30,6 +32,9 @@ describe("キャラの .vox がそろっている", () => {
   });
   it("ペット（支給の PNG ごとに 1 つ）", () => {
     for (const s of PET_SPECIES) expect(ok(petVoxSrc(s.id).slice(1)), s.id).toBe(true);
+  });
+  it("おかいもの家具（マイホームの箱庭）", () => {
+    for (const i of SHOP_ITEMS.filter((i) => !i.expand)) expect(ok(furnitureVoxSrc(i.id).slice(1)), i.id).toBe(true);
   });
   it("ダンジョンの敵", () => {
     for (const m of MONSTERS) expect(ok(enemyVoxSrc(m.sprite).slice(1)), m.sprite).toBe(true);
