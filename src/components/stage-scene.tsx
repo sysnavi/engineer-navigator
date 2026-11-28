@@ -594,6 +594,14 @@ export function StageScene(props: {
         y / px,
       );
     };
+    // スマホ: 縦のスクロールはページに渡している（touch-action: pan-y）ので、家具の上から始まる指だけは
+    // スクロールを止めて、引きずって動かせるようにする（pointer イベントではスクロールを止められない）
+    const onTouchStart = (e: TouchEvent) => {
+      if (!hasDrag || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      if (grabRef.current(t.clientX, t.clientY)) e.preventDefault();
+    };
+    cv.addEventListener("touchstart", onTouchStart, { passive: false });
     dragToRef.current = (clientX, clientY) => {
       const r = cv.getBoundingClientRect();
       return unproject((clientX - r.left) / px - ox, (clientY - r.top) / px - oy, dirRef.current, { pitch, z: L.groundZ });
@@ -633,9 +641,10 @@ export function StageScene(props: {
       zoomByRef.current = () => {};
       panByRef.current = () => {};
       grabRef.current = () => null;
+      cv.removeEventListener("touchstart", onTouchStart);
       controlRef.current = null;
     };
-  }, [scene, theme]);
+  }, [scene, theme, hasDrag]);
 
   // 並べ方が変わったら（家具を動かした・増えた）、止めているときも描き直す
   useEffect(() => {
