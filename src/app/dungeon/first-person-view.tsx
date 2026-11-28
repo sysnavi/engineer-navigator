@@ -11,6 +11,8 @@
 
 import { useEffect, useRef } from "react";
 import { DIRS, type Facing, type ViewObjectKind } from "@/lib/dungeon/map";
+import { voxCanvas } from "@/components/stack-canvas";
+import { enemyVoxSrc } from "@/lib/stack/assets";
 
 export type ViewMap = {
   n: number;
@@ -39,6 +41,23 @@ function sprite(name: string): HTMLImageElement {
     spriteCache.set(name, im);
   }
   return im;
+}
+
+// 敵の 3D（.vox）。ゆっくり左右を見る 4 コマ（正面→右斜め→正面→左斜め）を前もって絵にしておく。
+// 読めないあいだ・読めなかった敵は PNG のまま
+const FOE_LOOK = [0, 1, 0, 7];
+const foe3d = new Map<string, HTMLCanvasElement[] | null>();
+function foeFrames(name: string, onReady: () => void): HTMLCanvasElement[] | null {
+  if (!foe3d.has(name)) {
+    foe3d.set(name, null);
+    Promise.all(FOE_LOOK.map((dir) => voxCanvas(enemyVoxSrc(name), { dir })))
+      .then((fs) => {
+        foe3d.set(name, fs);
+        onReady();
+      })
+      .catch(() => {});
+  }
+  return foe3d.get(name) ?? null;
 }
 
 function frame(k: number) {
@@ -256,12 +275,21 @@ export function FirstPersonView(props: {
 
       // 戦闘中の敵: 目の前に大きく
       if (foe) {
-        const im = sprite(foe.sprite);
         const fr = frame(1);
         const s = (fr.x1 - fr.x0) * (foe.boss ? 0.62 : 0.5);
-        const draw = () => ctx.drawImage(im, W / 2 - s / 2, HZ + 22 - s, s, s);
-        if (im.complete && im.naturalWidth > 0) draw();
-        else im.onload = () => render();
+        const f3 = foeFrames(foe.sprite, render);
+        if (f3) {
+          // 3D: PNG（16 ドット四方を s×s に描く）と 1 ドットの大きさをそろえ、足元を同じ高さに置く
+          const f = f3[reduced ? 0 : Math.floor(performance.now() / 1100) % f3.length];
+          const k = s / 16;
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(f, Math.round(W / 2 - (f.width * k) / 2), Math.round(HZ + 22 - f.height * k), f.width * k, f.height * k);
+        } else {
+          const im = sprite(foe.sprite);
+          const draw = () => ctx.drawImage(im, W / 2 - s / 2, HZ + 22 - s, s, s);
+          if (im.complete && im.naturalWidth > 0) draw();
+          else im.onload = () => render();
+        }
       }
 
       const glow = ctx.createRadialGradient(W / 2, HZ + 10, 10, W / 2, HZ + 10, 150);

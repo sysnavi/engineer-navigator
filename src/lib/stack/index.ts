@@ -5,5 +5,6 @@ export * from "./vox-file";
 export * from "./render";
 export * from "./anim";
 export * from "./charmap";
+export * from "./pixels";
 export { STACK_STYLE } from "./style";
 export * from "./scene";

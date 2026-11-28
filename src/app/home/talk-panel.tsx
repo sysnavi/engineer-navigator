@@ -8,9 +8,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import Image from "next/image";
 import { petTalk, type TalkTurn } from "./talk-actions";
 import { BarButton } from "@/components/retro";
+import { PetSprite } from "@/components/pets/pet-sprite";
 
 const TYPE_MS = 42; // 1文字あたりの表示間隔
 
@@ -146,13 +146,11 @@ export function TalkPanel(props: {
         {/* 会話ログ */}
         <div ref={logRef} className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-3">
           <div className="flex items-center gap-2.5 rounded-lg border-2 border-dashed border-peri bg-surface px-2.5 py-2">
-            <Image
+            <PetSprite
               src={spriteNow}
               alt=""
               width={40}
               height={40}
-              style={{ imageRendering: "pixelated" }}
-              unoptimized
             />
             <p className="text-[11.5px] leading-snug text-inksoft">
               …

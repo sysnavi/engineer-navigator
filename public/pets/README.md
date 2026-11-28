@@ -24,6 +24,19 @@ public/pets/<speciesId>/
 - ドット絵はにじみ防止のため `image-rendering: pixelated` で表示される。**ドットの整数倍サイズ**で書き出すときれいに出る
 - アニメーション（歩行・ぴょこぴょこ・傾き）はCSS側が付けるので、**1枚絵でOK**。差分は表情だけ
 
+## 3D（.vox）
+
+画面のペットは 3D で出る（PNG は読み込み中と SSR の代わり）。PNG を置いて species.ts に追記したら、3D の原本を起こす:
+
+```
+npx tsx scripts/gen-png-vox.ts <speciesId>
+```
+
+- `public/pets/<speciesId>/model.vox` ができる（PNG の隣）。以後はこれが原本で、MagicaVoxel で直せる
+- 一覧 `docs/design/pets-3d-sheet.png`（正面・斜め・横・うしろ）で形を確かめる
+- にっこり・寝顔は 3D 側で目と口を描き換える（happy.png・sleep.png は 2D の代わり表示にだけ使う）
+- 黒っぽい色は線、一番多い色が体、小さい白は目の光として扱う。顔が崩れたら .vox を手で直す
+
 ## 反映
 
-ファイルを置いて species.ts に追記 → いつものビルドで反映（DBマイグレーション不要）。
+ファイルを置いて species.ts に追記し、3D の原本を起こす → いつものビルドで反映（DBマイグレーション不要）。

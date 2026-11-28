@@ -37,6 +37,8 @@ import {
   type PropInstance,
 } from "@/lib/walk/world";
 import type { TimeBucket, WeatherBucket } from "@/lib/walk/mutter";
+import { petModelOf } from "@/components/pets/pet-sprite";
+import { voxCanvas } from "@/components/stack-canvas";
 
 const BASE_SPEED = 14; // px/s（のんびり歩き。散歩なので急がない）
 const PET_SIZE = 48;
@@ -326,18 +328,29 @@ export function WalkCanvas(props: {
   const imgRef = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
     let alive = true;
-    const img = new Image();
-    img.onload = () => {
-      if (alive) imgRef.current = prerenderPet(img);
-    };
-    img.onerror = () => {
-      const fb = new Image();
-      fb.onload = () => {
-        if (alive) imgRef.current = prerenderPet(fb);
+    const png = () => {
+      const img = new Image();
+      img.onload = () => {
+        if (alive) imgRef.current = prerenderPet(img);
       };
-      fb.src = props.normalSrc;
+      img.onerror = () => {
+        const fb = new Image();
+        fb.onload = () => {
+          if (alive) imgRef.current = prerenderPet(fb);
+        };
+        fb.src = props.normalSrc;
+      };
+      img.src = props.walkSrc;
     };
-    img.src = props.walkSrc;
+    // 3D（右斜め前を向いて歩く）。読めなければ今までの PNG
+    const m = petModelOf(props.walkSrc) ?? petModelOf(props.normalSrc);
+    if (m)
+      voxCanvas(m.vox, { dir: 7, expr: "n", height: PET_SIZE })
+        .then((c) => {
+          if (alive) imgRef.current = c;
+        })
+        .catch(png);
+    else png();
     return () => {
       alive = false;
     };
@@ -348,11 +361,22 @@ export function WalkCanvas(props: {
   useEffect(() => {
     let alive = true;
     happyRef.current = null;
-    const img = new Image();
-    img.onload = () => {
-      if (alive) happyRef.current = prerenderPet(img);
+    const png = () => {
+      const img = new Image();
+      img.onload = () => {
+        if (alive) happyRef.current = prerenderPet(img);
+      };
+      img.src = props.happySrc ?? props.normalSrc;
     };
-    img.src = props.happySrc ?? props.normalSrc;
+    // 3D: 立ち止まってこちらを向き、にっこり
+    const m = petModelOf(props.happySrc ?? props.normalSrc);
+    if (m)
+      voxCanvas(m.vox, { dir: 0, expr: "s", height: PET_SIZE })
+        .then((c) => {
+          if (alive) happyRef.current = c;
+        })
+        .catch(png);
+    else png();
     return () => {
       alive = false;
     };

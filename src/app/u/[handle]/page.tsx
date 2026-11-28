@@ -5,6 +5,7 @@ import { loadPublicProfile } from "@/lib/public-profile";
 import { speciesById } from "@/lib/pets/species";
 import { Window, PixelTitle, PixelLabel, LevelBlocks } from "@/components/retro";
 import { SKILL_LEVEL_MAX, skillLevelDef } from "@/lib/skill-levels";
+import { PetSprite } from "@/components/pets/pet-sprite";
 
 // 検索意図に寄せた動的metadata（Issue #14）。内容ベースで title/description/OGP を生成。
 // コンディション等の非公開項目は loadPublicProfile が返さないので、ここにも出ない。
@@ -217,14 +218,7 @@ export default async function PublicProfilePage({
               if (!sp) return null;
               return (
                 <div key={p.id} className="flex flex-col items-center gap-1">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={sp.sprites.normal}
-                    alt={p.name}
-                    width={44}
-                    height={44}
-                    style={{ imageRendering: "pixelated" }}
-                  />
+                  <PetSprite src={sp.sprites.normal} alt={p.name} width={44} height={44} />
                   <span className="font-pixel text-[10px] tracking-wide">{p.name}</span>
                 </div>
               );

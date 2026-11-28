@@ -26,6 +26,7 @@ import { FoodServe } from "./food-serve";
 import { TalkPanel } from "./talk-panel";
 import { talkRemaining } from "./talk-actions";
 import type { ServeMode } from "@/lib/pets/foods";
+import { PetSprite } from "@/components/pets/pet-sprite";
 
 export type DeskGadget = Gadget & { x: number; y: number; z: number };
 export type DeskVisitor = {
@@ -445,14 +446,13 @@ export function DesktopScene(props: {
               }`}
               style={{ animationDuration: "1.6s" }}
             >
-              <Image
+              <PetSprite
                 src={(visitorHeart && sp.sprites.happy) || sp.sprites.normal}
                 alt={props.visitor.name}
                 width={96}
                 height={96}
                 draggable={false}
-                style={{ width: "100%", height: "auto", imageRendering: "pixelated" }}
-                unoptimized
+                style={{ width: "100%", height: "auto" }}
               />
             </span>
           </span>

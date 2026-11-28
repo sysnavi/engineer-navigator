@@ -26,7 +26,7 @@ import {
   type Frame,
 } from "@/lib/stack";
 
-export type StackAction = "idle" | "turn" | "smile" | "walk" | "look";
+export type StackAction = "idle" | "turn" | "smile" | "walk" | "look" | "happy" | "sleep";
 
 declare global {
   interface Window {
@@ -101,6 +101,12 @@ function pose(action: StackAction, t: number, baseDir: number): { dir: number; s
     }
     case "walk":
       return { dir: baseDir, step: (Math.floor(t / 0.13) % 4) as Step, expr: blink ? "b" : "n" };
+    case "happy":
+      // ずっとにっこり（なでた・仲よくなった直後など）
+      return { dir: baseDir, step: -1, expr: "s" };
+    case "sleep":
+      // 目を閉じたまま
+      return { dir: baseDir, step: -1, expr: "b" };
     default:
       return { dir: baseDir, step: -1, expr: blink ? "b" : "n" };
   }
@@ -125,6 +131,8 @@ export function StackSprite(props: {
   line?: string;
   /** 拡大率を決める基準の大きさ（絵の画素）。同じ仲間（アバターの全段階など）でそろえると大きさの差が残る。省略時はこの絵の大きさ */
   fit?: number;
+  /** 3D の絵が出たとき（代わりの 2D を隠すなど） */
+  onReady?: () => void;
   className?: string;
   style?: CSSProperties;
 }) {
@@ -133,11 +141,19 @@ export function StackSprite(props: {
   const [model, setModel] = useState<Model | null>(null);
   const theme = useSyncExternalStore(subscribeTheme, themeSnapshot, themeServer);
   const paletteKey = palette ? JSON.stringify(palette) : "";
+  const onReadyRef = useRef(props.onReady);
+  useEffect(() => {
+    onReadyRef.current = props.onReady;
+  });
 
   useEffect(() => {
     let alive = true;
     loadStackModel(src, legs)
-      .then((m) => alive && setModel(m))
+      .then((m) => {
+        if (!alive) return;
+        setModel(m);
+        onReadyRef.current?.();
+      })
       .catch(() => {
         // 読めなければ fallback の2Dのまま
       });
@@ -188,7 +204,8 @@ export function StackSprite(props: {
       draw(f, `${p.dir}|${p.step}|${p.expr}`);
     };
     if (isStatic()) {
-      draw(renderStack(stackOf(-1, "n"), { dir, line: ink }), "static");
+      const p = pose(action, 0, dir);
+      draw(renderStack(stackOf(-1, action === "happy" || action === "sleep" ? p.expr : "n"), { dir, line: ink }), "static");
       return;
     }
     let raf = 0;

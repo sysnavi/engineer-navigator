@@ -15,7 +15,6 @@
 // セリフ窓・ログ・収納BOXなどのUIはフレーム直下のオーバーレイ（ビューポート固定）。
 
 import { useRef, useState, useTransition } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { petPet, feedPet, moveFurniture, stowFurniture, type FeedResult } from "./actions";
 import { PET_SIZE } from "@/lib/home/scene";
@@ -35,6 +34,7 @@ import { PetSpeech } from "./pet-speech";
 import { FoodServe } from "./food-serve";
 import { TalkPanel } from "./talk-panel";
 import { talkRemaining } from "./talk-actions";
+import { PetSprite } from "@/components/pets/pet-sprite";
 
 export type RoomPet = {
   id: string;
@@ -579,13 +579,12 @@ export function LivingScene(props: {
                 className={`w-full ${bodyAnim}`}
                 style={{ animationDuration: serve ? "0.9s" : undefined }}
               >
-                <Image
+                <PetSprite
                   src={sprite}
                   alt={p.name}
                   width={96}
                   height={96}
-                  style={{ width: "100%", height: "auto", imageRendering: "pixelated" }}
-                  unoptimized
+                  style={{ width: "100%", height: "auto" }}
                 />
               </span>
               {/* 名札はタップ（おせわメニューを開いている間）だけ見せる。

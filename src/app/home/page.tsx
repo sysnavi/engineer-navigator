@@ -34,6 +34,7 @@ import { LivingScene, type LivingFurniture, type RoomPet } from "./living-scene"
 import type { FoodStock } from "./care-menu";
 import { ActionForm } from "@/components/toast";
 import { namePet, placeFurniture, placeGadgetAt, setRoomTheme } from "./actions";
+import { PetSprite } from "@/components/pets/pet-sprite";
 
 function today(): Date {
   const d = new Date();
@@ -361,14 +362,7 @@ export default async function HomePage() {
                   className="flex items-center gap-2.5 rounded-lg border-2 border-dashed border-peri bg-surface px-3 py-2"
                 >
                   {sp && (
-                    <Image
-                      src={sp.sprites.normal}
-                      alt=""
-                      width={36}
-                      height={36}
-                      style={{ imageRendering: "pixelated" }}
-                      unoptimized
-                    />
+                    <PetSprite src={sp.sprites.normal} alt="" width={36} height={36} />
                   )}
                   <input
                     name="name"

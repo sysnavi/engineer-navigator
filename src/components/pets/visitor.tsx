@@ -6,10 +6,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { GuardedLink } from "@/components/nav-guard";
 import { speciesById, TALK_TREES, type TalkNode } from "@/lib/pets/species";
 import { judgeTalk, aiTalkStep, namePet } from "@/app/home/actions";
+import { PetSprite } from "@/components/pets/pet-sprite";
 
 type Phase =
   | "idle"
@@ -160,14 +160,7 @@ export function Visitor(props: {
           {props.revisit ? "👋 また きたよ！" : "👋 …？"}
         </span>
         <span className="alien-patapata block drop-shadow-[3px_3px_0_rgba(18,35,95,0.3)]">
-          <Image
-            src={species.sprites.normal}
-            alt=""
-            width={56}
-            height={56}
-            style={{ imageRendering: "pixelated" }}
-            unoptimized
-          />
+          <PetSprite src={species.sprites.normal} alt="" width={56} height={56} />
         </span>
       </button>
     );
@@ -190,13 +183,11 @@ export function Visitor(props: {
         <div className="p-4">
           <div className="mb-3 flex justify-center">
             <span className={phase === "befriended" ? "hatch-born" : ""}>
-              <Image
+              <PetSprite
                 src={phase === "befriended" || reply ? happy : species.sprites.normal}
                 alt=""
                 width={96}
                 height={96}
-                style={{ imageRendering: "pixelated" }}
-                unoptimized
               />
             </span>
           </div>

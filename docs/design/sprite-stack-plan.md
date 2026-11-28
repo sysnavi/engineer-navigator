@@ -9,7 +9,7 @@
 |---|---|---|
 | 1 | 共通部品（`src/lib/stack/`・`<StackSprite>`・文字マップ→ボクセル変換）と宇宙人20種の3D化 | **済（ローカル main、未 push）** |
 | 2a | 文字マップでできているキャラ（アバター8段階・げんばNPC 9種） | **済（ローカル main、未 push）** |
-| 2b | PNG でできているキャラ（ペット・ダンジョンの敵） | オーナーの判断待ち（ペットの手描き PNG 支給の約束） |
+| 2b | PNG でできているキャラ（ペット・ダンジョンの敵） | **済（ローカル main、未 push）**。2026-11-28 オーナー決定: PNG 支給のまま、現場で .vox を起こして両方置く |
 | 3 | おさんぽの島（既存ビオームを全部、1つずつ） | 未着手 |
 | 4 | ダンジョンの見下ろし化 | 未着手 |
 | ホーム | ホーム刷新「A 舞台」（2026-11-28 オーナー決定）: ホームの一番上にキャラが住む小島。◀ ▶ と横スワイプで 8 方向 | **済（ローカル main、未 push）** |
@@ -26,9 +26,16 @@
 - 自分のキャラ（ホームの PLAYER_FILE・マイページ）は `action="look"`（ゆっくり左右を見る）。転生で生まれた直後は `turn`。ほかは正面でまばたき。
 - ガードテスト `src/lib/stack/assets.test.ts`: アバター・NPC・宇宙人の .vox が全部そろっているか。
 
+段階2bの中身:
+- `src/lib/stack/pixels.ts`: 拡大書き出しのドット絵 PNG → 文字マップ（1 ドットの大きさを自動で見つける）→ ボクセル。黒っぽい色 = 線、一番多い色 = 体、小さい白 = 目の光、ほかは 8 番から。線だけの絵（ぬるぽ）は点線の内側を淡い体で埋める。
+- `scripts/gen-png-vox.ts`: ペット 20 種 → `public/pets/<id>/model.vox`（PNG の隣）、敵 14 種 → `public/dungeon/vox/mon-*.vox`。まだ無いものだけ起こす（`--force` で起こし直し）。一覧は `docs/design/pets-3d-sheet.png`・`enemies-3d-sheet.png`。PNG の読み込みは `scripts/lib/png.ts` の `decodePng`（依存を増やさない）。
+- ペットの表示は `src/components/pets/pet-sprite.tsx` の `PetSprite`（今までの `<Image src="/pets/<id>/<顔>.png">` の置き換え。PNG は並べ方の大きさと代わり表示に残し、3D を足元をそろえて重ねる）。顔は PNG の名前から: happy = にっこり、sleep = 目を閉じる、walk = 右斜め前で歩く。使っている所: マイホーム（DESKTOP.sav・LIVING.sav・なまえの一覧）・来訪者・話す画面・公開プロフィール。
+- canvas に描く画面は `src/components/stack-canvas.ts` の `voxCanvas`（3D を 1 枚の絵にする）。おさんぽのペット（右斜め前で歩き、なでるとこちらを向いて笑う）と、ダンジョンの敵（ゆっくり左右を見る。1 ドットの大きさは PNG とそろえる）。
+- 管理画面（/admin/content）の一覧は、支給された PNG を確かめる所なので PNG のまま。宝箱・ガジェット・カテゴリのアイコンも PNG のまま。
+
 ホーム「A 舞台」の中身:
-- `src/lib/stack/scene.ts`: 場面の並べ方（置き場所の投影・奥行き順・当たり判定・`follow`）。置き場所の回り方が物の絵の回り方と 8 方向でそろうことをテストで確かめている。
-- `src/components/stage-scene.tsx`: 舞台の描画（地面・影・小道具・キャラ）。主役は `follow` で島の手前に立ち続け（回すと島が回る）、タップで跳ねて笑う。止め方は StackSprite と同じ。縦スクロールはふさがない（`touch-action: pan-y`）。
+- `src/lib/stack/scene.ts`: 場面の並べ方（置き場所の投影・奥行き順・当たり判定・陰に入った所 `hiddenMask`）。主役も島と一緒に回り、陰に入った所はシルエットで透かす（2026-11-28 オーナー指摘で `follow` をやめた）。置き場所の回り方が物の絵の回り方と 8 方向でそろうことをテストで確かめている。
+- `src/components/stage-scene.tsx`: 舞台の描画（地面・影・小道具・キャラ）。主役も島の上の決まった所に立って一緒に回り、家などの陰に入った所はシルエットで透かす。タップで跳ねて笑う（陰に入っていても）。止め方は StackSprite と同じ。縦スクロールはふさがない（`touch-action: pan-y`）。
 - `src/lib/home/stage.ts`: ホームの舞台に何を置くか（家・木・ポスト）。小道具の原本は `public/stack/stage/*.vox`（`scripts/gen-stage-vox.ts`）。物を足すときはここに1行（マイホームの家具・ペット・おさんぽの入口などへ育てる前提）。
 - 名前・Lv・EXP は舞台の札。PLAYER_FILE は `variant="activity"`（今週のかつどう）にして重複をなくした。OS 風ウィンドウ（TODAY.sys・ランチャー）は舞台の下にそのまま。ゲスト・デスクトップ・クラシックの 3 つのホームとも同じ。
 - アバターは 20×20 で描き直した（2026-11-28 オーナー決定）。原本は `pixel-avatar-data.ts` の文字マップ → `npx tsx scripts/gen-charmap-vox.ts avatar` で `public/stack/avatar/*.vox`（以後は .vox を MagicaVoxel で直してよい。再実行すると上書き）。一覧 `docs/design/avatar-3d-sheet.png`。
